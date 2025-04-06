@@ -1,0 +1,77 @@
+name: 3 - Build and Deploy Backend (Java WAR)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ec2_public_ip:
+        description: 'Public IP of the EC2 instance (from Terraform output)'
+        required: true
+        type: string
+      s3_bucket_name:
+        description: 'Name of the S3 bucket (from Terraform output)'
+        required: true
+        type: string
+
+jobs:
+  build-and-deploy:
+    name: Build WAR and Deploy to EC2 Tomcat
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' # Adoptium Temurin distribution
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build with Maven
+        run: mvn -B package --file app-java/pom.xml # -B for non-interactive batch mode
+        working-directory: ./app-java
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3 # Or your target region
+
+      - name: Upload WAR to S3
+        run: |
+          aws s3 cp target/yourmedia-backend.war s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/yourmedia-backend.war
+        working-directory: ./app-java
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Deploy WAR from S3 to EC2 Tomcat
+        run: |
+          # Add EC2 host key to known_hosts to avoid prompt
+          ssh-keyscan -H ${{ github.event.inputs.ec2_public_ip }} >> ~/.ssh/known_hosts
+
+          # SSH into EC2 and use AWS CLI to copy from S3 to Tomcat webapps
+          # Assumes AWS CLI is installed or will be installed on EC2 (might need adjustment in install script)
+          # Alternative: SCP directly from runner after downloading from S3
+          ssh ubuntu@${{ github.event.inputs.ec2_public_ip }} << EOF
+            echo "--- Installing AWS CLI (if not present) ---"
+            if ! command -v aws &> /dev/null
+            then
+                sudo apt-get update -y
+                sudo apt-get install -y awscli
+            fi
+            echo "--- Copying WAR from S3 to Tomcat ---"
+            sudo aws s3 cp s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/yourmedia-backend.war /opt/tomcat/webapps/yourmedia-backend.war
+            echo "--- Deployment complete, Tomcat will auto-deploy the WAR ---"
+          EOF
+        working-directory: . # Run from root

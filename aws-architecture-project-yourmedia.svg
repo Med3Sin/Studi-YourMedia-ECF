@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#f8f9fa" rx="10" ry="10"/>
+  
+  <!-- Title -->
+  <text x="400" y="30" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#333">AWS Free Tier Architecture</text>
+  
+  <!-- User Layer -->
+  <rect x="50" y="60" width="700" height="80" rx="10" ry="10" fill="#e7f5fe" stroke="#0078d7" stroke-width="2"/>
+  <text x="400" y="85" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#0078d7">Users</text>
+  
+  <circle cx="150" cy="110" r="20" fill="#ffffff" stroke="#0078d7" stroke-width="2"/>
+  <text x="150" y="115" font-family="Arial" font-size="14" text-anchor="middle" fill="#0078d7">Web</text>
+  
+  <circle cx="400" cy="110" r="20" fill="#ffffff" stroke="#0078d7" stroke-width="2"/>
+  <text x="400" y="115" font-family="Arial" font-size="14" text-anchor="middle" fill="#0078d7">Mobile</text>
+  
+  <circle cx="650" cy="110" r="20" fill="#ffffff" stroke="#0078d7" stroke-width="2"/>
+  <text x="650" y="115" font-family="Arial" font-size="14" text-anchor="middle" fill="#0078d7">Admin</text>
+  
+  <!-- CI/CD Layer -->
+  <rect x="50" y="160" width="700" height="100" rx="10" ry="10" fill="#fef0e6" stroke="#ff6b35" stroke-width="2"/>
+  <text x="400" y="185" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#ff6b35">CI/CD Pipeline (GitHub Actions)</text>
+  
+  <rect x="100" y="200" width="180" height="40" rx="5" ry="5" fill="#ffffff" stroke="#ff6b35" stroke-width="2"/>
+  <text x="190" y="225" font-family="Arial" font-size="12" text-anchor="middle" fill="#ff6b35">Infrastructure Deploy</text>
+  
+  <rect x="310" y="200" width="180" height="40" rx="5" ry="5" fill="#ffffff" stroke="#ff6b35" stroke-width="2"/>
+  <text x="400" y="225" font-family="Arial" font-size="12" text-anchor="middle" fill="#ff6b35">Backend Deploy</text>
+  
+  <rect x="520" y="200" width="180" height="40" rx="5" ry="5" fill="#ffffff" stroke="#ff6b35" stroke-width="2"/>
+  <text x="610" y="225" font-family="Arial" font-size="12" text-anchor="middle" fill="#ff6b35">Frontend Deploy</text>
+  
+  <!-- AWS Cloud -->
+  <rect x="50" y="280" width="700" height="300" rx="10" ry="10" fill="#edf7ee" stroke="#30a559" stroke-width="2"/>
+  <text x="400" y="305" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#30a559">AWS Cloud (Free Tier)</text>
+  
+  <!-- Computing Layer -->
+  <rect x="70" y="320" width="320" height="120" rx="8" ry="8" fill="#ffffff" stroke="#30a559" stroke-width="1.5"/>
+  <text x="230" y="340" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#30a559">Computing</text>
+  
+  <rect x="90" y="350" width="130" height="80" rx="5" ry="5" fill="#f0f9f1" stroke="#30a559" stroke-width="1"/>
+  <text x="155" y="380" font-family="Arial" font-size="12" text-anchor="middle" fill="#30a559">EC2 t2.micro</text>
+  <text x="155" y="395" font-family="Arial" font-size="10" text-anchor="middle" fill="#30a559">Java + Tomcat</text>
+  
+  <rect x="240" y="350" width="130" height="80" rx="5" ry="5" fill="#f0f9f1" stroke="#30a559" stroke-width="1"/>
+  <text x="305" y="380" font-family="Arial" font-size="12" text-anchor="middle" fill="#30a559">ECS Fargate</text>
+  <text x="305" y="395" font-family="Arial" font-size="10" text-anchor="middle" fill="#30a559">Prometheus + Grafana</text>
+  
+  <!-- Storage Layer -->
+  <rect x="410" y="320" width="320" height="120" rx="8" ry="8" fill="#ffffff" stroke="#9e44ae" stroke-width="1.5"/>
+  <text x="570" y="340" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#9e44ae">Storage</text>
+  
+  <rect x="430" y="350" width="130" height="80" rx="5" ry="5" fill="#f9f0ff" stroke="#9e44ae" stroke-width="1"/>
+  <text x="495" y="380" font-family="Arial" font-size="12" text-anchor="middle" fill="#9e44ae">S3 Buckets</text>
+  <text x="495" y="395" font-family="Arial" font-size="10" text-anchor="middle" fill="#9e44ae">Media & Builds</text>
+  
+  <rect x="580" y="350" width="130" height="80" rx="5" ry="5" fill="#f9f0ff" stroke="#9e44ae" stroke-width="1"/>
+  <text x="645" y="380" font-family="Arial" font-size="12" text-anchor="middle" fill="#9e44ae">RDS MySQL</text>
+  <text x="645" y="395" font-family="Arial" font-size="10" text-anchor="middle" fill="#9e44ae">db.t2.micro</text>
+  
+  <!-- Frontend Layer -->
+  <rect x="240" y="460" width="320" height="100" rx="8" ry="8" fill="#ffffff" stroke="#0098db" stroke-width="1.5"/>
+  <text x="400" y="480" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#0098db">Frontend</text>
+  
+  <rect x="300" y="490" width="200" height="60" rx="5" ry="5" fill="#e6f7ff" stroke="#0098db" stroke-width="1"/>
+  <text x="400" y="520" font-family="Arial" font-size="12" text-anchor="middle" fill="#0098db">AWS Amplify</text>
+  <text x="400" y="535" font-family="Arial" font-size="10" text-anchor="middle" fill="#0098db">Web Hosting</text>
+  
+  <!-- Connections -->
+  <!-- User to apps -->
+  <line x1="150" y1="130" x2="400" y2="490" stroke="#0078d7" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="400" y1="130" x2="155" y2="350" stroke="#0078d7" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="650" y1="130" x2="305" y2="350" stroke="#0078d7" stroke-width="1.5" stroke-dasharray="5,3"/>
+  
+  <!-- CI/CD to AWS -->
+  <line x1="190" y1="240" x2="190" y2="320" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="400" y1="240" x2="155" y2="350" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="610" y1="240" x2="400" y2="490" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3"/>
+  
+  <!-- Internal connections -->
+  <line x1="155" y1="430" x2="645" y2="430" stroke="#333" stroke-width="1"/>
+  <line x1="220" y1="390" x2="240" y2="390" stroke="#333" stroke-width="1"/>
+  <line x1="155" y1="430" x2="155" y2="430" stroke="#333" stroke-width="1"/>
+  <line x1="495" y1="430" x2="495" y2="430" stroke="#333" stroke-width="1"/>
+  <line x1="645" y1="430" x2="645" y2="430" stroke="#333" stroke-width="1"/>
+</svg>

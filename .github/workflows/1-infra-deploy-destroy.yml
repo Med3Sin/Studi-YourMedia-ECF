@@ -1,0 +1,94 @@
+name: 1 - Deploy/Destroy Infrastructure (Terraform)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform Action (plan, apply, destroy)'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      ssh_key_pair_name:
+        description: 'Nom de la paire de clés EC2 existante dans AWS pour SSH'
+        required: true
+        type: string
+      repo_owner:
+        description: 'Propriétaire du repo GitHub (user/org)'
+        required: true
+        type: string
+      repo_name:
+        description: 'Nom du repo GitHub'
+        required: true
+        type: string
+
+jobs:
+  terraform:
+    name: 'Terraform ${{ github.event.inputs.action }}'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure # Exécute les commandes dans le dossier infrastructure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">=1.0" # Assure la compatibilité avec la version requise
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3 # Doit correspondre à var.aws_region ou être passé en variable
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        # Exécute 'plan' si l'action est 'plan' ou 'apply'
+        if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+        run: |
+          terraform plan \
+            -var="db_username=${{ secrets.DB_USERNAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
+            -var="github_token=${{ secrets.GITHUB_TOKEN }}" \
+            -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
+            -var="repo_name=${{ github.event.inputs.repo_name }}" \
+            -no-color \
+            -out=tfplan
+        continue-on-error: false # Arrête si le plan échoue
+
+      - name: Terraform Apply
+        id: apply
+        if: github.event.inputs.action == 'apply'
+        run: |
+          terraform apply -auto-approve tfplan
+        continue-on-error: false
+
+      - name: Terraform Destroy
+        id: destroy
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var="db_username=${{ secrets.DB_USERNAME }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
+            -var="github_token=${{ secrets.GITHUB_TOKEN }}" \
+            -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
+            -var="repo_name=${{ github.event.inputs.repo_name }}"
+        continue-on-error: false

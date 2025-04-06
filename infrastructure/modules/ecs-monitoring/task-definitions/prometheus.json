@@ -1,0 +1,39 @@
+[
+  {
+    "name": "${project_name}-prometheus",
+    "image": "prom/prometheus:latest", # Utilise l'image officielle Prometheus
+    "cpu": ${task_cpu},
+    "memory": ${task_memory},
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 9090,
+        "hostPort": 9090,
+        "protocol": "tcp"
+      }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group_arn}",
+        "awslogs-region": "${aws_region}",
+        "awslogs-stream-prefix": "ecs-prometheus"
+      }
+    },
+    "environment": [
+      {
+        "name": "PROMETHEUS_CONFIG_BASE64", # Variable d'environnement pour passer la config
+        "value": "${prometheus_config_content}"
+      }
+    ],
+    # La commande pour démarrer Prometheus en utilisant la config fournie via env var
+    # On décode la variable d'environnement et on écrit dans /etc/prometheus/prometheus.yml
+    "command": [
+      "/bin/sh",
+      "-c",
+      "echo $PROMETHEUS_CONFIG_BASE64 | base64 -d > /etc/prometheus/prometheus.yml && /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles"
+    ]
+    # Note: Pas de montage de volume persistant pour la simplicité (les métriques seront perdues si la tâche redémarre)
+    # Pour la persistance, il faudrait utiliser EFS.
+  }
+]

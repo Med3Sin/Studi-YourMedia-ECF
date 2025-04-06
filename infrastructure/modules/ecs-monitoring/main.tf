@@ -1,0 +1,206 @@
+# -----------------------------------------------------------------------------
+# ECS Cluster
+# -----------------------------------------------------------------------------
+resource "aws_ecs_cluster" "monitoring_cluster" {
+  name = "${var.project_name}-monitoring-cluster"
+
+  tags = {
+    Name    = "${var.project_name}-monitoring-cluster"
+    Project = var.project_name
+  }
+}
+
+# -----------------------------------------------------------------------------
+# CloudWatch Log Group pour les conteneurs ECS
+# -----------------------------------------------------------------------------
+resource "aws_cloudwatch_log_group" "ecs_logs" {
+  name = "/ecs/${var.project_name}-monitoring"
+
+  tags = {
+    Name    = "${var.project_name}-monitoring-logs"
+    Project = var.project_name
+  }
+}
+
+# -----------------------------------------------------------------------------
+# IAM Roles pour les tâches ECS
+# -----------------------------------------------------------------------------
+
+# Rôle d'exécution de tâche (Task Execution Role)
+# Permet à ECS de tirer les images et d'envoyer les logs à CloudWatch
+data "aws_iam_policy_document" "ecs_task_execution_assume_role_policy" {
+  statement {
+    actions = "sts:AssumeRole"
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name               = "${var.project_name}-ecs-task-exec-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_assume_role_policy.json
+
+  tags = {
+    Name    = "${var.project_name}-ecs-task-exec-role"
+    Project = var.project_name
+  }
+}
+
+# Politique managée AWS pour l'exécution des tâches ECS
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# (Optionnel mais bonne pratique) Rôle de tâche (Task Role)
+# Rôle assumé par le conteneur lui-même s'il doit interagir avec AWS
+# data "aws_iam_policy_document" "ecs_task_assume_role_policy" {
+#   statement {
+#     actions = "sts:AssumeRole"
+#     principals {
+#       type        = "Service"
+#       identifiers = ["ecs-tasks.amazonaws.com"]
+#     }
+#   }
+# }
+# resource "aws_iam_role" "ecs_task_role" {
+#   name               = "${var.project_name}-ecs-task-role"
+#   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role_policy.json
+#   tags = {
+#     Name    = "${var.project_name}-ecs-task-role"
+#     Project = var.project_name
+#   }
+# }
+# Ajouter ici des aws_iam_role_policy_attachment si les tâches ont besoin de permissions spécifiques
+
+# -----------------------------------------------------------------------------
+# Préparation des configurations et définitions de tâches
+# -----------------------------------------------------------------------------
+
+# Rend le fichier de configuration Prometheus en injectant l'IP privée de l'EC2
+data "template_file" "prometheus_config" {
+  template = file("${path.module}/config/prometheus.yml")
+  vars = {
+    ec2_private_ip = var.ec2_instance_private_ip
+  }
+}
+
+# Rend la définition de tâche Prometheus (JSON)
+# On passe l'ARN du log group et la région
+data "template_file" "prometheus_task_def_json" {
+  template = file("${path.module}/task-definitions/prometheus.json")
+  vars = {
+    project_name         = var.project_name
+    aws_region           = var.aws_region
+    log_group_arn        = aws_cloudwatch_log_group.ecs_logs.arn
+    task_cpu             = var.ecs_task_cpu
+    task_memory          = var.ecs_task_memory
+    task_execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+    # task_role_arn        = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
+    prometheus_config_content = base64encode(data.template_file.prometheus_config.rendered) # Contenu encodé en base64
+  }
+}
+
+# Rend la définition de tâche Grafana (JSON)
+data "template_file" "grafana_task_def_json" {
+  template = file("${path.module}/task-definitions/grafana.json")
+  vars = {
+    project_name         = var.project_name
+    aws_region           = var.aws_region
+    log_group_arn        = aws_cloudwatch_log_group.ecs_logs.arn
+    task_cpu             = var.ecs_task_cpu
+    task_memory          = var.ecs_task_memory
+    task_execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
+    # task_role_arn        = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Définitions de Tâches ECS
+# -----------------------------------------------------------------------------
+resource "aws_ecs_task_definition" "prometheus_task" {
+  family                   = "${var.project_name}-prometheus"
+  network_mode             = "awsvpc" # Requis pour Fargate
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
+
+  # Utilise le JSON rendu comme définition de conteneur
+  container_definitions = data.template_file.prometheus_task_def_json.rendered
+
+  tags = {
+    Name    = "${var.project_name}-prometheus-task"
+    Project = var.project_name
+  }
+}
+
+resource "aws_ecs_task_definition" "grafana_task" {
+  family                   = "${var.project_name}-grafana"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
+
+  container_definitions = data.template_file.grafana_task_def_json.rendered
+
+  tags = {
+    Name    = "${var.project_name}-grafana-task"
+    Project = var.project_name
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Services ECS Fargate
+# -----------------------------------------------------------------------------
+resource "aws_ecs_service" "prometheus_service" {
+  name            = "${var.project_name}-prometheus-service"
+  cluster         = aws_ecs_cluster.monitoring_cluster.id
+  task_definition = aws_ecs_task_definition.prometheus_task.arn
+  launch_type     = "FARGATE"
+  desired_count   = 1 # Exécute une seule instance de Prometheus
+
+  network_configuration {
+    subnets         = var.subnet_ids # Doit être dans des sous-réseaux publics/privés avec accès internet sortant
+    security_groups = [var.ecs_security_group_id]
+    assign_public_ip = true # Nécessaire si dans sous-réseau public pour tirer l'image, ou si NAT Gateway/VPC Endpoint est utilisé
+  }
+
+  # Pas de load balancer pour Prometheus dans cette config simple
+
+  # Assure que la définition de tâche est créée avant le service
+  depends_on = [aws_ecs_task_definition.prometheus_task]
+
+  tags = {
+    Name    = "${var.project_name}-prometheus-service"
+    Project = var.project_name
+  }
+}
+
+resource "aws_ecs_service" "grafana_service" {
+  name            = "${var.project_name}-grafana-service"
+  cluster         = aws_ecs_cluster.monitoring_cluster.id
+  task_definition = aws_ecs_task_definition.grafana_task.arn
+  launch_type     = "FARGATE"
+  desired_count   = 1
+
+  network_configuration {
+    subnets         = var.subnet_ids # Doit être dans des sous-réseaux publics pour accès externe
+    security_groups = [var.ecs_security_group_id]
+    assign_public_ip = true # Pour accéder à Grafana via son IP publique
+  }
+
+  # Pas de load balancer pour Grafana dans cette config simple
+
+  depends_on = [aws_ecs_task_definition.grafana_task]
+
+  tags = {
+    Name    = "${var.project_name}-grafana-service"
+    Project = var.project_name
+  }
+}

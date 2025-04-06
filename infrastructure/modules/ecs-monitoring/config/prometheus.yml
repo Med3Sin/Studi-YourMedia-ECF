@@ -1,0 +1,14 @@
+# Fichier de configuration global Prometheus
+global:
+  scrape_interval: 15s # Intervalle de scraping par défaut
+  evaluation_interval: 15s # Intervalle d'évaluation des règles
+
+# Configuration du scraping
+scrape_configs:
+  # Job pour scraper l'application Spring Boot sur l'EC2
+  - job_name: 'spring-boot-app'
+    metrics_path: '/actuator/prometheus' # Endpoint exposé par Spring Boot Actuator
+    static_configs:
+      - targets: ['${ec2_private_ip}:8080'] # Cible l'IP privée de l'EC2 sur le port Tomcat/App
+        labels:
+          application: 'yourmedia-backend'

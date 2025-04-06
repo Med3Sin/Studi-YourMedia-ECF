@@ -1,0 +1,38 @@
+name: 4 - Build Frontend (React Native Web CI)
+
+on:
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [ main ] # Trigger on push to main branch (for CI check)
+    paths:
+      - 'app-react/**' # Only run if frontend code changes
+
+jobs:
+  build:
+    name: Build React Native Web App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Ou une version LTS récente compatible avec Expo
+          cache: 'npm' # Ou 'yarn' si vous utilisez yarn
+
+      - name: Install dependencies
+        run: npm install # Ou yarn install
+        working-directory: ./app-react
+
+      - name: Build web application (Expo Export)
+        # Le build est juste pour vérifier que ça fonctionne en CI.
+        # Le déploiement réel est géré par AWS Amplify via la connexion au repo.
+        run: npm run build # Ou yarn run build (qui exécute 'expo export --platform web')
+        working-directory: ./app-react
+
+      # Optionnel: Ajouter ici des étapes de linting ou de test si nécessaire
+      # - name: Run linter
+      #   run: npm run lint # Ou yarn lint
+      #   working-directory: ./app-react
