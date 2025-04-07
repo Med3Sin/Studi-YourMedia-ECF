@@ -50,4 +50,4 @@ Le déploiement est géré par **AWS Amplify Hosting**.
     *   Déploie les artefacts générés (contenu du dossier `web-build/`) sur son infrastructure d'hébergement global (CDN).
 3.  **CI Check**: Le workflow GitHub Actions `4-frontend-deploy.yml` sert de vérification d'intégration continue. Il s'assure que les dépendances s'installent et que le build (`npm run build`) réussit à chaque push sur `main`, mais il ne déploie *pas* directement sur Amplify (Amplify le fait lui-même).
 
-L'application sera accessible via l'URL fournie par Amplify (voir la sortie Terraform `amplify_app_default_domain`).
+L'application sera accessible via l'URL fournie par Amplify (visible dans la console AWS Amplify après le déploiement).

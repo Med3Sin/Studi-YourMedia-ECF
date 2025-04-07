@@ -87,7 +87,7 @@ Avant de commencer, assurez-vous d'avoir :
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
 │       ├── s3/                  # Bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
-│       └── ecs-monitoring/      # Monitoring ECS Fargate
+│       └── ecs-monitoring/      # Monitoring ECS avec EC2
 │           └── ... (main.tf, variables.tf, outputs.tf, task-definitions/, config/, README.md)
 ├── scripts/                     # Scripts utilitaires
 │   └── deploy_backend.sh        # Script pour déployer le .war sur Tomcat
