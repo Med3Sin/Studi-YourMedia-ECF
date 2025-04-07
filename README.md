@@ -151,7 +151,9 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `DB_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
 *   `DB_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
 *   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements). Assurez-vous que la clé publique correspondante est fournie à Terraform (via une variable).
-*   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. Note: les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
+*   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
+
+> **Note sur GH_PAT**: Pour créer un Personal Access Token (PAT) GitHub, accédez à votre compte GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic) > Generate new token. Accordez-lui au minimum les permissions `repo` pour accéder au dépôt.
 
 ---
 *Documentation générée par Cline, Ingénieur Logiciel.*

@@ -1,5 +1,7 @@
 name: 1 - Deploy/Destroy Infrastructure (Terraform)
 
+# Note: Ce workflow utilise le secret GH_PAT au lieu de GITHUB_TOKEN car les noms de secrets ne doivent pas commencer par GITHUB_
+
 on:
   workflow_dispatch:
     inputs:
@@ -68,7 +70,6 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
-            # Utilise GH_PAT au lieu de GITHUB_TOKEN (les noms de secrets ne doivent pas commencer par GITHUB_)
             -var="github_token=${{ secrets.GH_PAT }}" \
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}" \
@@ -91,7 +92,6 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
-            # Utilise GH_PAT au lieu de GITHUB_TOKEN (les noms de secrets ne doivent pas commencer par GITHUB_)
             -var="github_token=${{ secrets.GH_PAT }}" \
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}"

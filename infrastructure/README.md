@@ -46,11 +46,13 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
     db_username         = "admin"
     db_password         = "votreMotDePasseSecret"
     ec2_key_pair_name   = "votre-cle-ssh-aws"
-    github_token        = "votre-token-github-pat"
+    github_token        = "votre-token-github-pat" # Correspond au secret GH_PAT dans GitHub Actions
     repo_owner          = "votre-user-github"
     repo_name           = "nom-du-repo"
     # operator_ip         = "votre.ip.publique" # Optionnel si vous voulez restreindre l'accès
     ```
+
+    > **Note importante**: Dans GitHub Actions, nous utilisons le secret `GH_PAT` (et non `GITHUB_TOKEN`) car les noms de secrets personnalisés ne doivent pas commencer par `GITHUB_`. Ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 5.  Planifiez les changements : `terraform plan -var-file=terraform.tfvars`
 6.  Appliquez les changements : `terraform apply -var-file=terraform.tfvars`
 7.  Pour détruire : `terraform destroy -var-file=terraform.tfvars`
