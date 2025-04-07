@@ -38,83 +38,8 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
-```mermaid
-graph TD
-    subgraph "GitHub Actions (CI/CD)"
-        direction LR
-        GHA1[1. Infra Deploy/Destroy\n(Terraform: EC2, RDS, S3, ECS, Amplify)]
-        GHA3[3. Backend Deploy\n(Build -> S3 -> EC2)]
-        GHA4[4. Frontend Deploy\n(Build -> S3 -> Amplify)]
-    end
+![Architecture](https://github.com/Med3Sin/Studi-YourMedia-ECF/blob/main/aws-architecture-project-yourmedia.html)
 
-    subgraph "AWS Cloud (Free Tier)"
-        direction LR
-        subgraph "Default VPC"
-            direction TB
-            subgraph "Public Subnet(s)"
-                EC2[VM ec2-java-tomcat\n(t2.micro)\n- Java\n- Tomcat]
-
-                subgraph "ECS Fargate (ecs-monitoring)"
-                    PrometheusTask[Prometheus Task (Fargate)]
-                    GrafanaTask[Grafana Task (Fargate)]
-                end
-            end
-            subgraph "Private Subnet(s)"
-                RDS[DBaaS rds-mysql\n(db.t2.micro)]
-            end
-            S3[Stockage s3\n(Médias, Builds)]
-            Amplify[Amplify Hosting\n(Frontend Web)]
-
-        end
-    end
-
-    UserMobile[Utilisateur Mobile] --> AppRN[App React Native\n(sur appareil)]
-    AppRN --> API[API Spring Boot\n(app-java @ EC2:8080)]
-
-    UserWeb[Utilisateur Web] -- HTTPS --> Amplify
-
-    API -- JDBC --> RDS
-    API -- AWS SDK --> S3
-
-    GHA1 -- Terraform --> EC2
-    GHA1 -- Terraform --> RDS
-    GHA1 -- Terraform --> S3
-    GHA1 -- Terraform --> ECS Fargate
-    GHA1 -- Terraform --> Amplify
-
-    PrometheusTask -- Scrape --> API[:8080/actuator/prometheus]
-    Admin[Admin/Dev] -- HTTPS --> GrafanaTask[:3000]
-
-    GHA3 -- Build --> WarS3(app.war @ S3)
-    WarS3 -- SSH Copy --> EC2
-
-    GHA4 -- Build --> StaticFilesS3(Static Files @ S3)
-    StaticFilesS3 -- Deploy Trigger --> Amplify
-
-
-    %% Style
-    classDef default fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef cloud fill:#D3E5FF,stroke:#007bff;
-    classDef cicd fill:#E5D3FF,stroke:#6f42c1;
-    classDef app fill:#D4EDDA,stroke:#28a745;
-    classDef db fill:#F8D7DA,stroke:#dc3545;
-    classDef storage fill:#FFF3CD,stroke:#ffc107;
-    classDef monitoring fill:#CCE5FF,stroke:#007bff;
-    classDef compute fill:#E2E3E5,stroke:#6c757d;
-    classDef hosting fill:#F0E68C,stroke:#BDB76B;
-
-
-    class UserMobile,UserWeb,Admin default;
-    class AppRN,API app;
-    class EC2 compute;
-    class RDS db;
-    class S3,WarS3,StaticFilesS3 storage;
-    class Amplify hosting;
-    class Default VPC,Public Subnet(s),Private Subnet(s) cloud;
-    class GHA1,GHA3,GHA4 cicd;
-    class ECS Fargate,PrometheusTask,GrafanaTask monitoring;
-
-```
 
 ## Prérequis
 
