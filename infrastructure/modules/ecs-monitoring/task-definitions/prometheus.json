@@ -1,7 +1,7 @@
 [
   {
     "name": "${project_name}-prometheus",
-    "image": "prom/prometheus:latest", # Utilise l'image officielle Prometheus
+    "image": "prom/prometheus:latest",
     "cpu": ${task_cpu},
     "memory": ${task_memory},
     "essential": true,

@@ -1,6 +1,6 @@
 # Infrastructure Terraform
 
-Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrastructure AWS du projet YourMédia.
+Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrastructure AWS du projet YourMédia. L'infrastructure a été conçue pour rester dans les limites du Free Tier AWS.
 
 ## Structure
 
@@ -13,11 +13,20 @@ Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrast
     *   `ec2-java-tomcat/`: Instance EC2, installation Java/Tomcat, rôle IAM.
     *   `rds-mysql/`: Instance de base de données RDS MySQL.
     *   `s3/`: Bucket S3 pour le stockage.
-    *   `ecs-monitoring/`: Cluster ECS, tâches Fargate pour Prometheus et Grafana.
+    *   `ecs-monitoring/`: Cluster ECS avec instance EC2 (t2.micro) pour Prometheus et Grafana.
 
 ## Utilisation
 
 L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-destroy.yml`. Ce workflow permet d'exécuter les commandes Terraform (`plan`, `apply`, `destroy`) de manière sécurisée et automatisée.
+
+### Optimisations Free Tier
+
+Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
+
+* Utilisation d'instances EC2 t2.micro pour l'application Java/Tomcat
+* Utilisation d'une instance RDS db.t2.micro pour MySQL
+* Utilisation d'ECS avec une instance EC2 t2.micro (au lieu de Fargate qui n'est pas inclus dans le Free Tier) pour le monitoring
+* Configuration minimale des ressources pour éviter les coûts supplémentaires
 
 **Prérequis pour le Workflow :**
 

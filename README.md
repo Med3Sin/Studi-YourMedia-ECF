@@ -28,7 +28,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 *   **Compute:**
     *   AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
-    *   AWS ECS Fargate pour exécuter les conteneurs de monitoring (Prometheus, Grafana) sans gestion de serveur.
+    *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
 *   **Base de données:** AWS RDS MySQL (db.t2.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 *   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec des groupes de sécurité spécifiques pour contrôler les flux.
@@ -38,7 +38,8 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
-![Architecture](https://github.com/Med3Sin/Studi-YourMedia-ECF/blob/main/aws-architecture-project-yourmedia.html)
+[Voir le schéma d'architecture](aws-architecture-project-yourmedia-updated.html)
+
 
 
 ## Prérequis
@@ -123,7 +124,7 @@ Avant de commencer, assurez-vous d'avoir :
 
 *(Instructions pour utiliser le workflow `4-frontend-deploy.yml` et accéder à Amplify)*
 
-## Monitoring (ECS Fargate - Prometheus & Grafana)
+## Monitoring (ECS avec EC2 - Prometheus & Grafana)
 
 *(Détails sur la configuration du monitoring)*
 

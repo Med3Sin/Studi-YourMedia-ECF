@@ -37,3 +37,9 @@ variable "ecs_task_memory" {
   description = "Mémoire allouée aux tâches ECS Fargate (MiB)."
   type        = number
 }
+
+variable "ecs_ami_id" {
+  description = "ID de l'AMI optimisée pour ECS."
+  type        = string
+  default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 optimisée pour ECS dans eu-west-3 (Paris)
+}

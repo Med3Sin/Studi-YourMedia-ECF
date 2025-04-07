@@ -53,20 +53,25 @@
     }
     
     .aws-subsection {
-      background-color: white;
-      border-radius: 6px;
-      padding: 12px;
       margin-bottom: 15px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      padding: 10px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 6px;
+    }
+    
+    .component-row {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
     }
     
     .component {
-      background-color: white;
-      border-radius: 6px;
+      width: 150px;
       padding: 10px;
-      margin: 8px;
-      display: inline-block;
-      min-width: 140px;
+      margin: 5px;
+      border-radius: 6px;
+      background-color: white;
       text-align: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       transition: transform 0.2s, box-shadow 0.2s;
@@ -102,19 +107,27 @@
     
     .component-title {
       font-weight: bold;
+      margin-bottom: 5px;
       font-size: 14px;
-      margin-bottom: 4px;
     }
     
     .component-subtitle {
       font-size: 12px;
       color: #666;
+      line-height: 1.4;
     }
     
-    .component-row {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
+    .free-tier-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background-color: #ffcc00;
+      color: #333;
+      font-weight: bold;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 12px;
+      border: 1px solid #ff9900;
     }
     
     .connections {
@@ -139,6 +152,7 @@
 <body>
   <div class="diagram-container">
     <h1>AWS Free Tier Architecture</h1>
+    <div class="free-tier-badge">Free Tier Optimized</div>
     
     <!-- Users Section -->
     <div class="section users-section">
@@ -197,8 +211,8 @@
             <div class="component-subtitle">Java + Tomcat<br>Spring Boot API</div>
           </div>
           <div class="component compute-component">
-            <div class="component-title">ECS Fargate</div>
-            <div class="component-subtitle">Prometheus + Grafana<br>Monitoring Stack</div>
+            <div class="component-title">EC2 t2.micro</div>
+            <div class="component-subtitle">ECS Cluster<br>Prometheus + Grafana</div>
           </div>
         </div>
       </div>
@@ -208,12 +222,12 @@
         <div class="section-title" style="color: #9e44ae; font-size: 16px;">Storage Layer</div>
         <div class="component-row">
           <div class="component storage-component">
-            <div class="component-title">S3 Buckets</div>
+            <div class="component-title">S3 Bucket</div>
             <div class="component-subtitle">Media Storage<br>Build Artifacts</div>
           </div>
           <div class="component storage-component">
             <div class="component-title">RDS MySQL</div>
-            <div class="component-subtitle">db.t2.micro<br>Private Subnet</div>
+            <div class="component-subtitle">db.t2.micro<br>Database Service</div>
           </div>
         </div>
       </div>
@@ -224,7 +238,7 @@
         <div class="component-row">
           <div class="component frontend-component">
             <div class="component-title">AWS Amplify</div>
-            <div class="component-subtitle">Web Application Hosting<br>Static Content Delivery</div>
+            <div class="component-subtitle">React Native Web<br>Hosting & CI/CD</div>
           </div>
         </div>
       </div>
@@ -237,7 +251,13 @@
       <div class="connection"><b>EC2</b> <span class="arrow">↔</span> <b>RDS</b> <span class="arrow">[JDBC]</span></div>
       <div class="connection"><b>EC2</b> <span class="arrow">↔</span> <b>S3</b> <span class="arrow">[AWS SDK]</span></div>
       <div class="connection"><b>Prometheus</b> <span class="arrow">→</span> <b>EC2</b> <span class="arrow">[Metrics Scraping]</span></div>
-      <div class="connection"><b>Admins</b> <span class="arrow">→</span> <b>Grafana</b> <span class="arrow">[HTTPS]</span></div>
+      <div class="connection"><b>Admins</b> <span class="arrow">→</span> <b>Grafana</b> <span class="arrow">[HTTP]</span></div>
+    </div>
+    
+    <!-- Free Tier Notes -->
+    <div style="font-size: 12px; color: #666; text-align: center; margin-top: 20px; padding: 10px; background-color: #fffde7; border-radius: 6px;">
+      <p><b>Free Tier Optimizations:</b> All services configured to stay within AWS Free Tier limits</p>
+      <p>ECS uses EC2 t2.micro instances instead of Fargate to remain Free Tier eligible</p>
     </div>
   </div>
 </body>

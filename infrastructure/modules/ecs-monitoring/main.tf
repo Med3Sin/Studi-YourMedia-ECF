@@ -87,34 +87,82 @@ data "template_file" "prometheus_config" {
   }
 }
 
-# Rend la définition de tâche Prometheus (JSON)
-# On passe l'ARN du log group et la région
-data "template_file" "prometheus_task_def_json" {
-  template = file("${path.module}/task-definitions/prometheus.json")
-  vars = {
-    project_name         = var.project_name
-    aws_region           = var.aws_region
-    log_group_arn        = aws_cloudwatch_log_group.ecs_logs.arn
-    task_cpu             = var.ecs_task_cpu
-    task_memory          = var.ecs_task_memory
-    task_execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-    # task_role_arn        = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
-    prometheus_config_content = base64encode(data.template_file.prometheus_config.rendered) # Contenu encodé en base64
-  }
-}
+# Définition de conteneur Prometheus directement dans Terraform
+locals {
+  prometheus_container_definition = jsonencode([
+    {
+      name      = "${var.project_name}-prometheus",
+      image     = "prom/prometheus:latest",
+      essential = true,
+      portMappings = [
+        {
+          containerPort = 9090,
+          hostPort      = 9090,
+          protocol      = "tcp"
+        }
+      ],
+      logConfiguration = {
+        logDriver = "awslogs",
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name,
+          "awslogs-region"        = var.aws_region,
+          "awslogs-stream-prefix" = "ecs-prometheus"
+        }
+      },
+      environment = [
+        {
+          name  = "PROMETHEUS_CONFIG_BASE64",
+          value = base64encode(data.template_file.prometheus_config.rendered)
+        }
+      ],
+      command = [
+        "/bin/sh",
+        "-c",
+        "echo $PROMETHEUS_CONFIG_BASE64 | base64 -d > /etc/prometheus/prometheus.yml && /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles"
+      ]
+    }
+  ])
 
-# Rend la définition de tâche Grafana (JSON)
-data "template_file" "grafana_task_def_json" {
-  template = file("${path.module}/task-definitions/grafana.json")
-  vars = {
-    project_name         = var.project_name
-    aws_region           = var.aws_region
-    log_group_arn        = aws_cloudwatch_log_group.ecs_logs.arn
-    task_cpu             = var.ecs_task_cpu
-    task_memory          = var.ecs_task_memory
-    task_execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-    # task_role_arn        = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
-  }
+  grafana_container_definition = jsonencode([
+    {
+      name      = "${var.project_name}-grafana",
+      image     = "grafana/grafana-oss:latest",
+      essential = true,
+      portMappings = [
+        {
+          containerPort = 3000,
+          hostPort      = 3000,
+          protocol      = "tcp"
+        }
+      ],
+      logConfiguration = {
+        logDriver = "awslogs",
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name,
+          "awslogs-region"        = var.aws_region,
+          "awslogs-stream-prefix" = "ecs-grafana"
+        }
+      },
+      environment = [
+        {
+          name  = "GF_SECURITY_ADMIN_USER",
+          value = "admin"
+        },
+        {
+          name  = "GF_SECURITY_ADMIN_PASSWORD",
+          value = "YourSecurePassword123!"
+        },
+        {
+          name  = "GF_SERVER_ROOT_URL",
+          value = "http://localhost:3000"
+        },
+        {
+          name  = "GF_INSTALL_PLUGINS",
+          value = ""
+        }
+      ]
+    }
+  ])
 }
 
 # -----------------------------------------------------------------------------
@@ -122,15 +170,14 @@ data "template_file" "grafana_task_def_json" {
 # -----------------------------------------------------------------------------
 resource "aws_ecs_task_definition" "prometheus_task" {
   family                   = "${var.project_name}-prometheus"
-  network_mode             = "awsvpc" # Requis pour Fargate
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.ecs_task_cpu
-  memory                   = var.ecs_task_memory
+  network_mode             = "bridge" # Mode réseau standard pour EC2
+  # Pas de requires_compatibilities pour EC2
+  # Pas besoin de spécifier CPU/mémoire au niveau de la tâche pour EC2
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
 
-  # Utilise le JSON rendu comme définition de conteneur
-  container_definitions = data.template_file.prometheus_task_def_json.rendered
+  # Utilise la définition de conteneur définie dans locals
+  container_definitions = local.prometheus_container_definition
 
   tags = {
     Name    = "${var.project_name}-prometheus-task"
@@ -140,14 +187,13 @@ resource "aws_ecs_task_definition" "prometheus_task" {
 
 resource "aws_ecs_task_definition" "grafana_task" {
   family                   = "${var.project_name}-grafana"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.ecs_task_cpu
-  memory                   = var.ecs_task_memory
+  network_mode             = "bridge" # Mode réseau standard pour EC2
+  # Pas de requires_compatibilities pour EC2
+  # Pas besoin de spécifier CPU/mémoire au niveau de la tâche pour EC2
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
 
-  container_definitions = data.template_file.grafana_task_def_json.rendered
+  container_definitions = local.grafana_container_definition
 
   tags = {
     Name    = "${var.project_name}-grafana-task"
@@ -162,7 +208,7 @@ resource "aws_ecs_service" "prometheus_service" {
   name            = "${var.project_name}-prometheus-service"
   cluster         = aws_ecs_cluster.monitoring_cluster.id
   task_definition = aws_ecs_task_definition.prometheus_task.arn
-  launch_type     = "FARGATE"
+  launch_type     = "EC2"
   desired_count   = 1 # Exécute une seule instance de Prometheus
 
   network_configuration {
@@ -186,7 +232,7 @@ resource "aws_ecs_service" "grafana_service" {
   name            = "${var.project_name}-grafana-service"
   cluster         = aws_ecs_cluster.monitoring_cluster.id
   task_definition = aws_ecs_task_definition.grafana_task.arn
-  launch_type     = "FARGATE"
+  launch_type     = "EC2"
   desired_count   = 1
 
   network_configuration {
