@@ -18,7 +18,7 @@ resource "aws_security_group_rule" "ec2_ingress_ssh" {
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = ["${var.operator_ip}/32"] # Restreint à l'IP fournie
+  cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
   security_group_id = aws_security_group.ec2_sg.id
   description       = "Allow SSH from operator IP"
 }
@@ -125,7 +125,7 @@ resource "aws_security_group_rule" "ecs_ingress_grafana" {
   from_port         = 3000 # Port Grafana par défaut
   to_port           = 3000
   protocol          = "tcp"
-  cidr_blocks       = ["${var.operator_ip}/32"] # Restreint à l'IP fournie
+  cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
   security_group_id = aws_security_group.ecs_sg.id
   description       = "Allow Grafana access from operator IP"
 }

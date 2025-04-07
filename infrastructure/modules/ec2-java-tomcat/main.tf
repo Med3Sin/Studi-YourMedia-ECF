@@ -72,10 +72,9 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 # Récupère le contenu du script d'installation pour l'user_data
 data "template_file" "install_script" {
   template = file("${path.module}/scripts/install_java_tomcat.sh")
-  # On pourrait passer des variables au script ici si nécessaire
-  # vars = {
-  #   db_endpoint = var.db_endpoint # Exemple
-  # }
+  vars = {
+    TOMCAT_VERSION = "9.0.102" # Définir la version de Tomcat ici
+  }
 }
 
 resource "aws_instance" "app_server" {
