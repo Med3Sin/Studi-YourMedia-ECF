@@ -1,26 +1,31 @@
 name: 1 - Deploy/Destroy Infrastructure (Terraform)
 
-# Note: Ce workflow utilise le secret GH_PAT au lieu de GITHUB_TOKEN car les noms de secrets ne doivent pas commencer par GITHUB_
-# La syntaxe ${{ secrets.GH_PAT || '' }} permet d'utiliser une chaîne vide si le secret n'est pas défini, évitant ainsi le blocage du workflow
+# -----------------------------------------------------------------------
+# Ce workflow gère le déploiement et la destruction de l'infrastructure AWS via Terraform.
+# Il utilise le secret GH_PAT au lieu de GITHUB_TOKEN car les noms de secrets personnalisés
+# ne doivent pas commencer par GITHUB_ (préfixe réservé aux variables d'environnement GitHub).
+# La syntaxe ${{ secrets.GH_PAT || '' }} permet d'utiliser une chaîne vide si le secret
+# n'est pas défini, évitant ainsi le blocage du workflow.
+# -----------------------------------------------------------------------
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Terraform Action (plan, apply, destroy)'
+        description: 'Action Terraform à exécuter'
         required: true
         default: 'plan'
         type: choice
         options:
-          - plan
-          - apply
-          - destroy
+          - plan     # Prévisualiser les changements sans les appliquer
+          - apply    # Appliquer les changements à l'infrastructure
+          - destroy  # Détruire l'infrastructure existante
       ssh_key_pair_name:
         description: 'Nom de la paire de clés EC2 existante dans AWS pour SSH'
         required: true
         type: string
       repo_owner:
-        description: 'Propriétaire du repo GitHub (user/org)'
+        description: 'Propriétaire du repo GitHub (utilisateur ou organisation)'
         required: true
         type: string
       repo_name:
@@ -28,45 +33,64 @@ on:
         required: true
         type: string
 
+# Variables d'environnement globales
+env:
+  TF_WORKING_DIR: ./infrastructure  # Répertoire contenant les fichiers Terraform
+  AWS_REGION: eu-west-3            # Région AWS (Paris)
+
 jobs:
   terraform:
     name: 'Terraform ${{ github.event.inputs.action }}'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./infrastructure # Exécute les commandes dans le dossier infrastructure
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
     steps:
+      # Étape 1: Récupération du code source
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: main # Explicitly checkout the main branch
+          ref: main  # Utilise explicitement la branche main
+          fetch-depth: 0  # Récupère tout l'historique pour les tags
 
+      # Étape 2: Configuration de Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ">=1.0" # Assure la compatibilité avec la version requise
+          terraform_version: ">=1.0"  # Version compatible avec le code
+          terraform_wrapper: false    # Désactive le wrapper pour une meilleure gestion des erreurs
 
+      # Étape 3: Configuration des identifiants AWS
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3 # Doit correspondre à var.aws_region ou être passé en variable
+          aws-region: ${{ env.AWS_REGION }}
 
+      # Étape 4: Initialisation de Terraform
       - name: Terraform Init
         id: init
         run: terraform init
 
+      # Étape 5: Validation de la configuration Terraform
       - name: Terraform Validate
         id: validate
         run: terraform validate -no-color
 
+      # Étape 6: Formatage du code Terraform (vérification uniquement)
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true  # Ne bloque pas le workflow si le formatage n'est pas correct
+
+      # Étape 7: Planification des changements Terraform
       - name: Terraform Plan
         id: plan
-        # Exécute 'plan' si l'action est 'plan' ou 'apply'
         if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
         run: |
+          echo "::group::Terraform Plan"
           terraform plan \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
@@ -76,19 +100,29 @@ jobs:
             -var="repo_name=${{ github.event.inputs.repo_name }}" \
             -no-color \
             -out=tfplan
-        continue-on-error: false # Arrête si le plan échoue
+          echo "::endgroup::"
+        continue-on-error: false  # Arrête le workflow si le plan échoue
 
+      # Étape 8: Application des changements Terraform
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action == 'apply'
         run: |
+          echo "::group::Terraform Apply"
           terraform apply -auto-approve tfplan
-        continue-on-error: false
+          echo "::endgroup::"
 
+          # Affiche les outputs après l'application
+          echo "\n\n--- Outputs de l'infrastructure ---"
+          terraform output
+        continue-on-error: false  # Arrête le workflow si l'application échoue
+
+      # Étape 9: Destruction de l'infrastructure Terraform
       - name: Terraform Destroy
         id: destroy
         if: github.event.inputs.action == 'destroy'
         run: |
+          echo "::group::Terraform Destroy"
           terraform destroy -auto-approve \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
@@ -96,4 +130,14 @@ jobs:
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}"
-        continue-on-error: false
+          echo "::endgroup::"
+        continue-on-error: false  # Arrête le workflow si la destruction échoue
+
+      # Étape 10: Résumé de l'exécution
+      - name: Summary
+        run: |
+          echo "## Résumé de l'exécution Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action exécutée:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
+          echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Succès ✅" >> $GITHUB_STEP_SUMMARY
