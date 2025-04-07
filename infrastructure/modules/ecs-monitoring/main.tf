@@ -30,7 +30,7 @@ resource "aws_cloudwatch_log_group" "ecs_logs" {
 # Permet à ECS de tirer les images et d'envoyer les logs à CloudWatch
 data "aws_iam_policy_document" "ecs_task_execution_assume_role_policy" {
   statement {
-    actions = "sts:AssumeRole"
+    actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
