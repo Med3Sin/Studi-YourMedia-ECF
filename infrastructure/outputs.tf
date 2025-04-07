@@ -24,14 +24,12 @@ output "s3_bucket_name" {
   value       = module.s3.bucket_name
 }
 
-output "amplify_app_default_domain" {
-  description = "URL par défaut de l'application frontend hébergée sur Amplify."
-  value       = local.create_amplify_app ? aws_amplify_app.frontend_app[0].default_domain : "Amplify app non créée (token GitHub non fourni)"
-}
+# Output supprimé pour éviter les problèmes de sensibilité
+# L'URL Amplify peut être récupérée directement depuis la console AWS
 
 output "grafana_access_note" {
   description = "Note sur comment accéder à Grafana."
-  value       = "Accédez à Grafana via l'IP publique de la tâche Fargate Grafana (à récupérer manuellement dans la console AWS ECS ou via CLI) sur le port 3000. Ex: http://<GRAFANA_TASK_PUBLIC_IP>:3000"
+  value       = "Accédez à Grafana via l'IP publique de l'instance EC2 exécutant le conteneur Grafana sur le port 3000. Ex: http://<EC2_PUBLIC_IP>:3000"
 }
 
 output "ecs_cluster_name" {
