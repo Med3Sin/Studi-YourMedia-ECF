@@ -53,6 +53,33 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
     ```
 
     > **Note importante**: Dans GitHub Actions, nous utilisons le secret `GH_PAT` (et non `GITHUB_TOKEN`) car les noms de secrets personnalisés ne doivent pas commencer par `GITHUB_`. Ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
+    >
+    > **Instructions détaillées pour créer un GH_PAT** :
+    >
+    > 1. **Accédez à votre compte GitHub** :
+    >    - Connectez-vous à votre compte GitHub
+    >    - Cliquez sur votre photo de profil en haut à droite
+    >    - Sélectionnez "Settings" (Paramètres)
+    >
+    > 2. **Accédez aux paramètres développeur** :
+    >    - Dans le menu de gauche, faites défiler vers le bas et cliquez sur "Developer settings" (Paramètres développeur)
+    >
+    > 3. **Créez un nouveau token** :
+    >    - Cliquez sur "Personal access tokens" (Tokens d'accès personnels)
+    >    - Sélectionnez "Tokens (classic)"
+    >    - Cliquez sur "Generate new token" (Générer un nouveau token)
+    >    - Sélectionnez "Generate new token (classic)"
+    >
+    > 4. **Configurez le token** :
+    >    - Donnez un nom descriptif à votre token (par exemple "YourMedia Terraform Amplify")
+    >    - Définissez une date d'expiration (recommandé : 90 jours)
+    >    - Sélectionnez les autorisations nécessaires :
+    >      - `repo` (accès complet au dépôt)
+    >      - `admin:repo_hook` (pour les webhooks Amplify)
+    >    - Faites défiler vers le bas et cliquez sur "Generate token" (Générer le token)
+    >
+    > 5. **Copiez le token** :
+    >    - **IMPORTANT** : Copiez immédiatement le token généré. Vous ne pourrez plus le voir après avoir quitté cette page.
 5.  Planifiez les changements : `terraform plan -var-file=terraform.tfvars`
 6.  Appliquez les changements : `terraform apply -var-file=terraform.tfvars`
 7.  Pour détruire : `terraform destroy -var-file=terraform.tfvars`

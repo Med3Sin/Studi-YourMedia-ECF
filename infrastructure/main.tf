@@ -91,7 +91,13 @@ module "ecs-monitoring" {
 # -----------------------------------------------------------------------------
 # Ressource AWS Amplify Hosting pour le Frontend
 # -----------------------------------------------------------------------------
+# Création conditionnelle de l'app Amplify en fonction de la disponibilité du token GitHub
+locals {
+  create_amplify_app = var.github_token != "" # Créer l'app Amplify seulement si github_token n'est pas vide
+}
+
 resource "aws_amplify_app" "frontend_app" {
+  count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
   name         = "${var.project_name}-frontend"
   repository   = "https://github.com/${var.repo_owner}/${var.repo_name}" # URL du repo GitHub
   access_token = var.github_token                                       # Token PAT GitHub
@@ -132,7 +138,8 @@ resource "aws_amplify_app" "frontend_app" {
 
 # Branche par défaut (ex: main ou master)
 resource "aws_amplify_branch" "main" {
-  app_id      = aws_amplify_app.frontend_app.id
+  count       = local.create_amplify_app ? 1 : 0 # Créer seulement si l'app Amplify est créée
+  app_id      = aws_amplify_app.frontend_app[0].id
   branch_name = "main" # Ou la branche principale de votre repo
 
   # Activer le build automatique à chaque push sur cette branche

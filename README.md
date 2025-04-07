@@ -16,7 +16,7 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Déploiement du Backend](#déploiement-du-backend)
 6.  [Application Frontend (React Native Web)](#application-frontend-react-native-web)
     *   [Déploiement du Frontend](#déploiement-du-frontend)
-7.  [Monitoring (ECS Fargate - Prometheus & Grafana)](#monitoring-ecs-fargate---prometheus--grafana)
+7.  [Monitoring (ECS avec EC2 - Prometheus & Grafana)](#monitoring-ecs-avec-ec2---prometheus--grafana)
     *   [Accès à Grafana](#accès-à-grafana)
 8.  [CI/CD (GitHub Actions)](#cicd-github-actions)
     *   [Workflows Disponibles](#workflows-disponibles)
@@ -153,7 +153,61 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements). Assurez-vous que la clé publique correspondante est fournie à Terraform (via une variable).
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 
-> **Note sur GH_PAT**: Pour créer un Personal Access Token (PAT) GitHub, accédez à votre compte GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic) > Generate new token. Accordez-lui au minimum les permissions `repo` pour accéder au dépôt.
+> **Instructions détaillées pour créer un GH_PAT** :
+>
+> 1. **Accédez à votre compte GitHub** :
+>    - Connectez-vous à votre compte GitHub
+>    - Cliquez sur votre photo de profil en haut à droite
+>    - Sélectionnez "Settings" (Paramètres)
+>
+> 2. **Accédez aux paramètres développeur** :
+>    - Dans le menu de gauche, faites défiler vers le bas et cliquez sur "Developer settings" (Paramètres développeur)
+>
+> 3. **Créez un nouveau token** :
+>    - Cliquez sur "Personal access tokens" (Tokens d'accès personnels)
+>    - Sélectionnez "Tokens (classic)"
+>    - Cliquez sur "Generate new token" (Générer un nouveau token)
+>    - Sélectionnez "Generate new token (classic)"
+>
+> 4. **Configurez le token** :
+>    - Donnez un nom descriptif à votre token (par exemple "YourMedia Terraform Amplify")
+>    - Définissez une date d'expiration (recommandé : 90 jours)
+>    - Sélectionnez les autorisations nécessaires :
+>      - `repo` (accès complet au dépôt)
+>      - `admin:repo_hook` (pour les webhooks Amplify)
+>    - Faites défiler vers le bas et cliquez sur "Generate token" (Générer le token)
+>
+> 5. **Copiez le token** :
+>    - **IMPORTANT** : Copiez immédiatement le token généré. Vous ne pourrez plus le voir après avoir quitté cette page.
+>
+> 6. **Configurez le secret dans GitHub Actions** :
+>    - Allez sur votre dépôt GitHub
+>    - Cliquez sur "Settings" (Paramètres)
+>    - Dans le menu de gauche, cliquez sur "Secrets and variables" puis "Actions"
+>    - Cliquez sur "New repository secret"
+>    - Nom : `GH_PAT`
+>    - Valeur : collez le token que vous avez copié
+>    - Cliquez sur "Add secret"
 
----
-*Documentation générée par Cline, Ingénieur Logiciel.*
+## Résolution des problèmes courants
+
+### Workflow GitHub Actions bloqué sur `terraform plan`
+
+Si le workflow GitHub Actions est bloqué à l'étape `terraform plan` avec un message comme celui-ci :
+
+```
+Started at 1744048310000
+Run terraform plan \
+var.github_token
+  Token GitHub (PAT) pour connecter Amplify au repository.
+```
+
+Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est pas accessible par le workflow. Pour résoudre ce problème :
+
+1. Vérifiez que le secret `GH_PAT` est correctement configuré dans les paramètres de votre dépôt GitHub (voir les instructions détaillées ci-dessus).
+2. Assurez-vous que le workflow a les permissions nécessaires pour accéder aux secrets.
+3. Si le problème persiste, vous pouvez annuler le workflow en cours et le relancer après avoir vérifié la configuration des secrets.
+
+### Erreur "Context access might be invalid: GH_PAT"
+
+Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.

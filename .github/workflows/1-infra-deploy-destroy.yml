@@ -1,6 +1,7 @@
 name: 1 - Deploy/Destroy Infrastructure (Terraform)
 
 # Note: Ce workflow utilise le secret GH_PAT au lieu de GITHUB_TOKEN car les noms de secrets ne doivent pas commencer par GITHUB_
+# La syntaxe ${{ secrets.GH_PAT || '' }} permet d'utiliser une chaîne vide si le secret n'est pas défini, évitant ainsi le blocage du workflow
 
 on:
   workflow_dispatch:
@@ -70,7 +71,7 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
-            -var="github_token=${{ secrets.GH_PAT }}" \
+            -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}" \
             -no-color \
@@ -92,7 +93,7 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
-            -var="github_token=${{ secrets.GH_PAT }}" \
+            -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}"
         continue-on-error: false

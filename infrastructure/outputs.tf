@@ -26,7 +26,7 @@ output "s3_bucket_name" {
 
 output "amplify_app_default_domain" {
   description = "URL par défaut de l'application frontend hébergée sur Amplify."
-  value       = aws_amplify_app.frontend_app.default_domain
+  value       = local.create_amplify_app ? aws_amplify_app.frontend_app[0].default_domain : "Amplify app non créée (token GitHub non fourni)"
 }
 
 output "grafana_access_note" {
