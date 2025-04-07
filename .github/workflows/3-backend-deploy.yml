@@ -1,16 +1,30 @@
 name: 3 - Build and Deploy Backend (Java WAR)
 
+# -----------------------------------------------------------------------
+# Ce workflow gère la compilation et le déploiement de l'application backend Java.
+# Il compile le code Java avec Maven, télécharge le WAR sur S3, puis le déploie
+# sur l'instance EC2 exécutant Tomcat via SSH.
+# -----------------------------------------------------------------------
+
 on:
   workflow_dispatch:
     inputs:
       ec2_public_ip:
-        description: 'Public IP of the EC2 instance (from Terraform output)'
+        description: 'Adresse IP publique de l\'instance EC2 (depuis les outputs Terraform)'
         required: true
         type: string
       s3_bucket_name:
-        description: 'Name of the S3 bucket (from Terraform output)'
+        description: 'Nom du bucket S3 (depuis les outputs Terraform)'
         required: true
         type: string
+
+# Variables d'environnement globales
+env:
+  JAVA_VERSION: '17'         # Version de Java à utiliser
+  JAVA_DISTRIBUTION: 'temurin' # Distribution Java (Adoptium Temurin)
+  AWS_REGION: eu-west-3      # Région AWS (Paris)
+  APP_DIR: ./app-java        # Répertoire de l'application Java
+  WAR_NAME: yourmedia-backend.war # Nom du fichier WAR
 
 jobs:
   build-and-deploy:
@@ -18,15 +32,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Étape 1: Récupération du code source
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Récupère tout l'historique pour les tags
 
-      - name: Set up JDK 17
+      # Étape 2: Configuration de Java
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin' # Adoptium Temurin distribution
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
 
+      # Étape 3: Mise en cache des dépendances Maven
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -34,44 +53,64 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      # Étape 4: Compilation avec Maven
       - name: Build with Maven
-        run: mvn -B package --file app-java/pom.xml # -B for non-interactive batch mode
-        working-directory: ./app-java
+        run: |
+          echo "::group::Maven Build"
+          mvn -B package --file pom.xml # -B pour le mode batch non interactif
+          echo "::endgroup::"
+        working-directory: ${{ env.APP_DIR }}
 
+      # Étape 5: Configuration des identifiants AWS
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3 # Or your target region
+          aws-region: ${{ env.AWS_REGION }}
 
+      # Étape 6: Téléchargement du WAR sur S3
       - name: Upload WAR to S3
         run: |
-          aws s3 cp target/yourmedia-backend.war s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/yourmedia-backend.war
-        working-directory: ./app-java
+          echo "::group::Upload to S3"
+          aws s3 cp target/${{ env.WAR_NAME }} s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}
+          echo "WAR téléversé avec succès sur S3: s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}"
+          echo "::endgroup::"
+        working-directory: ${{ env.APP_DIR }}
 
+      # Étape 7: Configuration de SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
+      # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
-          # Add EC2 host key to known_hosts to avoid prompt
+          echo "::group::Deploy to EC2"
+          # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
           ssh-keyscan -H ${{ github.event.inputs.ec2_public_ip }} >> ~/.ssh/known_hosts
 
-          # SSH into EC2 and use AWS CLI to copy from S3 to Tomcat webapps
-          # Assumes AWS CLI is installed or will be installed on EC2 (might need adjustment in install script)
-          # Alternative: SCP directly from runner after downloading from S3
+          # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
           ssh ubuntu@${{ github.event.inputs.ec2_public_ip }} << EOF
-            echo "--- Installing AWS CLI (if not present) ---"
+            echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
                 sudo apt-get update -y
                 sudo apt-get install -y awscli
             fi
-            echo "--- Copying WAR from S3 to Tomcat ---"
-            sudo aws s3 cp s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/yourmedia-backend.war /opt/tomcat/webapps/yourmedia-backend.war
-            echo "--- Deployment complete, Tomcat will auto-deploy the WAR ---"
+            echo "--- Copie du WAR depuis S3 vers Tomcat ---"
+            sudo aws s3 cp s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
+            echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
           EOF
-        working-directory: . # Run from root
+          echo "::endgroup::"
+
+      # Étape 9: Résumé du déploiement
+      - name: Summary
+        run: |
+          echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
+          echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Instance EC2:** ${{ github.event.inputs.ec2_public_ip }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Bucket S3:** ${{ github.event.inputs.s3_bucket_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'application:** http://${{ github.event.inputs.ec2_public_ip }}:8080/${{ env.WAR_NAME | replace: '.war', '' }}/" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY

@@ -134,13 +134,25 @@ Avant de commencer, assurez-vous d'avoir :
 
 ## CI/CD (GitHub Actions)
 
-*(Explication du fonctionnement des workflows)*
+Le projet utilise GitHub Actions pour automatiser les processus de déploiement et d'intégration continue. Les workflows sont conçus pour être cohérents, bien documentés et faciles à maintenir.
 
 ### Workflows Disponibles
 
 *   **`1-infra-deploy-destroy.yml`:** Gère l'infrastructure complète via Terraform.
-*   **`3-backend-deploy.yml`:** Build et déploie l'application Java.
-*   **`4-frontend-deploy.yml`:** Build et déploie l'application React Native Web sur Amplify.
+    - Déclenchement: Manuel (workflow_dispatch)
+    - Actions: plan, apply, destroy
+    - Fonctionnalités: Initialisation, validation, planification et application/destruction de l'infrastructure AWS
+    - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées
+
+*   **`3-backend-deploy.yml`:** Compile et déploie l'application Java sur l'instance EC2.
+    - Déclenchement: Manuel (workflow_dispatch)
+    - Processus: Compilation Maven, téléversement sur S3, déploiement sur Tomcat via SSH
+    - Paramètres requis: IP publique de l'EC2, nom du bucket S3
+
+*   **`4-frontend-deploy.yml`:** Vérifie la compilation de l'application React Native Web.
+    - Déclenchement: Automatique (push sur main) ou manuel
+    - Processus: Installation des dépendances, compilation du code
+    - Note: Le déploiement réel est géré par AWS Amplify via la connexion directe au repo GitHub
 
 ### Configuration des Secrets
 
