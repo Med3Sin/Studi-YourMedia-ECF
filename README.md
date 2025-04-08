@@ -38,7 +38,25 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
-[Voir le schéma d'architecture](aws-architecture-project-yourmedia-updated.html)
+L'architecture du projet est organisée autour des services AWS suivants, tous interconnectés pour former une solution complète :
+
+```
++------------------+     +-------------------+     +------------------+
+|                  |     |                   |     |                  |
+|  AWS Amplify     |     |  EC2 (t2.micro)   |     |  RDS MySQL      |
+|  (Frontend)      |<--->|  (Backend)        |<--->|  (db.t2.micro)   |
+|                  |     |  Tomcat/Java      |     |                  |
++------------------+     +-------------------+     +------------------+
+                               ^      ^
+                               |      |
+                               v      v
++------------------+     +-------------------+     +------------------+
+|                  |     |                   |     |                  |
+|  S3 Bucket       |<--->|  ECS avec EC2     |     |  CloudWatch     |
+|  (Storage)       |     |  (Monitoring)     |<--->|  (Logs)          |
+|                  |     |  Prometheus/Grafana     |                  |
++------------------+     +-------------------+     +------------------+
+```
 
 
 
@@ -94,43 +112,202 @@ Avant de commencer, assurez-vous d'avoir :
 └── README.md                    # Ce fichier - Documentation principale
 ```
 
-*(Sections suivantes à compléter au fur et à mesure)*
-
 ## Infrastructure (Terraform)
 
-*(Détails sur la configuration Terraform, les modules, etc.)*
+L'infrastructure du projet est entièrement définie et gérée via Terraform, ce qui permet un provisionnement automatique, reproductible et versionné des ressources AWS. L'infrastructure a été conçue pour rester dans les limites du Free Tier AWS tout en offrant un environnement complet pour l'application.
+
+Le code Terraform est organisé de manière modulaire pour faciliter la maintenance et l'évolution :
+
+- **`main.tf`** : Point d'entrée principal qui configure le VPC par défaut et instancie les différents modules.
+- **`variables.tf`** : Définit toutes les variables d'entrée utilisées par Terraform.
+- **`outputs.tf`** : Définit les sorties générées après le déploiement (IP, endpoints, etc.).
+- **`providers.tf`** : Configure le provider AWS et ses paramètres.
 
 ### Modules Terraform
 
-*(Description de chaque module)*
+L'infrastructure est divisée en modules réutilisables, chacun responsable d'un aspect spécifique :
+
+1. **Module `network`** :
+   - Gère les groupes de sécurité pour contrôler les flux réseau entre les différents composants.
+   - Configure les règles d'accès pour EC2, RDS, et ECS.
+
+2. **Module `ec2-java-tomcat`** :
+   - Provisionne une instance EC2 t2.micro pour héberger l'application Java.
+   - Configure Tomcat et Java via un script d'initialisation.
+   - Crée un rôle IAM avec les permissions nécessaires pour accéder à S3.
+
+3. **Module `rds-mysql`** :
+   - Déploie une instance RDS MySQL db.t2.micro.
+   - Configure les paramètres de sécurité, de sauvegarde et de performance.
+
+4. **Module `s3`** :
+   - Crée un bucket S3 pour le stockage des médias et des artefacts de build.
+   - Configure les politiques d'accès et le cycle de vie des objets.
+
+5. **Module `ecs-monitoring`** :
+   - Déploie un cluster ECS avec une instance EC2 t2.micro.
+   - Configure les conteneurs Prometheus et Grafana pour le monitoring.
+   - Définit les tâches ECS et les volumes de données persistantes.
 
 ### Déploiement/Destruction de l'Infrastructure
 
-*(Instructions pour utiliser le workflow `1-infra-deploy-destroy.yml`)*
+Le workflow GitHub Actions `1-infra-deploy-destroy.yml` permet de gérer l'infrastructure de manière sécurisée et automatisée :
+
+1. **Préparation** :
+   - Assurez-vous que tous les [secrets requis](#configuration-des-secrets) sont configurés dans GitHub.
+   - Créez une paire de clés SSH dans la console AWS EC2 (si ce n'est pas déjà fait).
+
+2. **Déclenchement du workflow** :
+   - Accédez à l'onglet "Actions" du repository GitHub.
+   - Sélectionnez le workflow "1 - Deploy/Destroy Infrastructure (Terraform)".
+   - Cliquez sur "Run workflow" et remplissez les champs demandés :
+     - **Action** : `plan` (pour prévisualiser), `apply` (pour déployer) ou `destroy` (pour supprimer).
+     - **Nom de la paire de clés EC2** : Le nom de votre paire de clés AWS.
+     - **Propriétaire du repo GitHub** : Votre nom d'utilisateur ou organisation GitHub.
+     - **Nom du repo GitHub** : Le nom de ce repository.
+
+3. **Suivi de l'exécution** :
+   - Le workflow affiche en temps réel les logs d'exécution de Terraform.
+   - Après un déploiement réussi, les outputs Terraform sont affichés (IP publique EC2, endpoint RDS, etc.).
+   - Ces informations seront nécessaires pour les étapes suivantes (déploiement backend/frontend).
 
 ## Application Backend (Java Spring Boot)
 
-*(Détails sur l'application Java)*
+L'application backend est développée avec Java 17 et Spring Boot, packagée sous forme de fichier WAR pour être déployée sur un serveur Tomcat. Elle fournit une API REST simple et expose des métriques pour le monitoring.
+
+### Fonctionnalités principales
+
+- **API REST** : Expose des endpoints pour l'application frontend.
+- **Spring Boot Actuator** : Fournit des endpoints de monitoring et de santé.
+- **Intégration Prometheus** : Expose des métriques au format Prometheus pour le monitoring.
+- **Packaging WAR** : Permet le déploiement sur un serveur Tomcat externe.
+
+### Structure du projet
+
+- **`src/main/java`** : Code source Java de l'application.
+- **`src/main/resources`** : Fichiers de configuration (application.properties, etc.).
+- **`pom.xml`** : Configuration Maven et dépendances.
+
+### Développement local
+
+Pour développer et tester l'application localement :
+
+```bash
+# Compilation et exécution
+cd app-java
+mvn spring-boot:run
+
+# Accès à l'application
+http://localhost:8080/yourmedia-backend/
+```
 
 ### Déploiement du Backend
 
-*(Instructions pour utiliser le workflow `3-backend-deploy.yml`)*
+Le déploiement de l'application backend est automatisé via le workflow GitHub Actions `3-backend-deploy.yml` :
+
+1. **Prérequis** :
+   - L'infrastructure doit être déployée via le workflow `1-infra-deploy-destroy.yml`.
+   - Notez l'IP publique de l'instance EC2 et le nom du bucket S3 depuis les outputs Terraform.
+
+2. **Déclenchement du workflow** :
+   - Accédez à l'onglet "Actions" du repository GitHub.
+   - Sélectionnez le workflow "3 - Build and Deploy Backend (Java WAR)".
+   - Cliquez sur "Run workflow" et remplissez les champs demandés :
+     - **IP publique de l'EC2** : L'adresse IP de l'instance EC2 déployée.
+     - **Nom du bucket S3** : Le nom du bucket S3 déployé.
+
+3. **Processus de déploiement** :
+   - Le workflow compile l'application Java avec Maven.
+   - Le fichier WAR généré est uploadé sur le bucket S3.
+   - Le workflow se connecte en SSH à l'instance EC2.
+   - Le fichier WAR est copié depuis S3 vers le répertoire `webapps` de Tomcat.
+   - Tomcat détecte automatiquement le nouveau WAR et déploie l'application.
+
+4. **Accès à l'application** :
+   - L'application est accessible à l'URL : `http://<IP_PUBLIQUE_EC2>:8080/yourmedia-backend/`
+   - Les métriques Prometheus sont disponibles à : `http://<IP_PUBLIQUE_EC2>:8080/yourmedia-backend/actuator/prometheus`
 
 ## Application Frontend (React Native Web)
 
-*(Détails sur l'application React Native pour le web)*
+L'application frontend est développée avec React Native et Expo, configurée pour générer une application web. Elle est déployée sur AWS Amplify Hosting pour une distribution globale et performante.
+
+### Fonctionnalités principales
+
+- **Interface utilisateur réactive** : Conçue pour s'adapter à différentes tailles d'écran.
+- **React Native Web** : Permet de partager le code entre applications web et mobiles.
+- **Expo** : Simplifie le développement et le build de l'application.
+
+### Structure du projet
+
+- **`src/`** : Code source de l'application React Native.
+- **`package.json`** : Configuration npm et dépendances.
+- **`app.json`** : Configuration Expo.
+
+### Développement local
+
+Pour développer et tester l'application localement :
+
+```bash
+# Installation des dépendances
+cd app-react
+npm install
+
+# Démarrage du serveur de développement
+npm run web
+```
 
 ### Déploiement du Frontend
 
-*(Instructions pour utiliser le workflow `4-frontend-deploy.yml` et accéder à Amplify)*
+Le déploiement de l'application frontend est géré par AWS Amplify Hosting, qui est configuré pour se connecter directement au repository GitHub :
+
+1. **Prérequis** :
+   - L'infrastructure doit être déployée via le workflow `1-infra-deploy-destroy.yml`.
+   - Le secret `GH_PAT` doit être configuré dans GitHub pour permettre à Amplify d'accéder au code.
+
+2. **Processus de déploiement automatique** :
+   - Chaque push sur la branche `main` déclenche automatiquement un build et un déploiement sur Amplify.
+   - Amplify récupère le code, exécute les commandes de build définies dans `build_spec` et déploie l'application.
+
+3. **Vérification CI** :
+   - Le workflow GitHub Actions `4-frontend-deploy.yml` s'exécute à chaque push pour vérifier que le build fonctionne.
+   - Ce workflow ne déploie pas l'application, il sert uniquement de vérification d'intégration continue.
+
+4. **Accès à l'application** :
+   - L'URL de l'application est visible dans la console AWS Amplify après le déploiement.
+   - Format typique : `https://<BRANCH>.<APP_ID>.amplifyapp.com`
 
 ## Monitoring (ECS avec EC2 - Prometheus & Grafana)
 
-*(Détails sur la configuration du monitoring)*
+Le projet inclut une solution de monitoring complète basée sur Prometheus et Grafana, déployée sur Amazon ECS avec une instance EC2 pour rester dans les limites du Free Tier AWS.
+
+### Architecture de monitoring
+
+- **Prometheus** : Collecte et stocke les métriques de l'application backend via l'endpoint `/actuator/prometheus`.
+- **Grafana** : Fournit des tableaux de bord visuels pour analyser les métriques collectées par Prometheus.
+- **ECS avec EC2** : Héberge les conteneurs Prometheus et Grafana sur une instance t2.micro.
+
+### Configuration
+
+- Les fichiers de configuration de Prometheus et Grafana sont définis dans le module Terraform `ecs-monitoring`.
+- Prometheus est configuré pour scraper les métriques de l'application backend à intervalles réguliers.
+- Grafana est préconfiguré avec des tableaux de bord pour visualiser les métriques de l'application et du système.
 
 ### Accès à Grafana
 
-*(Comment accéder à l'interface Grafana une fois déployée)*
+Pour accéder à l'interface Grafana une fois l'infrastructure déployée :
+
+1. **Trouver l'adresse IP** :
+   - L'instance EC2 exécutant les conteneurs ECS a la même adresse IP que celle utilisée pour le déploiement backend.
+
+2. **Accéder à Grafana** :
+   - Ouvrez votre navigateur et accédez à : `http://<IP_PUBLIQUE_EC2>:3000`
+   - Identifiants par défaut : `admin` / `admin`
+   - Lors de la première connexion, vous serez invité à changer le mot de passe.
+
+3. **Tableaux de bord disponibles** :
+   - **JVM Metrics** : Métriques de la machine virtuelle Java (mémoire, threads, etc.).
+   - **Spring Boot** : Métriques spécifiques à Spring Boot (requêtes HTTP, temps de réponse, etc.).
+   - **System Metrics** : Métriques système de l'instance EC2 (CPU, mémoire, disque, etc.).
 
 ## CI/CD (GitHub Actions)
 
