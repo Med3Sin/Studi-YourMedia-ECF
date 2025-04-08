@@ -47,12 +47,12 @@ module "s3" {
 module "rds-mysql" {
   source = "./modules/rds-mysql"
 
-  project_name        = var.project_name
-  db_username         = var.db_username
-  db_password         = var.db_password
-  instance_type_rds   = var.instance_type_rds
-  vpc_id              = data.aws_vpc.default.id
-  subnet_ids          = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
+  project_name          = var.project_name
+  db_username           = var.db_username
+  db_password           = var.db_password
+  instance_type_rds     = var.instance_type_rds
+  vpc_id                = data.aws_vpc.default.id
+  subnet_ids            = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
   rds_security_group_id = module.network.rds_security_group_id
 }
 
@@ -100,7 +100,7 @@ resource "aws_amplify_app" "frontend_app" {
   count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
   name         = "${var.project_name}-frontend"
   repository   = "https://github.com/${var.repo_owner}/${var.repo_name}" # URL du repo GitHub
-  access_token = var.github_token                                       # Token PAT GitHub
+  access_token = var.github_token                                        # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)
   # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.
@@ -131,7 +131,7 @@ resource "aws_amplify_app" "frontend_app" {
   # }
 
   tags = {
-    Project = var.project_name
+    Project   = var.project_name
     ManagedBy = "Terraform"
   }
 }
@@ -146,7 +146,7 @@ resource "aws_amplify_branch" "main" {
   enable_auto_build = true
 
   tags = {
-    Project = var.project_name
+    Project   = var.project_name
     ManagedBy = "Terraform"
   }
 }

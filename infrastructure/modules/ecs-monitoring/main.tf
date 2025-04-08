@@ -169,11 +169,11 @@ locals {
 # Définitions de Tâches ECS
 # -----------------------------------------------------------------------------
 resource "aws_ecs_task_definition" "prometheus_task" {
-  family                   = "${var.project_name}-prometheus"
-  network_mode             = "bridge" # Mode réseau standard pour EC2
+  family       = "${var.project_name}-prometheus"
+  network_mode = "bridge" # Mode réseau standard pour EC2
   # Pas de requires_compatibilities pour EC2
   # Pas besoin de spécifier CPU/mémoire au niveau de la tâche pour EC2
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
 
   # Utilise la définition de conteneur définie dans locals
@@ -186,11 +186,11 @@ resource "aws_ecs_task_definition" "prometheus_task" {
 }
 
 resource "aws_ecs_task_definition" "grafana_task" {
-  family                   = "${var.project_name}-grafana"
-  network_mode             = "bridge" # Mode réseau standard pour EC2
+  family       = "${var.project_name}-grafana"
+  network_mode = "bridge" # Mode réseau standard pour EC2
   # Pas de requires_compatibilities pour EC2
   # Pas besoin de spécifier CPU/mémoire au niveau de la tâche pour EC2
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   # task_role_arn            = aws_iam_role.ecs_task_role.arn # Si on utilise un Task Role
 
   container_definitions = local.grafana_container_definition
@@ -212,8 +212,8 @@ resource "aws_ecs_service" "prometheus_service" {
   desired_count   = 1 # Exécute une seule instance de Prometheus
 
   network_configuration {
-    subnets         = var.subnet_ids # Doit être dans des sous-réseaux publics/privés avec accès internet sortant
-    security_groups = [var.ecs_security_group_id]
+    subnets          = var.subnet_ids # Doit être dans des sous-réseaux publics/privés avec accès internet sortant
+    security_groups  = [var.ecs_security_group_id]
     assign_public_ip = true # Nécessaire si dans sous-réseau public pour tirer l'image, ou si NAT Gateway/VPC Endpoint est utilisé
   }
 
@@ -236,8 +236,8 @@ resource "aws_ecs_service" "grafana_service" {
   desired_count   = 1
 
   network_configuration {
-    subnets         = var.subnet_ids # Doit être dans des sous-réseaux publics pour accès externe
-    security_groups = [var.ecs_security_group_id]
+    subnets          = var.subnet_ids # Doit être dans des sous-réseaux publics pour accès externe
+    security_groups  = [var.ecs_security_group_id]
     assign_public_ip = true # Pour accéder à Grafana via son IP publique
   }
 

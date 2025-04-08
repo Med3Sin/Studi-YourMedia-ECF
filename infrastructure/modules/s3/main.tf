@@ -57,7 +57,7 @@ data "aws_iam_policy_document" "amplify_read_policy_doc" {
       "s3:ListBucket" # Nécessaire pour certains processus Amplify
     ]
     resources = [
-      aws_s3_bucket.media_storage.arn, # Accès au bucket lui-même (pour ListBucket)
+      aws_s3_bucket.media_storage.arn,                       # Accès au bucket lui-même (pour ListBucket)
       "${aws_s3_bucket.media_storage.arn}/builds/frontend/*" # Accès aux objets dans le dossier de build
     ]
     principals {
