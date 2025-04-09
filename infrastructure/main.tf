@@ -68,7 +68,8 @@ module "ec2-java-tomcat" {
   key_pair_name         = var.ec2_key_pair_name
   subnet_id             = data.aws_subnet.default_az1.id # Déploie dans le sous-réseau par défaut de la première zone de disponibilité
   ec2_security_group_id = module.network.ec2_security_group_id
-  # On pourrait passer l'endpoint RDS et le nom du bucket S3 ici si l'application en a besoin au démarrage
+  s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
+  # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
 }
 
 # -----------------------------------------------------------------------------
@@ -85,7 +86,7 @@ module "ecs-monitoring" {
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu
   ecs_task_memory         = var.ecs_task_memory
-  ecs_ami_id              = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 optimisée pour ECS dans eu-west-3 (Paris)
+  ecs_ami_id              = "ami-0925eac45db11fef2" # Utilisation de l'AMI Amazon Linux 2 demandée
 }
 
 # -----------------------------------------------------------------------------

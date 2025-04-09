@@ -400,3 +400,47 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 ### Erreur "Context access might be invalid: GH_PAT"
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
+
+### Erreurs lors du déploiement Terraform
+
+Si vous rencontrez des erreurs lors du déploiement Terraform, voici quelques solutions courantes :
+
+#### Erreur de politique IAM (MalformedPolicyDocument)
+
+Si vous voyez une erreur comme `MalformedPolicyDocument: Resource /* must be in ARN format or "*"`, assurez-vous que toutes les ressources dans les documents de politique IAM sont correctement formatées avec des guillemets et au format ARN.
+
+#### Erreur d'AMI introuvable (InvalidAMIID.NotFound)
+
+Si vous voyez une erreur comme `InvalidAMIID.NotFound: The image id '[ami-xxx]' does not exist`, cela signifie que l'AMI spécifiée n'existe pas dans la région AWS que vous utilisez. Utilisez l'AMI `ami-0925eac45db11fef2` (Amazon Linux 2 AMI) qui est disponible dans la région eu-west-3 (Paris).
+
+#### Erreur de mémoire non spécifiée pour les conteneurs ECS
+
+Si vous voyez une erreur comme `Invalid setting for container. At least one of 'memory' or 'memoryReservation' must be specified`, assurez-vous que chaque définition de conteneur dans les tâches ECS spécifie au moins un paramètre de mémoire.
+
+#### Erreur de description de groupe de sécurité invalide
+
+Si vous voyez une erreur comme `Invalid security group description`, assurez-vous que les descriptions des groupes de sécurité ne contiennent que des caractères autorisés (pas d'accents ou de caractères spéciaux non supportés).
+
+### Nettoyage des ressources après un échec de déploiement
+
+Si le déploiement Terraform échoue après avoir créé certaines ressources, et que la commande `terraform destroy` ne parvient pas à supprimer ces ressources, suivez ces étapes :
+
+1. **Réinitialiser l'état Terraform** :
+   ```bash
+   terraform init
+   ```
+
+2. **Importer les ressources existantes dans l'état Terraform** :
+   Identifiez les ressources créées dans la console AWS et importez-les dans l'état Terraform. Par exemple :
+   ```bash
+   terraform import module.s3.aws_s3_bucket.media_bucket nom-du-bucket
+   ```
+
+3. **Exécuter terraform destroy** :
+   Une fois que toutes les ressources sont importées dans l'état, exécutez :
+   ```bash
+   terraform destroy
+   ```
+
+4. **Suppression manuelle en dernier recours** :
+   Si terraform destroy échoue toujours, supprimez manuellement les ressources via la console AWS en respectant l'ordre de dépendance (d'abord les instances EC2, puis les groupes de sécurité, etc.).

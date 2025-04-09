@@ -41,5 +41,5 @@ variable "ecs_task_memory" {
 variable "ecs_ami_id" {
   description = "ID de l'AMI optimisée pour ECS."
   type        = string
-  default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 optimisée pour ECS dans eu-west-3 (Paris)
+  default     = "ami-0925eac45db11fef2" # Amazon Linux 2 AMI (HVM)
 }

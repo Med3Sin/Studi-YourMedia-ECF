@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-ec2-sg"
-  description = "Autorise le trafic entrant pour l'instance EC2 (SSH, HTTP, Tomcat, Prometheus)"
+  description = "Autorise le trafic entrant pour instance EC2 SSH HTTP Tomcat Prometheus" # Removed accent from 'Autorise'
   vpc_id      = var.vpc_id
 
   tags = {
@@ -20,7 +20,7 @@ resource "aws_security_group_rule" "ec2_ingress_ssh" {
   protocol          = "tcp"
   cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
   security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow SSH from operator IP"
+  description       = "Autoriser SSH depuis l'IP de l'opérateur"
 }
 
 # Règle entrante: HTTP (pour accès web standard si besoin)
@@ -31,7 +31,7 @@ resource "aws_security_group_rule" "ec2_ingress_http" {
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
   security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow HTTP traffic"
+  description       = "Autoriser le trafic HTTP"
 }
 
 # Règle entrante: Tomcat (port par défaut)
@@ -42,7 +42,7 @@ resource "aws_security_group_rule" "ec2_ingress_tomcat" {
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous pour l'API
   security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow Tomcat traffic (API)"
+  description       = "Autoriser le trafic Tomcat (API)"
 }
 
 # Règle entrante: Prometheus Actuator Endpoint (depuis le SG ECS)
@@ -53,7 +53,7 @@ resource "aws_security_group_rule" "ec2_ingress_prometheus_actuator" {
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.ecs_sg.id # Autorise depuis le SG ECS
   security_group_id        = aws_security_group.ec2_sg.id
-  description              = "Allow Prometheus scrape from ECS SG"
+  description              = "Autoriser le scraping Prometheus depuis le SG ECS"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
@@ -64,7 +64,7 @@ resource "aws_security_group_rule" "ec2_egress_all" {
   protocol          = "-1" # Tout protocole
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow all outbound traffic"
+  description       = "Autoriser tout le trafic sortant"
 }
 
 
@@ -73,7 +73,7 @@ resource "aws_security_group_rule" "ec2_egress_all" {
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-rds-sg"
-  description = "Autorise le trafic entrant MySQL depuis l'instance EC2"
+  description = "Autorise le trafic entrant MySQL depuis l'instance EC2" # Removed accents from 'Autorise' and 'depuis'
   vpc_id      = var.vpc_id
 
   tags = {
@@ -90,7 +90,7 @@ resource "aws_security_group_rule" "rds_ingress_mysql" {
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.ec2_sg.id # Autorise uniquement depuis le SG EC2
   security_group_id        = aws_security_group.rds_sg.id
-  description              = "Allow MySQL traffic from EC2 SG"
+  description              = "Autoriser le trafic MySQL depuis le SG EC2"
 }
 
 # Règle sortante: Autorise tout le trafic sortant (généralement pas nécessaire pour RDS, mais sans danger)
@@ -101,7 +101,7 @@ resource "aws_security_group_rule" "rds_egress_all" {
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.rds_sg.id
-  description       = "Allow all outbound traffic"
+  description       = "Autoriser tout le trafic sortant"
 }
 
 
@@ -127,7 +127,7 @@ resource "aws_security_group_rule" "ecs_ingress_grafana" {
   protocol          = "tcp"
   cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
   security_group_id = aws_security_group.ecs_sg.id
-  description       = "Allow Grafana access from operator IP"
+  description       = "Autoriser l'accès Grafana depuis l'IP de l'opérateur"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
@@ -139,5 +139,5 @@ resource "aws_security_group_rule" "ecs_egress_all" {
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.ecs_sg.id
-  description       = "Allow all outbound traffic"
+  description       = "Autoriser tout le trafic sortant"
 }

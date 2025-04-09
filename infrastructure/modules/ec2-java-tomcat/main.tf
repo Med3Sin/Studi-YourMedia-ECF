@@ -12,7 +12,7 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
       "s3:ListBucket" # ListBucket nécessite l'ARN du bucket lui-même
     ]
     resources = [
-      var.s3_bucket_arn,       # Accès au bucket
+      "${var.s3_bucket_arn}",       # Accès au bucket
       "${var.s3_bucket_arn}/*" # Accès aux objets dans le bucket
     ]
   }

@@ -24,6 +24,7 @@ L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-dest
 Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
 
 * Utilisation d'instances EC2 t2.micro pour l'application Java/Tomcat
+* Utilisation de l'AMI `ami-0925eac45db11fef2` (Amazon Linux 2 AMI) pour toutes les instances EC2
 * Utilisation d'une instance RDS db.t2.micro pour MySQL
 * Utilisation d'ECS avec une instance EC2 t2.micro (au lieu de Fargate qui n'est pas inclus dans le Free Tier) pour le monitoring
 * Configuration minimale des ressources pour éviter les coûts supplémentaires
