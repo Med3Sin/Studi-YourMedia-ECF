@@ -318,10 +318,12 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
 *   **`1-infra-deploy-destroy.yml`:** Gère l'infrastructure complète via Terraform avec Terraform Cloud.
     - Déclenchement: Manuel (workflow_dispatch)
     - Actions: plan, apply, destroy
+    - Paramètres requis: Uniquement le nom de la paire de clés EC2 pour SSH
     - Fonctionnalités:
-      - Stockage sécurisé de l'état Terraform dans Terraform Cloud
-      - Workflow en plusieurs étapes avec approbation obligatoire
+      - Stockage sécurisé de l'état Terraform dans Terraform Cloud (organisation Med3Sin)
+      - Workflow en plusieurs étapes avec approbation obligatoire à chaque étape
       - Planification, validation et application/destruction de l'infrastructure AWS
+      - Utilisation des dernières versions des actions GitHub (v4 pour les artefacts)
     - Sécurité: Requiert une approbation manuelle avant toute modification de l'infrastructure
     - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées à chaque étape
 
@@ -342,6 +344,18 @@ L'infrastructure est gérée via Terraform avec l'état stocké de manière séc
 1. **Sécurité des données** : L'état Terraform, qui peut contenir des informations sensibles, est stocké de manière chiffrée.
 2. **Workflow avec approbation** : Les modifications de l'infrastructure nécessitent une approbation manuelle avant d'être appliquées.
 3. **Traçabilité** : Historique complet des modifications apportées à l'infrastructure.
+
+### Configuration de l'environnement d'approbation GitHub
+
+Pour utiliser le workflow avec approbations, vous devez configurer un environnement GitHub :
+
+1. Allez dans les paramètres de votre dépôt GitHub (`Settings` > `Environments`)
+2. Cliquez sur `New environment`
+3. Nommez l'environnement `approval`
+4. Cochez `Required reviewers` et ajoutez les personnes qui peuvent approuver les déploiements
+5. Cliquez sur `Save protection rules`
+
+Cette configuration garantit que chaque étape du workflow nécessite une approbation manuelle avant de continuer.
 
 Pour plus de détails sur la configuration, consultez le [README de l'infrastructure](./infrastructure/README.md).
 
@@ -446,6 +460,21 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 ### Erreur "Context access might be invalid: GH_PAT"
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
+
+### Erreur liée aux actions dépréciées
+
+Si vous rencontrez une erreur comme celle-ci :
+
+```
+Error: This request has been automatically failed because it uses a deprecated version of `actions/upload-artifact: v3`.
+```
+
+Cela signifie que le workflow utilise une version dépréciée d'une action GitHub. Les workflows ont été mis à jour pour utiliser les dernières versions des actions :
+
+- `actions/upload-artifact@v4` au lieu de `actions/upload-artifact@v3`
+- `actions/download-artifact@v4` au lieu de `actions/download-artifact@v3`
+
+Si vous rencontrez cette erreur, assurez-vous d'avoir la dernière version du code.
 
 ### Erreurs lors du déploiement Terraform
 

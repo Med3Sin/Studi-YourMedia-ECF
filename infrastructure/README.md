@@ -134,10 +134,25 @@ Le workflow GitHub Actions est configuré pour utiliser Terraform Cloud :
 
 #### Workflow avec approbation
 
-Le workflow GitHub Actions est structuré en trois étapes :
+Le workflow GitHub Actions est structuré en trois étapes, chacune nécessitant une approbation :
 
-1. **Plan** : Génère un plan des modifications à apporter à l'infrastructure.
-2. **Approbation** : Requiert une approbation manuelle avant de continuer.
-3. **Apply/Destroy** : Applique ou détruit l'infrastructure après approbation.
+1. **Plan** : Génère un plan des modifications à apporter à l'infrastructure (nécessite une première approbation).
+2. **Approbation** : Requiert une deuxième approbation manuelle avant de continuer.
+3. **Apply/Destroy** : Applique ou détruit l'infrastructure après une troisième approbation.
 
-Cette approche garantit qu'aucune modification n'est apportée à l'infrastructure sans une vérification humaine préalable.
+Cette approche à trois niveaux d'approbation garantit un contrôle maximal sur les modifications apportées à l'infrastructure.
+
+#### Simplification des paramètres
+
+Le workflow a été simplifié pour ne demander que le paramètre essentiel :
+
+- **ssh_key_pair_name** : Nom de la paire de clés EC2 existante dans AWS pour SSH
+
+Les autres informations comme le propriétaire et le nom du dépôt GitHub sont automatiquement récupérées via les variables d'environnement GitHub Actions.
+
+#### Utilisation des dernières versions des actions GitHub
+
+Le workflow utilise les dernières versions des actions GitHub :
+
+- `actions/upload-artifact@v4` pour sauvegarder le plan Terraform
+- `actions/download-artifact@v4` pour récupérer le plan Terraform
