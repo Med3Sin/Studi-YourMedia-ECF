@@ -99,7 +99,7 @@ jobs:
 
       # Étape 8: Sauvegarde du plan Terraform pour les jobs suivants
       - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
           path: ${{ env.TF_WORKING_DIR }}/tfplan
@@ -169,7 +169,7 @@ jobs:
 
       # Étape 5: Téléchargement du plan Terraform
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: terraform-plan
           path: ${{ env.TF_WORKING_DIR }}
