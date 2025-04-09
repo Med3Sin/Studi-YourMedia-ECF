@@ -11,6 +11,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+aws_credentials.tf
 
 # Java / Maven
 target/

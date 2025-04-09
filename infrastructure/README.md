@@ -38,7 +38,37 @@ Plusieurs optimisations ont été réalisées pour rester dans les limites du Fr
 
 Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
 
-1.  Assurez-vous d'avoir configuré vos [credentials AWS](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html).
+1.  Assurez-vous d'avoir configuré vos [credentials AWS](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html). Vous avez plusieurs options :
+
+    **Option 1 : Variables d'environnement**
+    ```bash
+    # Pour Windows (PowerShell)
+    $env:AWS_ACCESS_KEY_ID="votre_access_key"
+    $env:AWS_SECRET_ACCESS_KEY="votre_secret_key"
+    $env:AWS_REGION="eu-west-3"
+
+    # Pour Linux/macOS
+    export AWS_ACCESS_KEY_ID="votre_access_key"
+    export AWS_SECRET_ACCESS_KEY="votre_secret_key"
+    export AWS_REGION="eu-west-3"
+    ```
+
+    **Option 2 : Fichier de configuration AWS**
+    Modifiez le fichier `aws_credentials.tf` (déjà dans .gitignore) :
+    ```hcl
+    provider "aws" {
+      region     = var.aws_region
+      access_key = "votre_access_key"
+      secret_key = "votre_secret_key"
+    }
+    ```
+
+    **Option 3 : Profil AWS CLI**
+    ```bash
+    # Configurer AWS CLI
+    aws configure
+    ```
+
 2.  Naviguez dans le répertoire `infrastructure/`.
 3.  Initialisez Terraform : `terraform init`
 4.  Créez un fichier `terraform.tfvars` (ignoré par git) pour définir les variables sensibles ou spécifiques :

@@ -496,6 +496,13 @@ Si vous voyez une erreur comme `Invalid setting for container. At least one of '
 
 Si vous voyez une erreur comme `Invalid security group description`, assurez-vous que les descriptions des groupes de sécurité ne contiennent que des caractères autorisés (pas d'accents ou de caractères spéciaux non supportés).
 
+#### Erreur d'authentification AWS
+
+Si vous voyez une erreur comme `No valid credential sources found` ou `failed to refresh cached credentials`, cela signifie que Terraform ne trouve pas d'identifiants AWS valides. Pour résoudre ce problème :
+
+1. **Pour le développement local** : Configurez vos identifiants AWS en utilisant l'une des méthodes décrites dans le [README de l'infrastructure](./infrastructure/README.md).
+2. **Pour GitHub Actions** : Assurez-vous que les secrets `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont correctement configurés dans les paramètres de votre dépôt GitHub.
+
 ### Nettoyage des ressources après un échec de déploiement
 
 Si le déploiement Terraform échoue après avoir créé certaines ressources, et que la commande `terraform destroy` ne parvient pas à supprimer ces ressources, suivez ces étapes :
