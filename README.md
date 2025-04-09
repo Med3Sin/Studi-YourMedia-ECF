@@ -397,12 +397,12 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 >
 > 1. **Créez un compte Terraform Cloud** :
 >    - Accédez à [Terraform Cloud](https://app.terraform.io/signup/account) et créez un compte
->    - Créez une organisation nommée `yourmedia-org` (ou choisissez un autre nom et mettez à jour `backend.tf`)
+>    - Créez une organisation nommée `Med3Sin` (ou choisissez un autre nom et mettez à jour `backend.tf`)
 >
 > 2. **Créez un workspace** :
 >    - Dans votre organisation, cliquez sur "New Workspace"
 >    - Sélectionnez "CLI-driven workflow"
->    - Nommez le workspace `yourmedia-infrastructure`
+>    - Nommez le workspace `Med3Sin`
 >
 > 3. **Générez un token API** :
 >    - Cliquez sur votre avatar en haut à droite

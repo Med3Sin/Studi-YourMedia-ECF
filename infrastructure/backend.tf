@@ -4,9 +4,9 @@
 
 terraform {
   cloud {
-    organization = "yourmedia-org"
+    organization = "Med3Sin"
     workspaces {
-      name = "yourmedia-infrastructure"
+      name = "Med3Sin"
     }
   }
 }

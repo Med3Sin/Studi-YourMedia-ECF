@@ -102,8 +102,8 @@ Ce projet utilise Terraform Cloud pour stocker de manière sécurisée l'état T
 Pour utiliser Terraform Cloud en local :
 
 1. **Créez un compte** sur [Terraform Cloud](https://app.terraform.io/signup/account).
-2. **Créez une organisation** nommée `yourmedia-org` (ou modifiez le nom dans `backend.tf`).
-3. **Créez un workspace** nommé `yourmedia-infrastructure`.
+2. **Créez une organisation** nommée `Med3Sin` (ou modifiez le nom dans `backend.tf`).
+3. **Créez un workspace** nommé `Med3Sin`.
 4. **Générez un token API** dans Terraform Cloud (User Settings > Tokens).
 5. **Connectez-vous via la ligne de commande** :
    ```bash
@@ -127,9 +127,9 @@ Pour utiliser Terraform Cloud en local :
 Le workflow GitHub Actions est configuré pour utiliser Terraform Cloud :
 
 1. **Ajoutez le secret `TF_API_TOKEN`** dans les secrets GitHub avec votre token API Terraform Cloud.
-2. **Créez un environnement GitHub** nommé `production` avec des règles d'approbation :
+2. **Créez un environnement GitHub** nommé `approval` avec des règles d'approbation :
    - Allez dans Settings > Environments > New environment
-   - Nom : `production`
+   - Nom : `approval`
    - Activez "Required reviewers" et ajoutez les personnes qui peuvent approuver les déploiements
 
 #### Workflow avec approbation
