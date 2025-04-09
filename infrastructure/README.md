@@ -86,3 +86,35 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
 7.  Pour détruire : `terraform destroy -var-file=terraform.tfvars`
 
 **Important :** Il est fortement recommandé d'utiliser le workflow GitHub Actions pour gérer l'infrastructure en production ou en environnement partagé afin d'assurer la cohérence et la sécurité.
+
+### Stockage du tfstate sur GitHub
+
+Pour faciliter la gestion de l'état Terraform et la suppression des ressources, vous pouvez stocker le fichier d'état (tfstate) sur GitHub. Cela permet à plusieurs personnes de travailler sur l'infrastructure et facilite la suppression des ressources en cas d'échec partiel du déploiement.
+
+1. **Initialisation avec le backend HTTP** :
+   ```bash
+   terraform init \
+     -backend-config="address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate" \
+     -backend-config="lock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
+     -backend-config="unlock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
+     -backend-config="username=GITHUB_USERNAME" \
+     -backend-config="password=GITHUB_TOKEN"
+   ```
+
+2. **Utilisation avec le workflow GitHub Actions** :
+   Ajoutez les options de backend à l'étape d'initialisation dans le workflow :
+   ```yaml
+   - name: Terraform Init
+     run: |
+       terraform init \
+         -backend-config="address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate" \
+         -backend-config="lock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
+         -backend-config="unlock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
+         -backend-config="username=${{ github.repository_owner }}" \
+         -backend-config="password=${{ secrets.GH_PAT }}"
+   ```
+
+3. **Avantages** :
+   - État Terraform partagé entre tous les membres de l'équipe
+   - Facilite la suppression des ressources en cas d'échec partiel
+   - Historique des modifications de l'infrastructure via l'historique Git

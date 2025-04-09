@@ -69,10 +69,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 4: Initialisation de Terraform
+      # Étape 4: Initialisation de Terraform avec backend HTTP pour stocker le tfstate sur GitHub
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate" \
+            -backend-config="lock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
+            -backend-config="unlock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
+            -backend-config="username=${{ github.repository_owner }}" \
+            -backend-config="password=${{ secrets.GH_PAT || '' }}"
 
       # Étape 5: Validation de la configuration Terraform
       - name: Terraform Validate
