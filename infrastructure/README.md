@@ -87,34 +87,57 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
 
 **Important :** Il est fortement recommandé d'utiliser le workflow GitHub Actions pour gérer l'infrastructure en production ou en environnement partagé afin d'assurer la cohérence et la sécurité.
 
-### Stockage du tfstate sur GitHub
+### Stockage sécurisé de l'état Terraform avec Terraform Cloud
 
-Pour faciliter la gestion de l'état Terraform et la suppression des ressources, vous pouvez stocker le fichier d'état (tfstate) sur GitHub. Cela permet à plusieurs personnes de travailler sur l'infrastructure et facilite la suppression des ressources en cas d'échec partiel du déploiement.
+Ce projet utilise Terraform Cloud pour stocker de manière sécurisée l'état Terraform. Cette approche offre plusieurs avantages :
 
-1. **Initialisation avec le backend HTTP** :
+1. **Sécurité renforcée** : L'état Terraform est stocké de manière chiffrée et sécurisée.
+2. **Gestion des secrets** : Les variables sensibles sont stockées de manière sécurisée.
+3. **Verrouillage d'état** : Empêche les modifications simultanées de l'infrastructure.
+4. **Historique des exécutions** : Toutes les exécutions sont enregistrées et peuvent être consultées.
+5. **Collaboration facilitée** : Plusieurs membres de l'équipe peuvent travailler sur l'infrastructure.
+
+#### Configuration pour le développement local
+
+Pour utiliser Terraform Cloud en local :
+
+1. **Créez un compte** sur [Terraform Cloud](https://app.terraform.io/signup/account).
+2. **Créez une organisation** nommée `yourmedia-org` (ou modifiez le nom dans `backend.tf`).
+3. **Créez un workspace** nommé `yourmedia-infrastructure`.
+4. **Générez un token API** dans Terraform Cloud (User Settings > Tokens).
+5. **Connectez-vous via la ligne de commande** :
    ```bash
-   terraform init \
-     -backend-config="address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate" \
-     -backend-config="lock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
-     -backend-config="unlock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
-     -backend-config="username=GITHUB_USERNAME" \
-     -backend-config="password=GITHUB_TOKEN"
+   terraform login
+   ```
+   Ou créez un fichier de configuration avec votre token :
+   ```bash
+   # Pour Linux/macOS : ~/.terraformrc
+   # Pour Windows : %APPDATA%\terraform.rc
+   credentials "app.terraform.io" {
+     token = "votre-token-api"
+   }
+   ```
+6. **Initialisez Terraform** :
+   ```bash
+   terraform init
    ```
 
-2. **Utilisation avec le workflow GitHub Actions** :
-   Ajoutez les options de backend à l'étape d'initialisation dans le workflow :
-   ```yaml
-   - name: Terraform Init
-     run: |
-       terraform init \
-         -backend-config="address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate" \
-         -backend-config="lock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
-         -backend-config="unlock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
-         -backend-config="username=${{ github.repository_owner }}" \
-         -backend-config="password=${{ secrets.GH_PAT }}"
-   ```
+#### Configuration pour GitHub Actions
 
-3. **Avantages** :
-   - État Terraform partagé entre tous les membres de l'équipe
-   - Facilite la suppression des ressources en cas d'échec partiel
-   - Historique des modifications de l'infrastructure via l'historique Git
+Le workflow GitHub Actions est configuré pour utiliser Terraform Cloud :
+
+1. **Ajoutez le secret `TF_API_TOKEN`** dans les secrets GitHub avec votre token API Terraform Cloud.
+2. **Créez un environnement GitHub** nommé `production` avec des règles d'approbation :
+   - Allez dans Settings > Environments > New environment
+   - Nom : `production`
+   - Activez "Required reviewers" et ajoutez les personnes qui peuvent approuver les déploiements
+
+#### Workflow avec approbation
+
+Le workflow GitHub Actions est structuré en trois étapes :
+
+1. **Plan** : Génère un plan des modifications à apporter à l'infrastructure.
+2. **Approbation** : Requiert une approbation manuelle avant de continuer.
+3. **Apply/Destroy** : Applique ou détruit l'infrastructure après approbation.
+
+Cette approche garantit qu'aucune modification n'est apportée à l'infrastructure sans une vérification humaine préalable.

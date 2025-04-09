@@ -315,11 +315,15 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
 
 ### Workflows Disponibles
 
-*   **`1-infra-deploy-destroy.yml`:** Gère l'infrastructure complète via Terraform.
+*   **`1-infra-deploy-destroy.yml`:** Gère l'infrastructure complète via Terraform avec Terraform Cloud.
     - Déclenchement: Manuel (workflow_dispatch)
     - Actions: plan, apply, destroy
-    - Fonctionnalités: Initialisation, validation, planification et application/destruction de l'infrastructure AWS
-    - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées
+    - Fonctionnalités:
+      - Stockage sécurisé de l'état Terraform dans Terraform Cloud
+      - Workflow en plusieurs étapes avec approbation obligatoire
+      - Planification, validation et application/destruction de l'infrastructure AWS
+    - Sécurité: Requiert une approbation manuelle avant toute modification de l'infrastructure
+    - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées à chaque étape
 
 *   **`3-backend-deploy.yml`:** Compile et déploie l'application Java sur l'instance EC2.
     - Déclenchement: Manuel (workflow_dispatch)
@@ -331,6 +335,16 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     - Processus: Installation des dépendances, compilation du code
     - Note: Le déploiement réel est géré par AWS Amplify via la connexion directe au repo GitHub
 
+### Intégration avec Terraform Cloud
+
+L'infrastructure est gérée via Terraform avec l'état stocké de manière sécurisée dans Terraform Cloud :
+
+1. **Sécurité des données** : L'état Terraform, qui peut contenir des informations sensibles, est stocké de manière chiffrée.
+2. **Workflow avec approbation** : Les modifications de l'infrastructure nécessitent une approbation manuelle avant d'être appliquées.
+3. **Traçabilité** : Historique complet des modifications apportées à l'infrastructure.
+
+Pour plus de détails sur la configuration, consultez le [README de l'infrastructure](./infrastructure/README.md).
+
 ### Configuration des Secrets
 
 Pour que les workflows fonctionnent, vous devez configurer les secrets suivants dans votre repository GitHub (`Settings` > `Secrets and variables` > `Actions`) :
@@ -341,6 +355,7 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `DB_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
 *   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements). Assurez-vous que la clé publique correspondante est fournie à Terraform (via une variable).
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
+*   `TF_API_TOKEN`: Un token API Terraform Cloud pour l'authentification et le stockage sécurisé de l'état Terraform.
 
 > **Instructions détaillées pour créer un GH_PAT** :
 >
@@ -375,6 +390,37 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 >    - Dans le menu de gauche, cliquez sur "Secrets and variables" puis "Actions"
 >    - Cliquez sur "New repository secret"
 >    - Nom : `GH_PAT`
+>    - Valeur : collez le token que vous avez copié
+>    - Cliquez sur "Add secret"
+
+> **Instructions détaillées pour créer un TF_API_TOKEN** :
+>
+> 1. **Créez un compte Terraform Cloud** :
+>    - Accédez à [Terraform Cloud](https://app.terraform.io/signup/account) et créez un compte
+>    - Créez une organisation nommée `yourmedia-org` (ou choisissez un autre nom et mettez à jour `backend.tf`)
+>
+> 2. **Créez un workspace** :
+>    - Dans votre organisation, cliquez sur "New Workspace"
+>    - Sélectionnez "CLI-driven workflow"
+>    - Nommez le workspace `yourmedia-infrastructure`
+>
+> 3. **Générez un token API** :
+>    - Cliquez sur votre avatar en haut à droite
+>    - Sélectionnez "User Settings"
+>    - Cliquez sur "Tokens"
+>    - Cliquez sur "Create an API token"
+>    - Donnez un nom à votre token (ex: "GitHub Actions Integration")
+>    - Cliquez sur "Create API token"
+>
+> 4. **Copiez le token** :
+>    - **IMPORTANT** : Copiez immédiatement le token généré. Vous ne pourrez plus le voir après avoir quitté cette page.
+>
+> 5. **Configurez le secret dans GitHub Actions** :
+>    - Allez sur votre dépôt GitHub
+>    - Cliquez sur "Settings" (Paramètres)
+>    - Dans le menu de gauche, cliquez sur "Secrets and variables" puis "Actions"
+>    - Cliquez sur "New repository secret"
+>    - Nom : `TF_API_TOKEN`
 >    - Valeur : collez le token que vous avez copié
 >    - Cliquez sur "Add secret"
 

@@ -1,12 +1,12 @@
-# Configuration du backend pour stocker le tfstate
-# Pour utiliser ce backend, vous devez initialiser Terraform avec les options suivantes :
-# terraform init \
-#   -backend-config="address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate" \
-#   -backend-config="lock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
-#   -backend-config="unlock_address=https://api.github.com/repos/OWNER/REPO/contents/terraform.tfstate.lock" \
-#   -backend-config="username=GITHUB_USERNAME" \
-#   -backend-config="password=GITHUB_TOKEN"
+# Configuration du backend Terraform Cloud pour un stockage sécurisé de l'état
+# L'authentification se fait via le token API Terraform Cloud (TF_API_TOKEN)
+# Les variables sont stockées dans les secrets GitHub
 
 terraform {
-  backend "http" {}
+  cloud {
+    organization = "yourmedia-org"
+    workspaces {
+      name = "yourmedia-infrastructure"
+    }
+  }
 }

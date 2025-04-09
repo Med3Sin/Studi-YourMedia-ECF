@@ -2,10 +2,9 @@ name: 1 - Deploy/Destroy Infrastructure (Terraform)
 
 # -----------------------------------------------------------------------
 # Ce workflow gère le déploiement et la destruction de l'infrastructure AWS via Terraform.
-# Il utilise le secret GH_PAT au lieu de GITHUB_TOKEN car les noms de secrets personnalisés
-# ne doivent pas commencer par GITHUB_ (préfixe réservé aux variables d'environnement GitHub).
-# La syntaxe ${{ secrets.GH_PAT || '' }} permet d'utiliser une chaîne vide si le secret
-# n'est pas défini, évitant ainsi le blocage du workflow.
+# Il utilise Terraform Cloud pour stocker l'état de façon sécurisée.
+# Les variables sensibles sont stockées dans les secrets GitHub.
+# Ce workflow nécessite une approbation manuelle avant d'appliquer ou de détruire l'infrastructure.
 # -----------------------------------------------------------------------
 
 on:
@@ -39,8 +38,9 @@ env:
   AWS_REGION: eu-west-3            # Région AWS (Paris)
 
 jobs:
-  terraform:
-    name: 'Terraform ${{ github.event.inputs.action }}'
+  # Job de planification Terraform (toujours exécuté)
+  plan:
+    name: 'Terraform Plan'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,6 +60,7 @@ jobs:
         with:
           terraform_version: ">=1.0"  # Version compatible avec le code
           terraform_wrapper: false    # Désactive le wrapper pour une meilleure gestion des erreurs
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}  # Token d'API Terraform Cloud
 
       # Étape 3: Configuration des identifiants AWS
       - name: Configure AWS Credentials
@@ -69,16 +70,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 4: Initialisation de Terraform avec backend HTTP pour stocker le tfstate sur GitHub
+      # Étape 4: Initialisation de Terraform avec Terraform Cloud
       - name: Terraform Init
         id: init
-        run: |
-          terraform init \
-            -backend-config="address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate" \
-            -backend-config="lock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
-            -backend-config="unlock_address=https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate.lock" \
-            -backend-config="username=${{ github.repository_owner }}" \
-            -backend-config="password=${{ secrets.GH_PAT || '' }}"
+        run: terraform init
 
       # Étape 5: Validation de la configuration Terraform
       - name: Terraform Validate
@@ -94,7 +89,6 @@ jobs:
       # Étape 7: Planification des changements Terraform
       - name: Terraform Plan
         id: plan
-        if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
         run: |
           echo "::group::Terraform Plan"
           terraform plan \
@@ -109,10 +103,84 @@ jobs:
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si le plan échoue
 
-      # Étape 8: Application des changements Terraform
+      # Étape 8: Sauvegarde du plan Terraform pour les jobs suivants
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: ${{ env.TF_WORKING_DIR }}/tfplan
+          retention-days: 1
+
+      # Étape 9: Résumé de la planification
+      - name: Plan Summary
+        run: |
+          echo "## Résumé de la planification Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action demandée:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
+          echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Plan généré avec succès ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* **Étape suivante:** Attente d'approbation pour ${{ github.event.inputs.action == 'apply' && 'application' || github.event.inputs.action == 'destroy' && 'destruction' || 'aucune action' }}" >> $GITHUB_STEP_SUMMARY
+
+  # Job d'approbation (exécuté uniquement pour apply ou destroy)
+  approve:
+    name: 'Approbation manuelle'
+    needs: plan
+    if: github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+    environment: production  # Environnement avec protection d'approbation
+
+    steps:
+      - name: Approbation requise
+        run: |
+          echo "## Approbation requise" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** ${{ github.event.inputs.action == 'apply' && 'Application' || 'Destruction' }} de l'infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "* **Approuvé par:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  # Job d'application (exécuté après approbation pour apply)
+  apply:
+    name: 'Terraform Apply'
+    needs: approve
+    if: github.event.inputs.action == 'apply'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      # Étape 1: Récupération du code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # Étape 2: Configuration de Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">=1.0"
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      # Étape 3: Configuration des identifiants AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Étape 4: Initialisation de Terraform
+      - name: Terraform Init
+        run: terraform init
+
+      # Étape 5: Téléchargement du plan Terraform
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v3
+        with:
+          name: terraform-plan
+          path: ${{ env.TF_WORKING_DIR }}
+
+      # Étape 6: Application des changements
       - name: Terraform Apply
-        id: apply
-        if: github.event.inputs.action == 'apply'
         run: |
           echo "::group::Terraform Apply"
           terraform apply -auto-approve tfplan
@@ -121,12 +189,52 @@ jobs:
           # Affiche les outputs après l'application
           echo "\n\n--- Outputs de l'infrastructure ---"
           terraform output
-        continue-on-error: false  # Arrête le workflow si l'application échoue
 
-      # Étape 9: Destruction de l'infrastructure Terraform
+      # Étape 7: Résumé de l'application
+      - name: Apply Summary
+        run: |
+          echo "## Résumé de l'application Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** Application de l'infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Infrastructure déployée avec succès ✅" >> $GITHUB_STEP_SUMMARY
+
+  # Job de destruction (exécuté après approbation pour destroy)
+  destroy:
+    name: 'Terraform Destroy'
+    needs: approve
+    if: github.event.inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      # Étape 1: Récupération du code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # Étape 2: Configuration de Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">=1.0"
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      # Étape 3: Configuration des identifiants AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Étape 4: Initialisation de Terraform
+      - name: Terraform Init
+        run: terraform init
+
+      # Étape 5: Destruction de l'infrastructure
       - name: Terraform Destroy
-        id: destroy
-        if: github.event.inputs.action == 'destroy'
         run: |
           echo "::group::Terraform Destroy"
           terraform destroy -auto-approve \
@@ -137,13 +245,10 @@ jobs:
             -var="repo_owner=${{ github.event.inputs.repo_owner }}" \
             -var="repo_name=${{ github.event.inputs.repo_name }}"
           echo "::endgroup::"
-        continue-on-error: false  # Arrête le workflow si la destruction échoue
 
-      # Étape 10: Résumé de l'exécution
-      - name: Summary
+      # Étape 6: Résumé de la destruction
+      - name: Destroy Summary
         run: |
-          echo "## Résumé de l'exécution Terraform" >> $GITHUB_STEP_SUMMARY
-          echo "* **Action exécutée:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
-          echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Statut:** Succès ✅" >> $GITHUB_STEP_SUMMARY
+          echo "## Résumé de la destruction Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** Destruction de l'infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Infrastructure détruite avec succès ✅" >> $GITHUB_STEP_SUMMARY
