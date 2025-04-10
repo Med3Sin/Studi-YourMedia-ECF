@@ -24,7 +24,6 @@ L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-dest
 Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
 
 * Utilisation d'instances EC2 t2.micro pour l'application Java/Tomcat
-* Utilisation de l'AMI `ami-0925eac45db11fef2` (Amazon Linux 2 AMI) pour toutes les instances EC2
 * Utilisation d'une instance RDS db.t2.micro pour MySQL
 * Utilisation d'ECS avec une instance EC2 t2.micro (au lieu de Fargate qui n'est pas inclus dans le Free Tier) pour le monitoring
 * Configuration minimale des ressources pour éviter les coûts supplémentaires
@@ -38,37 +37,7 @@ Plusieurs optimisations ont été réalisées pour rester dans les limites du Fr
 
 Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
 
-1.  Assurez-vous d'avoir configuré vos [credentials AWS](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html). Vous avez plusieurs options :
-
-    **Option 1 : Variables d'environnement**
-    ```bash
-    # Pour Windows (PowerShell)
-    $env:AWS_ACCESS_KEY_ID="votre_access_key"
-    $env:AWS_SECRET_ACCESS_KEY="votre_secret_key"
-    $env:AWS_REGION="eu-west-3"
-
-    # Pour Linux/macOS
-    export AWS_ACCESS_KEY_ID="votre_access_key"
-    export AWS_SECRET_ACCESS_KEY="votre_secret_key"
-    export AWS_REGION="eu-west-3"
-    ```
-
-    **Option 2 : Fichier de configuration AWS**
-    Modifiez le fichier `aws_credentials.tf` (déjà dans .gitignore) :
-    ```hcl
-    provider "aws" {
-      region     = var.aws_region
-      access_key = "votre_access_key"
-      secret_key = "votre_secret_key"
-    }
-    ```
-
-    **Option 3 : Profil AWS CLI**
-    ```bash
-    # Configurer AWS CLI
-    aws configure
-    ```
-
+1.  Assurez-vous d'avoir configuré vos [credentials AWS](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html).
 2.  Naviguez dans le répertoire `infrastructure/`.
 3.  Initialisez Terraform : `terraform init`
 4.  Créez un fichier `terraform.tfvars` (ignoré par git) pour définir les variables sensibles ou spécifiques :
@@ -76,7 +45,7 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
     # terraform.tfvars
     db_username         = "admin"
     db_password         = "votreMotDePasseSecret"
-    ec2_key_pair_name   = "votre-cle-ssh-aws"
+    # ec2_key_pair_name est maintenant stocké dans le secret GitHub EC2_KEY_PAIR_NAME
     github_token        = "votre-token-github-pat" # Correspond au secret GH_PAT dans GitHub Actions
     repo_owner          = "votre-user-github"
     repo_name           = "nom-du-repo"
@@ -116,73 +85,3 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
 7.  Pour détruire : `terraform destroy -var-file=terraform.tfvars`
 
 **Important :** Il est fortement recommandé d'utiliser le workflow GitHub Actions pour gérer l'infrastructure en production ou en environnement partagé afin d'assurer la cohérence et la sécurité.
-
-### Stockage sécurisé de l'état Terraform avec Terraform Cloud
-
-Ce projet utilise Terraform Cloud pour stocker de manière sécurisée l'état Terraform. Cette approche offre plusieurs avantages :
-
-1. **Sécurité renforcée** : L'état Terraform est stocké de manière chiffrée et sécurisée.
-2. **Gestion des secrets** : Les variables sensibles sont stockées de manière sécurisée.
-3. **Verrouillage d'état** : Empêche les modifications simultanées de l'infrastructure.
-4. **Historique des exécutions** : Toutes les exécutions sont enregistrées et peuvent être consultées.
-5. **Collaboration facilitée** : Plusieurs membres de l'équipe peuvent travailler sur l'infrastructure.
-
-#### Configuration pour le développement local
-
-Pour utiliser Terraform Cloud en local :
-
-1. **Créez un compte** sur [Terraform Cloud](https://app.terraform.io/signup/account).
-2. **Créez une organisation** nommée `Med3Sin` (ou modifiez le nom dans `backend.tf`).
-3. **Créez un workspace** nommé `Med3Sin`.
-4. **Générez un token API** dans Terraform Cloud (User Settings > Tokens).
-5. **Connectez-vous via la ligne de commande** :
-   ```bash
-   terraform login
-   ```
-   Ou créez un fichier de configuration avec votre token :
-   ```bash
-   # Pour Linux/macOS : ~/.terraformrc
-   # Pour Windows : %APPDATA%\terraform.rc
-   credentials "app.terraform.io" {
-     token = "votre-token-api"
-   }
-   ```
-6. **Initialisez Terraform** :
-   ```bash
-   terraform init
-   ```
-
-#### Configuration pour GitHub Actions
-
-Le workflow GitHub Actions est configuré pour utiliser Terraform Cloud :
-
-1. **Ajoutez le secret `TF_API_TOKEN`** dans les secrets GitHub avec votre token API Terraform Cloud.
-2. **Créez un environnement GitHub** nommé `approval` avec des règles d'approbation :
-   - Allez dans Settings > Environments > New environment
-   - Nom : `approval`
-   - Activez "Required reviewers" et ajoutez les personnes qui peuvent approuver les déploiements
-
-#### Workflow avec approbation
-
-Le workflow GitHub Actions est structuré en trois étapes, chacune nécessitant une approbation :
-
-1. **Plan** : Génère un plan des modifications à apporter à l'infrastructure (nécessite une première approbation).
-2. **Approbation** : Requiert une deuxième approbation manuelle avant de continuer.
-3. **Apply/Destroy** : Applique ou détruit l'infrastructure après une troisième approbation.
-
-Cette approche à trois niveaux d'approbation garantit un contrôle maximal sur les modifications apportées à l'infrastructure.
-
-#### Simplification des paramètres
-
-Le workflow a été simplifié pour ne demander que le paramètre essentiel :
-
-- **ssh_key_pair_name** : Nom de la paire de clés EC2 existante dans AWS pour SSH
-
-Les autres informations comme le propriétaire et le nom du dépôt GitHub sont automatiquement récupérées via les variables d'environnement GitHub Actions.
-
-#### Utilisation des dernières versions des actions GitHub
-
-Le workflow utilise les dernières versions des actions GitHub :
-
-- `actions/upload-artifact@v4` pour sauvegarder le plan Terraform
-- `actions/download-artifact@v4` pour récupérer le plan Terraform
