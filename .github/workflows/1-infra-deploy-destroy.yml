@@ -69,6 +69,10 @@ jobs:
       # Étape 5: Initialisation de Terraform
       - name: Terraform Init
         id: init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: terraform init
 
       # Étape 5: Validation de la configuration Terraform
@@ -86,6 +90,10 @@ jobs:
       - name: Terraform Plan
         id: plan
         if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           echo "::group::Terraform Plan"
           terraform plan \
@@ -104,6 +112,10 @@ jobs:
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action == 'apply'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           echo "::group::Terraform Apply"
           terraform apply -auto-approve tfplan
@@ -118,6 +130,10 @@ jobs:
       - name: Terraform Destroy
         id: destroy
         if: github.event.inputs.action == 'destroy'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           echo "::group::Terraform Destroy"
           terraform destroy -auto-approve \

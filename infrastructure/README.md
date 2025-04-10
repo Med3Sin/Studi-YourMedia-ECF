@@ -19,7 +19,9 @@ Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrast
 
 L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-destroy.yml`. Ce workflow permet d'exécuter les commandes Terraform (`plan`, `apply`, `destroy`) de manière sécurisée et automatisée.
 
-### Configuration de Terraform Cloud
+### Configuration des identifiants
+
+#### Configuration de Terraform Cloud
 
 Ce projet utilise Terraform Cloud comme backend pour stocker l'état Terraform de manière sécurisée. Pour utiliser Terraform Cloud, vous devez :
 
@@ -30,6 +32,16 @@ Ce projet utilise Terraform Cloud comme backend pour stocker l'état Terraform d
 5. Ajouter ce token comme secret GitHub nommé `TF_API_TOKEN`
 
 Si vous rencontrez l'erreur "Required token could not be found", cela signifie que le token Terraform Cloud n'est pas correctement configuré. Assurez-vous que le secret `TF_API_TOKEN` est bien configuré dans les paramètres de votre dépôt GitHub.
+
+#### Configuration des identifiants AWS
+
+Pour que Terraform puisse créer des ressources dans AWS, vous devez configurer les identifiants AWS. Pour cela, vous devez :
+
+1. Créer un utilisateur IAM dans AWS avec les droits nécessaires
+2. Générer une clé d'accès et une clé secrète pour cet utilisateur
+3. Ajouter ces clés comme secrets GitHub nommés `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY`
+
+Si vous rencontrez l'erreur "No valid credential sources found", cela signifie que les identifiants AWS ne sont pas correctement configurés. Assurez-vous que les secrets `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont bien configurés dans les paramètres de votre dépôt GitHub.
 
 ### Optimisations Free Tier
 
