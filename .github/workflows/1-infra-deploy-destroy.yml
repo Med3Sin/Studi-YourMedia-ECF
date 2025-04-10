@@ -59,7 +59,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 4: Initialisation de Terraform
+      # Étape 4: Configuration de Terraform Cloud
+      - name: Setup Terraform Cloud Token
+        run: |
+          mkdir -p $HOME/.terraform.d
+          echo '{"credentials": {"app.terraform.io": {"token": "'${{ secrets.TF_API_TOKEN }}'"}}}' > $HOME/.terraform.d/credentials.tfrc.json
+          cat $HOME/.terraform.d/credentials.tfrc.json
+
+      # Étape 5: Initialisation de Terraform
       - name: Terraform Init
         id: init
         run: terraform init

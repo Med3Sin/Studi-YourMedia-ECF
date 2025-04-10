@@ -19,6 +19,18 @@ Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrast
 
 L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-destroy.yml`. Ce workflow permet d'exécuter les commandes Terraform (`plan`, `apply`, `destroy`) de manière sécurisée et automatisée.
 
+### Configuration de Terraform Cloud
+
+Ce projet utilise Terraform Cloud comme backend pour stocker l'état Terraform de manière sécurisée. Pour utiliser Terraform Cloud, vous devez :
+
+1. Créer un compte sur [Terraform Cloud](https://app.terraform.io/)
+2. Créer une organisation nommée "Med3Sin"
+3. Créer un workspace nommé "Med3Sin"
+4. Générer un token API dans votre profil utilisateur
+5. Ajouter ce token comme secret GitHub nommé `TF_API_TOKEN`
+
+Si vous rencontrez l'erreur "Required token could not be found", cela signifie que le token Terraform Cloud n'est pas correctement configuré. Assurez-vous que le secret `TF_API_TOKEN` est bien configuré dans les paramètres de votre dépôt GitHub.
+
 ### Optimisations Free Tier
 
 Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
