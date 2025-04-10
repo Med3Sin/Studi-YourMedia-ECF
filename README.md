@@ -31,14 +31,14 @@ L'architecture cible repose sur AWS et utilise les services suivants :
     *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
 *   **Base de données:** AWS RDS MySQL (db.t2.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
-*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec des groupes de sécurité spécifiques pour contrôler les flux.
+*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
 *   **Hébergement Frontend:** AWS Amplify Hosting pour déployer la version web de l'application React Native de manière simple et scalable.
 *   **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 *   **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques) et les déploiements des applications backend et frontend, ainsi que la gestion de l'infrastructure Terraform.
 
 **Schéma d'Architecture :**
 
-[Voir le schéma d'architecture](aws-architecture-project-yourmedia-updated.html)
+[Voir le schéma d'architecture](aws-architecture-project-yourmedia.html)
 
 
 
@@ -172,8 +172,29 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 existante dans AWS pour l'accès SSH.
 *   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements).
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
-*   `TF_API_TOKEN`: Un token API Terraform Cloud pour l'authentification et le stockage sécurisé de l'état Terraform.
+*   `TF_API_TOKEN`: Un token API Terraform Cloud pour l'authentification et le stockage sécurisé de l'état Terraform. **Ce secret est obligatoire pour que le workflow fonctionne.**
 
+> **Instructions détaillées pour créer un TF_API_TOKEN** :
+>
+> 1. **Accédez à Terraform Cloud** :
+>    - Connectez-vous à [Terraform Cloud](https://app.terraform.io/)
+>    - Cliquez sur votre avatar en haut à droite
+>    - Sélectionnez "User Settings"
+>
+> 2. **Créez un token API** :
+>    - Cliquez sur "Tokens" dans le menu de gauche
+>    - Cliquez sur "Create an API token"
+>    - Donnez un nom à votre token (par exemple "GitHub Actions")
+>    - Copiez le token généré (vous ne pourrez plus le voir après avoir quitté cette page)
+>
+> 3. **Configurez le secret dans GitHub Actions** :
+>    - Allez sur votre dépôt GitHub
+>    - Cliquez sur "Settings" > "Secrets and variables" > "Actions"
+>    - Cliquez sur "New repository secret"
+>    - Nom : `TF_API_TOKEN`
+>    - Valeur : collez le token que vous avez copié
+>    - Cliquez sur "Add secret"
+>
 > **Instructions détaillées pour créer un GH_PAT** :
 >
 > 1. **Accédez à votre compte GitHub** :

@@ -12,15 +12,15 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Règle entrante: SSH depuis l'IP de l'opérateur (pour admin et déploiement GH Actions via SSH)
+# Règle entrante: SSH ouvert à toutes les adresses IP (pour admin et déploiement GH Actions via SSH)
 resource "aws_security_group_rule" "ec2_ingress_ssh" {
   type              = "ingress"
   from_port         = 22
   to_port           = 22
   protocol          = "tcp"
-  cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à toutes les adresses IP - ATTENTION: Moins sécurisé, à éviter en production
   security_group_id = aws_security_group.ec2_sg.id
-  description       = "Allow SSH from operator IP"
+  description       = "Allow SSH from anywhere"
 }
 
 # Règle entrante: Tomcat (port par défaut)
@@ -129,15 +129,15 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# Règle entrante: Grafana (depuis l'IP de l'opérateur)
+# Règle entrante: Grafana ouvert à toutes les adresses IP
 resource "aws_security_group_rule" "ecs_ingress_grafana" {
   type              = "ingress"
   from_port         = 3000 # Port Grafana par défaut
   to_port           = 3000
   protocol          = "tcp"
-  cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à toutes les adresses IP - ATTENTION: Moins sécurisé, à éviter en production
   security_group_id = aws_security_group.ecs_sg.id
-  description       = "Allow Grafana access from operator IP"
+  description       = "Allow Grafana access from anywhere"
 }
 
 # Règle sortante: Accès à l'EC2 pour Prometheus
