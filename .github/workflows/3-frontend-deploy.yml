@@ -1,4 +1,4 @@
-name: 4 - Build Frontend (React Native Web CI)
+name: 3 - Build Frontend (React Native Web CI)
 
 # -----------------------------------------------------------------------
 # Ce workflow gère la vérification de l'application frontend React Native Web.
