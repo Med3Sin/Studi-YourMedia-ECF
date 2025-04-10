@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       ec2_public_ip:
-        description: 'Adresse IP publique de l\'instance EC2 (depuis les outputs Terraform)'
+        description: 'Adresse IP publique de l''instance EC2 (depuis les outputs Terraform)'
         required: true
         type: string
       s3_bucket_name:
