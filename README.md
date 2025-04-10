@@ -260,7 +260,7 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
 
-### Erreurs liées aux ressources
+### Erreurs liées aux ressources et optimisations
 
 #### Erreur "no matching EC2 Subnet found"
 
@@ -353,6 +353,14 @@ Error: creating RDS DB Instance (***-mysql-db): operation error RDS: CreateDBIns
 ```
 
 Cela signifie que la combinaison de classe d'instance (db.t2.micro), de moteur (MySQL) et de version (8.0) n'est pas prise en charge. Ce problème a été résolu en utilisant la version 5.7 de MySQL, qui est compatible avec db.t2.micro dans le Free Tier.
+
+#### Problème de suppression du groupe d'auto-scaling EC2
+
+Si vous rencontrez des difficultés lors de la destruction de l'infrastructure, notamment avec le groupe d'auto-scaling EC2, c'est probablement parce que cette ressource a des dépendances complexes qui ne sont pas correctement gérées par Terraform lors de la destruction.
+
+Ce problème a été résolu en supprimant complètement le groupe d'auto-scaling factice et le fournisseur de capacité ECS associé. Ces ressources n'étaient pas strictement nécessaires pour notre cas d'utilisation simple, car nous utilisons déjà une instance EC2 dédiée pour exécuter les conteneurs ECS. Les services ECS sont configurés pour utiliser directement cette instance via le type de lancement "EC2".
+
+Cette simplification de l'architecture facilite la destruction de l'infrastructure et réduit la complexité globale.
 
 #### Erreur "Some input subnets are invalid" pour RDS
 
