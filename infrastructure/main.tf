@@ -130,29 +130,47 @@ resource "aws_amplify_app" "frontend_app" {
   # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.
   # Cependant, la configuration la plus simple est de laisser Amplify builder depuis le repo.
   # On choisit cette option pour simplifier le Terraform. Le workflow GH Actions fera juste le push.
+  # Spécifier le répertoire app-react comme répertoire de base
   build_spec = <<-EOT
     version: 1
     frontend:
       phases:
         preBuild:
           commands:
-            - yarn install # Ou npm install
+            - cd app-react
+            - yarn install || npm install
         build:
           commands:
-            - yarn run build # Ou npm run build
+            - yarn run build || npm run build
       artifacts:
-        baseDirectory: build # Ou le dossier de sortie de votre build web
+        baseDirectory: app-react/build # Dossier de sortie du build React
         files:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
+          - app-react/node_modules/**/*
   EOT
 
   # Variables d'environnement pour le build Amplify si nécessaire
-  # environment_variables = {
-  #   EXAMPLE_VAR = "example_value"
-  # }
+  environment_variables = {
+    NODE_ENV = "production"
+  }
+
+  # Activer la détection automatique des branches
+  enable_auto_branch_creation = true
+  enable_branch_auto_build = true
+  enable_branch_auto_deletion = true
+
+  # Configuration de la branche par défaut (main)
+  auto_branch_creation_patterns = ["main", "dev", "feature/*"]
+
+  # Configuration de la branche principale
+  auto_branch_creation_config {
+    enable_auto_build = true
+    enable_pull_request_preview = true
+    framework = "React"
+    stage = "PRODUCTION"
+  }
 
   tags = {
     Project   = var.project_name
@@ -168,6 +186,15 @@ resource "aws_amplify_branch" "main" {
 
   # Activer le build automatique à chaque push sur cette branche
   enable_auto_build = true
+
+  # Configuration spécifique à React
+  framework = "React"
+  stage     = "PRODUCTION"
+
+  # Variables d'environnement spécifiques à la branche main
+  environment_variables = {
+    NODE_ENV = "production"
+  }
 
   tags = {
     Project   = var.project_name

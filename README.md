@@ -122,7 +122,13 @@ Avant de commencer, assurez-vous d'avoir :
 
 ### Déploiement du Frontend
 
-*(Instructions pour utiliser le workflow `3-frontend-deploy.yml` et accéder à Amplify)*
+Le déploiement du frontend est géré par AWS Amplify, qui est configuré pour déployer uniquement le répertoire `app-react` du projet. La configuration d'Amplify dans Terraform inclut :
+
+1. **Spécification du répertoire `app-react`** : Les commandes de build sont exécutées dans ce répertoire.
+2. **Configuration de build React** : Utilisation de yarn/npm pour installer les dépendances et construire l'application.
+3. **Déploiement automatique** : Configuration de la branche `main` pour un déploiement automatique à chaque push.
+
+Pour déployer manuellement le frontend, vous pouvez utiliser le workflow GitHub Actions `3-frontend-deploy.yml` qui vérifie la compilation du code React Native Web. Le déploiement réel est ensuite géré par AWS Amplify via la connexion directe au dépôt GitHub.
 
 ## Monitoring (ECS avec EC2 - Prometheus & Grafana)
 
