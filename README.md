@@ -31,7 +31,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
     *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
 *   **Base de données:** AWS RDS MySQL (db.t2.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
-*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec détection automatique des sous-réseaux disponibles et des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
+*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec détection automatique des sous-réseaux disponibles ou création automatique de sous-réseaux si nécessaire, et des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
 *   **Hébergement Frontend:** AWS Amplify Hosting pour déployer la version web de l'application React Native de manière simple et scalable.
 *   **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 *   **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques) et les déploiements des applications backend et frontend, ainsi que la gestion de l'infrastructure Terraform.
@@ -254,7 +254,9 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
 
-### Erreur "no matching EC2 Subnet found"
+### Erreurs liées aux sous-réseaux
+
+#### Erreur "no matching EC2 Subnet found"
 
 Si vous rencontrez une erreur comme celle-ci :
 
@@ -267,3 +269,21 @@ Error: no matching EC2 Subnet found
 ```
 
 Cela signifie que Terraform ne trouve pas les sous-réseaux spécifiés dans le VPC par défaut. Ce problème a été résolu en modifiant le code pour récupérer automatiquement tous les sous-réseaux disponibles dans le VPC par défaut, plutôt que de rechercher des sous-réseaux spécifiques avec des critères qui pourraient ne pas correspondre à votre configuration AWS.
+
+#### Erreur "Invalid index" avec sous-réseaux vides
+
+Si vous rencontrez une erreur comme celle-ci :
+
+```
+Error: Invalid index
+
+  on main.tf line 20, in locals:
+  20:   subnet_id_az1 = tolist(data.aws_subnets.default.ids)[0]
+    ├──────────────────
+    │ data.aws_subnets.default.ids is empty list of string
+
+The given key does not identify an element in this collection value: the
+collection has no elements.
+```
+
+Cela signifie qu'aucun sous-réseau n'a été trouvé dans le VPC par défaut. Ce problème a été résolu en modifiant le code pour créer automatiquement des sous-réseaux si aucun n'est trouvé dans le VPC par défaut. Cette approche garantit que l'infrastructure peut être déployée même si le VPC par défaut n'a pas de sous-réseaux préconfigurés.

@@ -15,11 +15,31 @@ data "aws_subnets" "default" {
   }
 }
 
+# Créer des sous-réseaux si aucun n'est trouvé
+resource "aws_subnet" "az1" {
+  count             = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
+  vpc_id            = data.aws_vpc.default.id
+  cidr_block        = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 1)
+  availability_zone = "${var.aws_region}a"
+  tags = {
+    Name = "${var.project_name}-subnet-az1"
+  }
+}
+
+resource "aws_subnet" "az2" {
+  count             = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
+  vpc_id            = data.aws_vpc.default.id
+  cidr_block        = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 2)
+  availability_zone = "${var.aws_region}b"
+  tags = {
+    Name = "${var.project_name}-subnet-az2"
+  }
+}
+
 locals {
-  # Utiliser le premier sous-réseau disponible
-  subnet_id_az1 = tolist(data.aws_subnets.default.ids)[0]
-  # Utiliser le deuxième sous-réseau disponible ou le premier si un seul est disponible
-  subnet_id_az2 = length(data.aws_subnets.default.ids) > 1 ? tolist(data.aws_subnets.default.ids)[1] : tolist(data.aws_subnets.default.ids)[0]
+  # Utiliser les sous-réseaux existants ou les nouveaux sous-réseaux créés
+  subnet_id_az1 = length(data.aws_subnets.default.ids) > 0 ? tolist(data.aws_subnets.default.ids)[0] : aws_subnet.az1[0].id
+  subnet_id_az2 = length(data.aws_subnets.default.ids) > 1 ? tolist(data.aws_subnets.default.ids)[1] : (length(data.aws_subnets.default.ids) > 0 ? tolist(data.aws_subnets.default.ids)[0] : aws_subnet.az2[0].id)
 }
 
 # -----------------------------------------------------------------------------
