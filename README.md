@@ -31,7 +31,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
     *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
 *   **Base de données:** AWS RDS MySQL (db.t2.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
-*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
+*   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec détection automatique des sous-réseaux disponibles et des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
 *   **Hébergement Frontend:** AWS Amplify Hosting pour déployer la version web de l'application React Native de manière simple et scalable.
 *   **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 *   **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques) et les déploiements des applications backend et frontend, ainsi que la gestion de l'infrastructure Terraform.
@@ -62,8 +62,8 @@ Avant de commencer, assurez-vous d'avoir :
 ├── .github/
 │   └── workflows/              # Workflows GitHub Actions
 │       ├── 1-infra-deploy-destroy.yml
-│       ├── 3-backend-deploy.yml
-│       └── 4-frontend-deploy.yml
+│       ├── 2-backend-deploy.yml
+│       └── 3-frontend-deploy.yml
 ├── app-java/                    # Code source Backend Spring Boot
 │   ├── src/
 │   ├── pom.xml
@@ -114,7 +114,7 @@ Avant de commencer, assurez-vous d'avoir :
 
 ### Déploiement du Backend
 
-*(Instructions pour utiliser le workflow `3-backend-deploy.yml`)*
+*(Instructions pour utiliser le workflow `2-backend-deploy.yml`)*
 
 ## Application Frontend (React Native Web)
 
@@ -122,7 +122,7 @@ Avant de commencer, assurez-vous d'avoir :
 
 ### Déploiement du Frontend
 
-*(Instructions pour utiliser le workflow `4-frontend-deploy.yml` et accéder à Amplify)*
+*(Instructions pour utiliser le workflow `3-frontend-deploy.yml` et accéder à Amplify)*
 
 ## Monitoring (ECS avec EC2 - Prometheus & Grafana)
 
@@ -151,12 +151,12 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     - Sécurité: Requiert une approbation manuelle avant toute modification de l'infrastructure
     - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées à chaque étape
 
-*   **`3-backend-deploy.yml`:** Compile et déploie l'application Java sur l'instance EC2.
+*   **`2-backend-deploy.yml`:** Compile et déploie l'application Java sur l'instance EC2.
     - Déclenchement: Manuel (workflow_dispatch)
     - Processus: Compilation Maven, téléversement sur S3, déploiement sur Tomcat via SSH
     - Paramètres requis: IP publique de l'EC2, nom du bucket S3
 
-*   **`4-frontend-deploy.yml`:** Vérifie la compilation de l'application React Native Web.
+*   **`3-frontend-deploy.yml`:** Vérifie la compilation de l'application React Native Web.
     - Déclenchement: Automatique (push sur main) ou manuel
     - Processus: Installation des dépendances, compilation du code
     - Note: Le déploiement réel est géré par AWS Amplify via la connexion directe au repo GitHub
@@ -253,3 +253,17 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 ### Erreur "Context access might be invalid: GH_PAT"
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
+
+### Erreur "no matching EC2 Subnet found"
+
+Si vous rencontrez une erreur comme celle-ci :
+
+```
+Error: no matching EC2 Subnet found
+
+  with data.aws_subnet.default_az1,
+  on main.tf line 11, in data "aws_subnet" "default_az1":
+  11: data "aws_subnet" "default_az1" {
+```
+
+Cela signifie que Terraform ne trouve pas les sous-réseaux spécifiés dans le VPC par défaut. Ce problème a été résolu en modifiant le code pour récupérer automatiquement tous les sous-réseaux disponibles dans le VPC par défaut, plutôt que de rechercher des sous-réseaux spécifiques avec des critères qui pourraient ne pas correspondre à votre configuration AWS.
