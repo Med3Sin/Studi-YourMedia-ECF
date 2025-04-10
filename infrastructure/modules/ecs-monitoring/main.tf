@@ -14,7 +14,12 @@ resource "aws_ecs_cluster" "monitoring_cluster" {
 # CloudWatch Log Group pour les conteneurs ECS
 # -----------------------------------------------------------------------------
 resource "aws_cloudwatch_log_group" "ecs_logs" {
-  name = "/ecs/${var.project_name}-monitoring"
+  name = "/ecs/${var.project_name}-monitoring-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = {
     Name    = "${var.project_name}-monitoring-logs"
@@ -39,12 +44,17 @@ data "aws_iam_policy_document" "ecs_task_execution_assume_role_policy" {
 }
 
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name               = "${var.project_name}-ecs-task-exec-role"
+  name               = "${var.project_name}-ecs-task-exec-role-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_assume_role_policy.json
 
   tags = {
     Name    = "${var.project_name}-ecs-task-exec-role"
     Project = var.project_name
+  }
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

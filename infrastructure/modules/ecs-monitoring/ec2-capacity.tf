@@ -2,7 +2,12 @@
 # IAM Role pour l'instance EC2 ECS
 # -----------------------------------------------------------------------------
 resource "aws_iam_role" "ecs_instance_role" {
-  name = "${var.project_name}-ecs-instance-role"
+  name = "${var.project_name}-ecs-instance-role-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
+  }
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

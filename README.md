@@ -254,7 +254,7 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
 
-### Erreurs liées aux sous-réseaux
+### Erreurs liées aux ressources
 
 #### Erreur "no matching EC2 Subnet found"
 
@@ -287,3 +287,33 @@ collection has no elements.
 ```
 
 Cela signifie qu'aucun sous-réseau n'a été trouvé dans le VPC par défaut. Ce problème a été résolu en modifiant le code pour créer automatiquement des sous-réseaux si aucun n'est trouvé dans le VPC par défaut. Cette approche garantit que l'infrastructure peut être déployée même si le VPC par défaut n'a pas de sous-réseaux préconfigurés.
+
+#### Erreur "EntityAlreadyExists" pour les rôles IAM et autres ressources
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating IAM Role (***-ecs-task-exec-role): operation error IAM: CreateRole, https response error StatusCode: 409, RequestID: e42e1e36-b1a0-45e3-867c-8e450c48769b, EntityAlreadyExists: Role with name ***-ecs-task-exec-role already exists.
+```
+
+Cela signifie que des ressources avec les mêmes noms existent déjà dans votre compte AWS. Ce problème a été résolu en ajoutant un timestamp aux noms des ressources et en utilisant l'option `create_before_destroy = true` dans le bloc `lifecycle`. Cette approche garantit que de nouvelles ressources avec des noms uniques sont créées à chaque déploiement.
+
+#### Erreur "Invalid security group description"
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating Security Group (***-rds-sg): operation error EC2: CreateSecurityGroup, https response error StatusCode: 400, RequestID: c3b66fed-0b61-4ea8-b3ba-3d184cb50d2a, api error InvalidParameterValue: Invalid security group description. Valid descriptions are strings less than 256 characters from the following set:  a-zA-Z0-9. _-:/()#,@[]+=&;{}!$*
+```
+
+Cela signifie que les descriptions des groupes de sécurité contiennent des caractères non valides (comme les apostrophes). Ce problème a été résolu en supprimant les caractères non valides des descriptions des groupes de sécurité.
+
+#### Erreur "The repository url is not valid" pour Amplify
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating Amplify App (***-frontend): operation error Amplify: CreateApp, https response error StatusCode: 400, RequestID: 5368ec58-c0b0-405e-aaa9-888f3670045e, BadRequestException: The repository url is not valid.
+```
+
+Cela signifie que l'URL du dépôt GitHub fournie à Amplify n'est pas valide. Ce problème a été résolu en vérifiant si les variables `repo_owner` et `repo_name` sont définies et en utilisant une URL par défaut si elles ne le sont pas.

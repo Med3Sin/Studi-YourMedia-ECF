@@ -4,8 +4,13 @@
 # RDS nécessite un groupe de sous-réseaux qui définit dans quels sous-réseaux
 # l'instance peut être placée. Utilise les sous-réseaux fournis (ceux du VPC par défaut).
 resource "aws_db_subnet_group" "rds_subnet_group" {
-  name       = "${var.project_name}-rds-subnet-group"
+  name       = "${var.project_name}-rds-subnet-group-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   subnet_ids = var.subnet_ids
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = {
     Name    = "${var.project_name}-rds-subnet-group"

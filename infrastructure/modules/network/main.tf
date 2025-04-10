@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-ec2-sg"
-  description = "Autorise le trafic entrant pour l'instance EC2 (SSH, Tomcat, Prometheus)"
+  description = "Autorise le trafic entrant pour instance EC2 SSH Tomcat Prometheus"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -83,7 +83,7 @@ resource "aws_security_group_rule" "ec2_egress_http" {
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-rds-sg"
-  description = "Autorise le trafic entrant MySQL depuis l'instance EC2"
+  description = "Autorise le trafic entrant MySQL depuis instance EC2"
   vpc_id      = var.vpc_id
 
   tags = {

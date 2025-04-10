@@ -122,8 +122,9 @@ locals {
 resource "aws_amplify_app" "frontend_app" {
   count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
   name         = "${var.project_name}-frontend"
-  repository   = "https://github.com/${var.repo_owner}/${var.repo_name}" # URL du repo GitHub
-  access_token = var.github_token                                        # Token PAT GitHub
+  # Vérifier si les variables repo_owner et repo_name sont définies
+  repository   = var.repo_owner != "" && var.repo_name != "" ? "https://github.com/${var.repo_owner}/${var.repo_name}" : "https://github.com/Med3Sin/Studi-YourMedia-ECF" # URL du repo GitHub
+  access_token = var.github_token # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)
   # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.

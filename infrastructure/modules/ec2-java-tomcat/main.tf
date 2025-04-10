@@ -27,7 +27,12 @@ resource "aws_iam_policy" "ec2_s3_access_policy" {
 
 # Rôle IAM que l'instance EC2 assumera
 resource "aws_iam_role" "ec2_role" {
-  name = "${var.project_name}-ec2-role"
+  name = "${var.project_name}-ec2-role-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
+  }
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
