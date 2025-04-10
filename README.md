@@ -334,6 +334,26 @@ Error: creating ECS Task Definition (***-grafana): operation error ECS: Register
 
 Cela signifie que les définitions de conteneurs ECS ne spécifient pas les allocations de mémoire requises. Ce problème a été résolu en ajoutant des paramètres `memory` et `cpu` aux définitions de conteneurs Prometheus et Grafana.
 
+#### Erreur "Network Configuration is not valid for the given networkMode" dans ECS
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating ECS Service (***-grafana-service): operation error ECS: CreateService, https response error StatusCode: 400, RequestID: f5777447-cd8d-4539-b3f4-7346efb716df, InvalidParameterException: Network Configuration is not valid for the given networkMode of this task definition.
+```
+
+Cela signifie que la configuration réseau spécifiée pour le service ECS n'est pas compatible avec le mode réseau défini dans la définition de tâche. Ce problème a été résolu en supprimant le bloc `network_configuration` des services ECS, car nous utilisons le mode réseau "bridge" qui ne nécessite pas de configuration réseau spécifique.
+
+#### Erreur "InvalidParameterCombination" avec RDS MySQL
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating RDS DB Instance (***-mysql-db): operation error RDS: CreateDBInstance, https response error StatusCode: 400, RequestID: fa1a8c8d-749d-42de-af17-d99f9ddd938f, api error InvalidParameterCombination: RDS does not support creating a DB instance with the following combination: DBInstanceClass=db.t2.micro, Engine=mysql, EngineVersion=8.0.40, LicenseModel=general-public-license.
+```
+
+Cela signifie que la combinaison de classe d'instance (db.t2.micro), de moteur (MySQL) et de version (8.0) n'est pas prise en charge. Ce problème a été résolu en utilisant la version 5.7 de MySQL, qui est compatible avec db.t2.micro dans le Free Tier.
+
 #### Erreur "Some input subnets are invalid" pour RDS
 
 Si vous rencontrez des erreurs comme celle-ci :

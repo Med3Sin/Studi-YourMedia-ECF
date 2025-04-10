@@ -225,11 +225,7 @@ resource "aws_ecs_service" "prometheus_service" {
   launch_type     = "EC2"
   desired_count   = 1 # Exécute une seule instance de Prometheus
 
-  network_configuration {
-    subnets          = var.subnet_ids # Doit être dans des sous-réseaux publics/privés avec accès internet sortant
-    security_groups  = [var.ecs_security_group_id]
-    assign_public_ip = true # Nécessaire si dans sous-réseau public pour tirer l'image, ou si NAT Gateway/VPC Endpoint est utilisé
-  }
+  # Suppression de la configuration réseau car nous utilisons le mode réseau "bridge"
 
   # Pas de load balancer pour Prometheus dans cette config simple
 
@@ -249,11 +245,7 @@ resource "aws_ecs_service" "grafana_service" {
   launch_type     = "EC2"
   desired_count   = 1
 
-  network_configuration {
-    subnets          = var.subnet_ids # Doit être dans des sous-réseaux publics pour accès externe
-    security_groups  = [var.ecs_security_group_id]
-    assign_public_ip = true # Pour accéder à Grafana via son IP publique
-  }
+  # Suppression de la configuration réseau car nous utilisons le mode réseau "bridge"
 
   # Pas de load balancer pour Grafana dans cette config simple
 

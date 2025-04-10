@@ -24,7 +24,7 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
 resource "aws_db_instance" "mysql_db" {
   identifier        = "${var.project_name}-mysql-db" # Nom unique de l'instance RDS
   engine            = "mysql"
-  engine_version    = "8.0"                 # Version de MySQL (vérifier la dernière supportée/stable)
+  engine_version    = "5.7"                 # Version de MySQL compatible avec db.t2.micro dans le Free Tier
   instance_class    = var.instance_type_rds # Type d'instance (ex: db.t2.micro)
   allocated_storage = 20                    # Taille du stockage en Go (minimum pour Free Tier)
   storage_type      = "gp2"                 # Type de stockage SSD généraliste
