@@ -17,20 +17,24 @@ data "aws_subnets" "default" {
 
 # Créer des sous-réseaux si aucun n'est trouvé
 resource "aws_subnet" "az1" {
-  count             = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
-  vpc_id            = data.aws_vpc.default.id
-  cidr_block        = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 1)
-  availability_zone = "${var.aws_region}a"
+  count                   = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 1)
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
   tags = {
     Name = "${var.project_name}-subnet-az1"
   }
 }
 
 resource "aws_subnet" "az2" {
-  count             = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
-  vpc_id            = data.aws_vpc.default.id
-  cidr_block        = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 2)
-  availability_zone = "${var.aws_region}b"
+  count                   = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 2)
+  availability_zone       = "${var.aws_region}b"
+  map_public_ip_on_launch = true
+
   tags = {
     Name = "${var.project_name}-subnet-az2"
   }
@@ -120,10 +124,10 @@ locals {
 }
 
 resource "aws_amplify_app" "frontend_app" {
-  count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
-  name         = "${var.project_name}-frontend"
-  # Vérifier si les variables repo_owner et repo_name sont définies
-  repository   = var.repo_owner != "" && var.repo_name != "" ? "https://github.com/${var.repo_owner}/${var.repo_name}" : "https://github.com/Med3Sin/Studi-YourMedia-ECF" # URL du repo GitHub
+  count = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
+  name  = "${var.project_name}-frontend"
+  # Utiliser une URL de dépôt valide ou null pour créer l'application sans dépôt
+  repository   = null             # Désactiver temporairement la connexion au dépôt GitHub
   access_token = var.github_token # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)
@@ -158,7 +162,7 @@ resource "aws_amplify_app" "frontend_app" {
 
   # Activer la détection automatique des branches
   enable_auto_branch_creation = true
-  enable_branch_auto_build = true
+  enable_branch_auto_build    = true
   enable_branch_auto_deletion = true
 
   # Configuration de la branche par défaut (main)
@@ -166,10 +170,10 @@ resource "aws_amplify_app" "frontend_app" {
 
   # Configuration de la branche principale
   auto_branch_creation_config {
-    enable_auto_build = true
+    enable_auto_build           = true
     enable_pull_request_preview = true
-    framework = "React"
-    stage = "PRODUCTION"
+    framework                   = "React"
+    stage                       = "PRODUCTION"
   }
 
   tags = {

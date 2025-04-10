@@ -322,4 +322,24 @@ Si vous rencontrez des erreurs comme celle-ci :
 Error: creating Amplify App (***-frontend): operation error Amplify: CreateApp, https response error StatusCode: 400, RequestID: 5368ec58-c0b0-405e-aaa9-888f3670045e, BadRequestException: The repository url is not valid.
 ```
 
-Cela signifie que l'URL du dépôt GitHub fournie à Amplify n'est pas valide. Ce problème a été résolu en vérifiant si les variables `repo_owner` et `repo_name` sont définies et en utilisant une URL par défaut si elles ne le sont pas.
+Cela signifie que l'URL du dépôt GitHub fournie à Amplify n'est pas valide. Ce problème a été résolu en désactivant temporairement la connexion au dépôt GitHub en définissant `repository = null`. Cela permet de créer l'application Amplify sans la connecter à un dépôt. Vous pourrez connecter le dépôt manuellement plus tard via la console AWS Amplify.
+
+#### Erreur "Invalid setting for container" dans ECS
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating ECS Task Definition (***-grafana): operation error ECS: RegisterTaskDefinition, https response error StatusCode: 400, RequestID: 2c0dc3e6-fe03-4eef-8561-c3937860c075, ClientException: Invalid setting for container '***-grafana'. At least one of 'memory' or 'memoryReservation' must be specified.
+```
+
+Cela signifie que les définitions de conteneurs ECS ne spécifient pas les allocations de mémoire requises. Ce problème a été résolu en ajoutant des paramètres `memory` et `cpu` aux définitions de conteneurs Prometheus et Grafana.
+
+#### Erreur "Some input subnets are invalid" pour RDS
+
+Si vous rencontrez des erreurs comme celle-ci :
+
+```
+Error: creating RDS DB Subnet Group (***-rds-subnet-group-20250410175302): operation error RDS: CreateDBSubnetGroup, https response error StatusCode: 400, RequestID: c9b9ae0e-2f98-4677-801c-a2b5aa46ce6c, api error InvalidParameterValue: Some input subnets in :[subnet-089180afcefd3b923] are invalid.
+```
+
+Cela signifie que les sous-réseaux spécifiés pour le groupe de sous-réseaux RDS ne sont pas valides. Ce problème a été résolu en ajoutant l'attribut `map_public_ip_on_launch = true` aux sous-réseaux créés, ce qui les rend compatibles avec RDS.

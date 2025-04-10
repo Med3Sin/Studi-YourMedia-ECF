@@ -60,12 +60,17 @@ resource "aws_iam_role_policy_attachment" "ec2_s3_policy_attach" {
 
 # Profil d'instance EC2 pour attacher le rôle à l'instance
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "${var.project_name}-ec2-profile"
+  name = "${var.project_name}-ec2-profile-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   role = aws_iam_role.ec2_role.name
 
   tags = {
     Name    = "${var.project_name}-ec2-profile"
     Project = var.project_name
+  }
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

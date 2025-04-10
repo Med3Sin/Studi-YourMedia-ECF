@@ -36,8 +36,13 @@ resource "aws_iam_role_policy_attachment" "ecs_instance_role_attachment" {
 
 # Profil d'instance pour l'instance EC2 ECS
 resource "aws_iam_instance_profile" "ecs_instance_profile" {
-  name = "${var.project_name}-ecs-instance-profile"
+  name = "${var.project_name}-ecs-instance-profile-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   role = aws_iam_role.ecs_instance_role.name
+
+  # Permet de recréer la ressource avant de détruire l'ancienne
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # -----------------------------------------------------------------------------

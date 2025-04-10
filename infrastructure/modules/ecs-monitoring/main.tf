@@ -104,6 +104,8 @@ locals {
       name      = "${var.project_name}-prometheus",
       image     = "prom/prometheus:latest",
       essential = true,
+      memory    = 512, # Allocation de mémoire en MB
+      cpu       = 256, # Allocation de CPU en unités (1024 = 1 vCPU),
       portMappings = [
         {
           containerPort = 9090,
@@ -138,6 +140,8 @@ locals {
       name      = "${var.project_name}-grafana",
       image     = "grafana/grafana-oss:latest",
       essential = true,
+      memory    = 512, # Allocation de mémoire en MB
+      cpu       = 256, # Allocation de CPU en unités (1024 = 1 vCPU),
       portMappings = [
         {
           containerPort = 3000,
