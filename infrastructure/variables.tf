@@ -37,9 +37,9 @@ variable "operator_ip" {
 }
 
 variable "ami_id" {
-  description = "ID de l'AMI Ubuntu à utiliser pour l'EC2 (doit correspondre à la région)."
+  description = "ID de l'AMI Amazon Linux 2 à utiliser pour l'EC2 (doit correspondre à la région)."
   type        = string
-  default     = "ami-0160e8d70ebc43ee1" # Exemple: Ubuntu 22.04 LTS pour eu-west-3 (Paris) - Vérifiez la dernière version Free Tier
+  default     = "ami-0925eac45db11fef2" # Amazon Linux 2 AMI pour eu-west-3 (Paris) - Recommandé pour le Free Tier
 }
 
 variable "instance_type_ec2" {
@@ -55,15 +55,15 @@ variable "instance_type_rds" {
 }
 
 variable "ecs_task_cpu" {
-  description = "CPU alloué aux tâches ECS Fargate (unités)."
+  description = "CPU alloué aux tâches ECS (unités)."
   type        = number
-  default     = 256 # Minimum pour Fargate (équivalent à 0.25 vCPU)
+  default     = 256 # 0.25 vCPU
 }
 
 variable "ecs_task_memory" {
-  description = "Mémoire allouée aux tâches ECS Fargate (MiB)."
+  description = "Mémoire allouée aux tâches ECS (MiB)."
   type        = number
-  default     = 512 # Minimum pour Fargate
+  default     = 512 # 0.5 GB
 }
 
 variable "github_token" {

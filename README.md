@@ -141,12 +141,13 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
 *   **`1-infra-deploy-destroy.yml`:** Gère l'infrastructure complète via Terraform avec Terraform Cloud.
     - Déclenchement: Manuel (workflow_dispatch)
     - Actions: plan, apply, destroy
-    - Paramètres requis: Aucun (toutes les variables sont stockées dans les secrets GitHub)
+    - Paramètres requis: Aucun (toutes les variables sont stockées dans les secrets GitHub ou récupérées automatiquement)
     - Fonctionnalités:
       - Stockage sécurisé de l'état Terraform dans Terraform Cloud (organisation Med3Sin)
       - Workflow en plusieurs étapes avec approbation obligatoire à chaque étape
       - Planification, validation et application/destruction de l'infrastructure AWS
       - Utilisation des dernières versions des actions GitHub (v4 pour les artefacts)
+      - Récupération automatique du propriétaire et du nom du repo GitHub
     - Sécurité: Requiert une approbation manuelle avant toute modification de l'infrastructure
     - Résumé d'exécution: Fournit un récapitulatif détaillé des actions effectuées à chaque étape
 
