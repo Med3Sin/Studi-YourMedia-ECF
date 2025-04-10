@@ -94,8 +94,6 @@ locals {
       name      = "${var.project_name}-prometheus",
       image     = "prom/prometheus:latest",
       essential = true,
-      memory    = 512,
-      cpu       = 256,
       portMappings = [
         {
           containerPort = 9090,
@@ -130,8 +128,6 @@ locals {
       name      = "${var.project_name}-grafana",
       image     = "grafana/grafana-oss:latest",
       essential = true,
-      memory    = 512, # Ensure memory is specified
-      cpu       = 256, # Ensure CPU is specified
       portMappings = [
         {
           containerPort = 3000,

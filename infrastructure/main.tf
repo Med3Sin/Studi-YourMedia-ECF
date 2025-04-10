@@ -7,19 +7,17 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Récupérer tous les sous-réseaux du VPC par défaut
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
+# Récupérer des sous-réseaux spécifiques dans différentes zones de disponibilité
+data "aws_subnet" "default_az1" {
+  availability_zone = "${var.aws_region}a"
+  vpc_id            = data.aws_vpc.default.id
+  default_for_az    = true
 }
 
-locals {
-  # Utiliser le premier sous-réseau disponible
-  subnet_id_az1 = tolist(data.aws_subnets.default.ids)[0]
-  # Utiliser le deuxième sous-réseau disponible ou le premier si un seul est disponible
-  subnet_id_az2 = length(data.aws_subnets.default.ids) > 1 ? tolist(data.aws_subnets.default.ids)[1] : tolist(data.aws_subnets.default.ids)[0]
+data "aws_subnet" "default_az2" {
+  availability_zone = "${var.aws_region}b"
+  vpc_id            = data.aws_vpc.default.id
+  default_for_az    = true
 }
 
 # -----------------------------------------------------------------------------
@@ -54,7 +52,7 @@ module "rds-mysql" {
   db_password           = var.db_password
   instance_type_rds     = var.instance_type_rds
   vpc_id                = data.aws_vpc.default.id
-  subnet_ids            = [local.subnet_id_az1, local.subnet_id_az2] # Utilise deux sous-réseaux pour la haute disponibilité
+  subnet_ids            = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
   rds_security_group_id = module.network.rds_security_group_id
 }
 
@@ -68,7 +66,7 @@ module "ec2-java-tomcat" {
   ami_id                = var.ami_id
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
-  subnet_id             = local.subnet_id_az1 # Déploie dans le premier sous-réseau disponible
+  subnet_id             = data.aws_subnet.default_az1.id # Déploie dans le sous-réseau par défaut de la première zone de disponibilité
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
   # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
@@ -83,7 +81,7 @@ module "ecs-monitoring" {
   project_name            = var.project_name
   aws_region              = var.aws_region
   vpc_id                  = data.aws_vpc.default.id
-  subnet_ids              = [local.subnet_id_az1, local.subnet_id_az2] # Utilise deux sous-réseaux pour la haute disponibilité
+  subnet_ids              = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
   ecs_security_group_id   = module.network.ecs_security_group_id
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu

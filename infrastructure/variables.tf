@@ -1,3 +1,18 @@
+# Variables d'authentification AWS (optionnelles, peuvent être fournies par les variables d'environnement)
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID pour l'authentification."
+  type        = string
+  default     = "" # Vide par défaut, sera fourni par les variables d'environnement ou les secrets GitHub
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key pour l'authentification."
+  type        = string
+  default     = "" # Vide par défaut, sera fourni par les variables d'environnement ou les secrets GitHub
+  sensitive   = true
+}
+
 variable "aws_region" {
   description = "La région AWS où déployer les ressources."
   type        = string

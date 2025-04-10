@@ -59,20 +59,52 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 4: Configuration de Terraform Cloud
-      - name: Setup Terraform Cloud Token
+      # Étape 4: Configuration des identifiants
+      - name: Setup Credentials
         run: |
+          # Configuration de Terraform Cloud
           mkdir -p $HOME/.terraform.d
           echo '{"credentials": {"app.terraform.io": {"token": "'${{ secrets.TF_API_TOKEN }}'"}}}' > $HOME/.terraform.d/credentials.tfrc.json
           cat $HOME/.terraform.d/credentials.tfrc.json
 
-      # Étape 5: Initialisation de Terraform
+          # Configuration explicite des identifiants AWS
+          mkdir -p $HOME/.aws
+          echo "[default]" > $HOME/.aws/credentials
+          echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $HOME/.aws/credentials
+          echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $HOME/.aws/credentials
+          echo "region=${{ env.AWS_REGION }}" >> $HOME/.aws/credentials
+
+          # Configuration de la région AWS
+          echo "[default]" > $HOME/.aws/config
+          echo "region=${{ env.AWS_REGION }}" >> $HOME/.aws/config
+
+          # Sécuriser les fichiers
+          chmod 600 $HOME/.aws/credentials
+          chmod 600 $HOME/.aws/config
+
+      # Étape 5: Vérification de l'environnement
+      - name: Check Environment
+        run: |
+          echo "GitHub Runner OS: $RUNNER_OS"
+          echo "GitHub Runner Temp: $RUNNER_TEMP"
+          echo "GitHub Workspace: $GITHUB_WORKSPACE"
+          echo "AWS Region: ${{ env.AWS_REGION }}"
+          echo "AWS Access Key ID is set: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}"
+          echo "AWS Secret Access Key is set: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' }}"
+          echo "TF API Token is set: ${{ secrets.TF_API_TOKEN != '' }}"
+          # Vérifier la version d'AWS CLI
+          aws --version
+          # Vérifier si les identifiants AWS sont valides (sans révéler les valeurs)
+          aws sts get-caller-identity --query "Account" --output text || echo "AWS credentials not valid"
+
+      # Étape 6: Initialisation de Terraform
       - name: Terraform Init
         id: init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ env.AWS_REGION }}
+          TF_LOG: DEBUG
         run: terraform init
 
       # Étape 5: Validation de la configuration Terraform
@@ -97,6 +129,9 @@ jobs:
         run: |
           echo "::group::Terraform Plan"
           terraform plan \
+            -var="aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -var="aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
@@ -137,6 +172,9 @@ jobs:
         run: |
           echo "::group::Terraform Destroy"
           terraform destroy -auto-approve \
+            -var="aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -var="aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
