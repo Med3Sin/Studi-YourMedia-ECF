@@ -24,10 +24,10 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
 resource "aws_db_instance" "mysql_db" {
   identifier        = "${var.project_name}-mysql-db" # Nom unique de l'instance RDS
   engine            = "mysql"                        # Moteur de base de données MySQL
-  engine_version    = "8.0"                         # Version 8.0 compatible avec le Free Tier
-  instance_class    = var.instance_type_rds         # Type d'instance défini dans les variables (db.t3.micro par défaut)
-  allocated_storage = 20                            # Taille du stockage en Go (minimum pour Free Tier)
-  storage_type      = "gp2"                         # Type de stockage SSD généraliste
+  engine_version    = "8.0"                          # Version 8.0 compatible avec le Free Tier
+  instance_class    = var.instance_type_rds          # Type d'instance défini dans les variables (db.t3.micro par défaut)
+  allocated_storage = 20                             # Taille du stockage en Go (minimum pour Free Tier)
+  storage_type      = "gp2"                          # Type de stockage SSD généraliste
 
   db_name  = "${var.project_name}db" # Nom initial de la base de données créée
   username = var.db_username         # Nom d'utilisateur défini dans les variables
