@@ -53,7 +53,7 @@ Le workflow de déploiement d'infrastructure (`0-infra-deploy-destroy.yml`) est 
 ### Utilisation
 
 1. Allez dans l'onglet "Actions" de votre dépôt GitHub
-2. Sélectionnez le workflow "0 - Infrastructure Deployment and Destruction"
+2. Sélectionnez le workflow "0 - Deploy/Destroy Infrastructure (Terraform)"
 3. Cliquez sur "Run workflow"
 4. Sélectionnez l'action à effectuer (deploy ou destroy)
 5. Sélectionnez l'environnement (dev ou prod)
