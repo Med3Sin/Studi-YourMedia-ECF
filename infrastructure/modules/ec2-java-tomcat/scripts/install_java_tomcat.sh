@@ -1,15 +1,16 @@
 #!/bin/bash -xe
-# Script d'installation pour Java (OpenJDK 17) et Tomcat 9 sur Ubuntu
+# Script d'installation pour Java (Amazon Corretto 11) et Tomcat 9 sur Amazon Linux 2
 # Exécuté en tant que root via user_data
 
 # Rediriger stdout et stderr vers un fichier log pour le débogage
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 echo "--- Mise à jour des paquets ---"
-sudo apt-get update -y
+sudo yum update -y
 
-echo "--- Installation de Java (OpenJDK 17) ---"
-sudo apt-get install -y openjdk-17-jdk
+echo "--- Installation de Java (Amazon Corretto 11) ---"
+sudo amazon-linux-extras enable corretto8
+sudo yum install -y java-11-amazon-corretto-devel
 
 # Vérifier l'installation de Java
 java -version
@@ -46,7 +47,7 @@ After=network.target
 [Service]
 Type=forking
 
-Environment=JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+Environment=JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto
 Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
 Environment=CATALINA_HOME=/opt/tomcat
 Environment=CATALINA_BASE=/opt/tomcat

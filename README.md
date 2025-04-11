@@ -449,6 +449,7 @@ Cette section centralise toutes les corrections et améliorations apportées au 
 - [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds) (2023-04-11)
 - [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds) (2023-04-11)
 - [Vidage automatique du bucket S3](#vidage-automatique-du-bucket-s3) (2023-04-12)
+- [Adaptation des scripts pour Amazon Linux 2](#adaptation-des-scripts-pour-amazon-linux-2) (2023-04-12)
 - [Problèmes connus](#problèmes-connus)
 - [Améliorations futures](#améliorations-futures)
 
@@ -457,6 +458,7 @@ Cette section centralise toutes les corrections et améliorations apportées au 
 - **v1.0.0** (2023-04-10) : Version initiale de l'infrastructure
 - **v1.0.1** (2023-04-11) : Correction du groupe de sous-réseaux RDS et mise à jour du type d'instance RDS
 - **v1.0.2** (2023-04-12) : Ajout du vidage automatique du bucket S3 pour faciliter la destruction de l'infrastructure
+- **v1.0.3** (2023-04-12) : Adaptation des scripts pour Amazon Linux 2 HVM
 
 ### Correction du Groupe de Sous-réseaux RDS
 
@@ -518,6 +520,29 @@ Cela empêchait la destruction complète de l'infrastructure, nécessitant une i
 - Destruction complète et automatique de l'infrastructure sans intervention manuelle
 - Nettoyage automatique des anciennes versions des objets pour éviter l'accumulation de données inutiles
 - Simplification du processus de développement et de test
+
+### Adaptation des scripts pour Amazon Linux 2
+
+**Problème** : Les scripts d'installation et de déploiement étaient configurés pour Ubuntu, alors que l'AMI utilisée est Amazon Linux 2 HVM (`ami-0925eac45db11fef2`). Cela causait des erreurs lors de l'installation de Java, Tomcat et AWS CLI.
+
+**Solution** :
+1. Modification du script d'installation Java/Tomcat pour utiliser :
+   - `yum` au lieu de `apt-get` comme gestionnaire de paquets
+   - Amazon Corretto 11 au lieu d'OpenJDK 17
+   - Le chemin Java correct pour Amazon Linux 2 (`/usr/lib/jvm/java-11-amazon-corretto`)
+
+2. Modification du workflow de déploiement backend pour :
+   - Se connecter avec l'utilisateur `ec2-user` au lieu de `ubuntu`
+   - Utiliser `yum` au lieu de `apt-get` pour installer AWS CLI
+
+**Fichiers modifiés** :
+- `infrastructure/modules/ec2-java-tomcat/scripts/install_java_tomcat.sh` : Adaptation pour Amazon Linux 2
+- `.github/workflows/2-backend-deploy.yml` : Modification de l'utilisateur SSH et des commandes d'installation
+
+**Avantages** :
+- Compatibilité avec l'AMI Amazon Linux 2 spécifiée
+- Installation correcte de Java, Tomcat et AWS CLI
+- Déploiement fonctionnel de l'application backend
 
 ### Problèmes connus
 
