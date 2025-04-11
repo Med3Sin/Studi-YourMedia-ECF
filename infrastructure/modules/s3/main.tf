@@ -51,6 +51,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     id     = "cleanup-old-versions"
     status = "Enabled"
 
+    # Filtre vide pour appliquer la règle à tous les objets
+    filter {}
+
     # Expiration des versions non-courantes après 1 jour
     noncurrent_version_expiration {
       noncurrent_days = 1
