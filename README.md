@@ -21,6 +21,9 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 8.  [CI/CD (GitHub Actions)](#cicd-github-actions)
     *   [Workflows Disponibles](#workflows-disponibles)
     *   [Configuration des Secrets](#configuration-des-secrets)
+9.  [Corrections et Améliorations](#corrections-et-améliorations)
+    *   [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds)
+    *   [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds)
 
 ## Architecture Globale
 
@@ -102,46 +105,11 @@ Avant de commencer, assurez-vous d'avoir :
 
 ### Modules Terraform
 
-Le projet utilise plusieurs modules Terraform pour organiser et structurer l'infrastructure :
-
-1. **Module network** : Gère les groupes de sécurité pour les différents services (EC2, RDS, ECS).
-
-2. **Module ec2-java-tomcat** : Provisionne une instance EC2 avec Java et Tomcat préinstallés pour héberger l'application backend.
-
-3. **Module rds-mysql** : Déploie une base de données MySQL gérée par AWS RDS.
-   - Utilise MySQL 8.0 avec une instance db.t3.micro (Free Tier)
-   - Configuré pour un accès sécurisé depuis l'instance EC2 uniquement
-   - Stockage de 20 Go (minimum pour le Free Tier)
-   - Pas de Multi-AZ pour rester dans les limites du Free Tier
-
-4. **Module s3** : Crée un bucket S3 pour le stockage des médias et des artefacts de build.
-
-5. **Module ecs-monitoring** : Déploie Prometheus et Grafana dans des conteneurs ECS sur une instance EC2 pour le monitoring.
+*(Description de chaque module)*
 
 ### Déploiement/Destruction de l'Infrastructure
 
-Pour déployer ou détruire l'infrastructure, utilisez le workflow GitHub Actions `1-infra-deploy-destroy.yml` :
-
-1. **Préparation** :
-   - Assurez-vous que tous les secrets nécessaires sont configurés dans GitHub (voir la section [Configuration des Secrets](#configuration-des-secrets))
-   - Vérifiez que votre compte AWS dispose des permissions nécessaires
-
-2. **Déploiement** :
-   - Accédez à l'onglet "Actions" de votre dépôt GitHub
-   - Sélectionnez le workflow "Infrastructure Deployment"
-   - Cliquez sur "Run workflow"
-   - Sélectionnez l'action "plan-apply" pour planifier et appliquer l'infrastructure
-   - Confirmez l'exécution
-   - Attendez que la phase de planification se termine et examinez les changements proposés
-   - Approuvez l'application des changements en cliquant sur "Review pending deployments"
-
-3. **Destruction** :
-   - Suivez les mêmes étapes que pour le déploiement, mais sélectionnez l'action "plan-destroy"
-   - Confirmez l'exécution
-   - Attendez que la phase de planification se termine et examinez les ressources qui seront détruites
-   - Approuvez la destruction en cliquant sur "Review pending deployments"
-
-> **Note** : La destruction de l'infrastructure supprimera toutes les ressources AWS créées par Terraform, y compris les données stockées dans RDS et S3. Assurez-vous de sauvegarder toutes les données importantes avant de procéder à la destruction.
+*(Instructions pour utiliser le workflow `1-infra-deploy-destroy.yml`)*
 
 ## Application Backend (Java Spring Boot)
 
@@ -389,6 +357,8 @@ Error: creating RDS DB Instance (***-mysql-db): operation error RDS: CreateDBIns
 
 Cela signifie que la combinaison de classe d'instance, de moteur et de version n'est pas prise en charge. Ce problème peut être résolu en utilisant une version de MySQL compatible avec le type d'instance choisi. Pour db.t3.micro, MySQL 8.0 est généralement compatible avec le Free Tier AWS.
 
+**Note** : Voir la section [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds) pour plus de détails sur le changement de db.t2.micro à db.t3.micro.
+
 #### Problème de suppression du groupe d'auto-scaling EC2
 
 Si vous rencontrez des difficultés lors de la destruction de l'infrastructure, notamment avec le groupe d'auto-scaling EC2, c'est probablement parce que cette ressource a des dépendances complexes qui ne sont pas correctement gérées par Terraform lors de la destruction.
@@ -397,28 +367,52 @@ Ce problème a été résolu en supprimant complètement le groupe d'auto-scalin
 
 Cette simplification de l'architecture facilite la destruction de l'infrastructure et réduit la complexité globale.
 
-#### Erreur "InvalidVPCNetworkStateFault" lors de la mise à jour de RDS
-
-Si vous rencontrez une erreur comme celle-ci :
-
-```
-Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBInstance, https response error StatusCode: 400, RequestID: 29922280-5375-4639-a2b0-03b5a87ce841, InvalidVPCNetworkStateFault: You cannot move DB instance ***-mysql-db to subnet group ***-rds-subnet-group-20250411122617. The specified DB subnet group and DB instance are in the same VPC. Choose a DB subnet group in different VPC than the specified DB instance and try again.
-```
-
-Cela signifie que Terraform essaie de modifier l'instance RDS pour utiliser un nouveau groupe de sous-réseaux, mais AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS pour un autre groupe dans le même VPC.
-
-Ce problème a été résolu en :
-1. Utilisant un nom fixe pour le groupe de sous-réseaux (sans timestamp)
-2. Supprimant l'option `create_before_destroy` qui créerait un nouveau groupe avant de détruire l'ancien
-
-Si vous devez modifier les sous-réseaux utilisés par RDS, vous devrez recréer complètement l'instance RDS (ce qui implique une perte de données si vous n'avez pas de sauvegarde).
-
 #### Erreur "Some input subnets are invalid" pour RDS
 
 Si vous rencontrez des erreurs comme celle-ci :
 
 ```
-Error: creating RDS DB Subnet Group (***-rds-subnet-group): operation error RDS: CreateDBSubnetGroup, https response error StatusCode: 400, RequestID: c9b9ae0e-2f98-4677-801c-a2b5aa46ce6c, api error InvalidParameterValue: Some input subnets in :[subnet-089180afcefd3b923] are invalid.
+Error: creating RDS DB Subnet Group (***-rds-subnet-group-20250410175302): operation error RDS: CreateDBSubnetGroup, https response error StatusCode: 400, RequestID: c9b9ae0e-2f98-4677-801c-a2b5aa46ce6c, api error InvalidParameterValue: Some input subnets in :[subnet-089180afcefd3b923] are invalid.
 ```
 
 Cela signifie que les sous-réseaux spécifiés pour le groupe de sous-réseaux RDS ne sont pas valides. Ce problème a été résolu en ajoutant l'attribut `map_public_ip_on_launch = true` aux sous-réseaux créés, ce qui les rend compatibles avec RDS.
+
+## Corrections et Améliorations
+
+Cette section centralise toutes les corrections et améliorations apportées au projet pour faciliter la maintenance et le suivi des modifications.
+
+### Correction du Groupe de Sous-réseaux RDS
+
+**Problème** : Lors de la mise à jour de l'infrastructure, l'erreur suivante se produisait :
+
+```
+Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBInstance, https response error StatusCode: 400, RequestID: 29922280-5375-4639-a2b0-03b5a87ce841, InvalidVPCNetworkStateFault: You cannot move DB instance ***-mysql-db to subnet group ***-rds-subnet-group-20250411122617. The specified DB subnet group and DB instance are in the same VPC. Choose a DB subnet group in different VPC than the specified DB instance and try again.
+```
+
+**Cause** :
+- Le nom du groupe de sous-réseaux RDS incluait un timestamp (`formatdate("YYYYMMDDhhmmss", timestamp())`)
+- À chaque exécution de Terraform, un nouveau groupe de sous-réseaux était créé avec un nom différent
+- Terraform essayait ensuite de mettre à jour l'instance RDS pour utiliser ce nouveau groupe
+- AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS pour un autre groupe dans le même VPC
+
+**Solution** :
+1. Utilisation d'un nom fixe pour le groupe de sous-réseaux (sans timestamp)
+2. Suppression du bloc `lifecycle { create_before_destroy = true }` qui créerait un nouveau groupe avant de détruire l'ancien
+
+**Fichiers modifiés** :
+- `infrastructure/modules/rds-mysql/main.tf`
+
+**Limitation** : Si vous devez modifier les sous-réseaux utilisés par RDS, vous devrez recréer complètement l'instance RDS (ce qui implique une perte de données si vous n'avez pas de sauvegarde).
+
+### Mise à jour du Type d'Instance RDS
+
+**Modification** : Le type d'instance RDS a été mis à jour de `db.t2.micro` à `db.t3.micro`.
+
+**Raison** : Les instances db.t3.micro offrent de meilleures performances et sont également éligibles au Free Tier AWS.
+
+**Fichiers modifiés** :
+- `infrastructure/variables.tf` : Modification de la valeur par défaut de la variable `instance_type_rds`
+- `infrastructure/modules/rds-mysql/main.tf` : Utilisation de la variable au lieu d'une valeur codée en dur
+- `infrastructure/modules/rds-mysql/README.md` : Mise à jour de la documentation
+
+**Compatibilité** : Le type d'instance db.t3.micro est compatible avec MySQL 8.0 dans le Free Tier AWS.
