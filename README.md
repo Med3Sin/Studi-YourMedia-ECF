@@ -24,6 +24,7 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 9.  [Corrections et Améliorations](#corrections-et-améliorations)
     *   [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds)
     *   [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds)
+    *   [Problème de suppression du bucket S3 contenant des objets](#problème-de-suppression-du-bucket-s3-contenant-des-objets)
 
 ## Architecture Globale
 
@@ -409,6 +410,26 @@ Ce problème a été résolu en supprimant complètement le groupe d'auto-scalin
 
 Cette simplification de l'architecture facilite la destruction de l'infrastructure et réduit la complexité globale.
 
+### Problème de suppression du bucket S3 contenant des objets
+
+Si vous rencontrez des erreurs comme celle-ci lors de la destruction de l'infrastructure :
+
+```
+Error: error deleting S3 Bucket (***-media-***): BucketNotEmpty: The bucket you tried to delete is not empty
+```
+
+Cela signifie que le bucket S3 contient encore des objets et ne peut pas être supprimé automatiquement par Terraform.
+
+Ce problème a été résolu en ajoutant les configurations suivantes au module S3 :
+
+1. L'attribut `force_destroy = true` sur la ressource `aws_s3_bucket`, qui permet à Terraform de supprimer le bucket même s'il contient des objets.
+
+2. Une configuration de cycle de vie (`aws_s3_bucket_lifecycle_configuration`) qui :
+   - Supprime automatiquement les anciennes versions des objets après 1 jour
+   - Supprime les marqueurs de suppression expirés
+
+Ces configurations permettent un nettoyage complet et automatique du bucket S3 lors de la destruction de l'infrastructure, évitant ainsi les erreurs de type "BucketNotEmpty".
+
 #### Erreur "Some input subnets are invalid" pour RDS
 
 Si vous rencontrez des erreurs comme celle-ci :
@@ -427,6 +448,7 @@ Cette section centralise toutes les corrections et améliorations apportées au 
 
 - [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds) (2023-04-11)
 - [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds) (2023-04-11)
+- [Vidage automatique du bucket S3](#vidage-automatique-du-bucket-s3) (2023-04-12)
 - [Problèmes connus](#problèmes-connus)
 - [Améliorations futures](#améliorations-futures)
 
@@ -434,6 +456,7 @@ Cette section centralise toutes les corrections et améliorations apportées au 
 
 - **v1.0.0** (2023-04-10) : Version initiale de l'infrastructure
 - **v1.0.1** (2023-04-11) : Correction du groupe de sous-réseaux RDS et mise à jour du type d'instance RDS
+- **v1.0.2** (2023-04-12) : Ajout du vidage automatique du bucket S3 pour faciliter la destruction de l'infrastructure
 
 ### Correction du Groupe de Sous-réseaux RDS
 
@@ -470,6 +493,31 @@ Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBIns
 - `infrastructure/modules/rds-mysql/README.md` : Mise à jour de la documentation
 
 **Compatibilité** : Le type d'instance db.t3.micro est compatible avec MySQL 8.0 dans le Free Tier AWS.
+
+### Vidage automatique du bucket S3
+
+**Problème** : Lors de la destruction de l'infrastructure, l'erreur suivante se produisait si le bucket S3 contenait des objets :
+
+```
+Error: error deleting S3 Bucket (***-media-***): BucketNotEmpty: The bucket you tried to delete is not empty
+```
+
+Cela empêchait la destruction complète de l'infrastructure, nécessitant une intervention manuelle pour vider le bucket avant de réessayer la destruction.
+
+**Solution** :
+1. Ajout de l'attribut `force_destroy = true` à la ressource `aws_s3_bucket` pour permettre à Terraform de supprimer le bucket même s'il contient des objets.
+2. Ajout d'une configuration de cycle de vie (`aws_s3_bucket_lifecycle_configuration`) pour :
+   - Supprimer automatiquement les anciennes versions des objets après 1 jour
+   - Supprimer les marqueurs de suppression expirés
+
+**Fichiers modifiés** :
+- `infrastructure/modules/s3/main.tf` : Ajout de l'attribut `force_destroy` et de la configuration de cycle de vie
+- `infrastructure/modules/s3/README.md` : Mise à jour de la documentation
+
+**Avantages** :
+- Destruction complète et automatique de l'infrastructure sans intervention manuelle
+- Nettoyage automatique des anciennes versions des objets pour éviter l'accumulation de données inutiles
+- Simplification du processus de développement et de test
 
 ### Problèmes connus
 
