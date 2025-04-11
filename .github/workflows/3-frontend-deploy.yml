@@ -17,7 +17,6 @@ on:
 # Variables d'environnement globales
 env:
   NODE_VERSION: '18'     # Version de Node.js à utiliser
-  PACKAGE_MANAGER: 'npm' # Gestionnaire de paquets (npm ou yarn)
   APP_DIR: ./app-react   # Répertoire de l'application React
 
 jobs:
@@ -32,14 +31,28 @@ jobs:
         with:
           fetch-depth: 0  # Récupère tout l'historique pour les tags
 
-      # Étape 2: Configuration de Node.js
+      # Étape 2: Détection du gestionnaire de paquets
+      - name: Detect package manager
+        id: detect-package-manager
+        run: |
+          if [ -f "${{ env.APP_DIR }}/yarn.lock" ]; then
+            echo "PACKAGE_MANAGER=yarn" >> $GITHUB_ENV
+            echo "LOCK_FILE=yarn.lock" >> $GITHUB_ENV
+          else
+            echo "PACKAGE_MANAGER=npm" >> $GITHUB_ENV
+            echo "LOCK_FILE=package-lock.json" >> $GITHUB_ENV
+          fi
+          echo "Using ${{ env.PACKAGE_MANAGER }} as package manager"
+
+      # Étape 3: Configuration de Node.js
       - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: ${{ env.PACKAGE_MANAGER }}
+          cache-dependency-path: ${{ env.APP_DIR }}/${{ env.LOCK_FILE }}
 
-      # Étape 3: Installation des dépendances
+      # Étape 4: Installation des dépendances
       - name: Install dependencies
         run: |
           echo "::group::Installing dependencies"
@@ -47,7 +60,7 @@ jobs:
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
-      # Étape 4: Compilation de l'application web (Expo Export)
+      # Étape 5: Compilation de l'application web (Expo Export)
       - name: Build web application
         run: |
           echo "::group::Building web application"
@@ -55,7 +68,7 @@ jobs:
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
-      # Étape 5 (optionnelle): Linting et tests
+      # Étape 6 (optionnelle): Linting et tests
       # - name: Run linter and tests
       #   run: |
       #     echo "::group::Linting and testing"
