@@ -29,7 +29,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 *   **Compute:**
     *   AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
     *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
-*   **Base de données:** AWS RDS MySQL (db.t2.micro) en mode "Database as a Service".
+*   **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 *   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec détection automatique des sous-réseaux disponibles ou création automatique de sous-réseaux si nécessaire, et des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
 *   **Hébergement Frontend:** AWS Amplify Hosting pour déployer la version web de l'application React Native de manière simple et scalable.
@@ -102,11 +102,46 @@ Avant de commencer, assurez-vous d'avoir :
 
 ### Modules Terraform
 
-*(Description de chaque module)*
+Le projet utilise plusieurs modules Terraform pour organiser et structurer l'infrastructure :
+
+1. **Module network** : Gère les groupes de sécurité pour les différents services (EC2, RDS, ECS).
+
+2. **Module ec2-java-tomcat** : Provisionne une instance EC2 avec Java et Tomcat préinstallés pour héberger l'application backend.
+
+3. **Module rds-mysql** : Déploie une base de données MySQL gérée par AWS RDS.
+   - Utilise MySQL 8.0 avec une instance db.t3.micro (Free Tier)
+   - Configuré pour un accès sécurisé depuis l'instance EC2 uniquement
+   - Stockage de 20 Go (minimum pour le Free Tier)
+   - Pas de Multi-AZ pour rester dans les limites du Free Tier
+
+4. **Module s3** : Crée un bucket S3 pour le stockage des médias et des artefacts de build.
+
+5. **Module ecs-monitoring** : Déploie Prometheus et Grafana dans des conteneurs ECS sur une instance EC2 pour le monitoring.
 
 ### Déploiement/Destruction de l'Infrastructure
 
-*(Instructions pour utiliser le workflow `1-infra-deploy-destroy.yml`)*
+Pour déployer ou détruire l'infrastructure, utilisez le workflow GitHub Actions `1-infra-deploy-destroy.yml` :
+
+1. **Préparation** :
+   - Assurez-vous que tous les secrets nécessaires sont configurés dans GitHub (voir la section [Configuration des Secrets](#configuration-des-secrets))
+   - Vérifiez que votre compte AWS dispose des permissions nécessaires
+
+2. **Déploiement** :
+   - Accédez à l'onglet "Actions" de votre dépôt GitHub
+   - Sélectionnez le workflow "Infrastructure Deployment"
+   - Cliquez sur "Run workflow"
+   - Sélectionnez l'action "plan-apply" pour planifier et appliquer l'infrastructure
+   - Confirmez l'exécution
+   - Attendez que la phase de planification se termine et examinez les changements proposés
+   - Approuvez l'application des changements en cliquant sur "Review pending deployments"
+
+3. **Destruction** :
+   - Suivez les mêmes étapes que pour le déploiement, mais sélectionnez l'action "plan-destroy"
+   - Confirmez l'exécution
+   - Attendez que la phase de planification se termine et examinez les ressources qui seront détruites
+   - Approuvez la destruction en cliquant sur "Review pending deployments"
+
+> **Note** : La destruction de l'infrastructure supprimera toutes les ressources AWS créées par Terraform, y compris les données stockées dans RDS et S3. Assurez-vous de sauvegarder toutes les données importantes avant de procéder à la destruction.
 
 ## Application Backend (Java Spring Boot)
 
@@ -349,10 +384,10 @@ Cela signifie que la configuration réseau spécifiée pour le service ECS n'est
 Si vous rencontrez des erreurs comme celle-ci :
 
 ```
-Error: creating RDS DB Instance (***-mysql-db): operation error RDS: CreateDBInstance, https response error StatusCode: 400, RequestID: fa1a8c8d-749d-42de-af17-d99f9ddd938f, api error InvalidParameterCombination: RDS does not support creating a DB instance with the following combination: DBInstanceClass=db.t2.micro, Engine=mysql, EngineVersion=8.0.40, LicenseModel=general-public-license.
+Error: creating RDS DB Instance (***-mysql-db): operation error RDS: CreateDBInstance, https response error StatusCode: 400, RequestID: fa1a8c8d-749d-42de-af17-d99f9ddd938f, api error InvalidParameterCombination: RDS does not support creating a DB instance with the following combination: DBInstanceClass=db.t3.micro, Engine=mysql, EngineVersion=8.0.40, LicenseModel=general-public-license.
 ```
 
-Cela signifie que la combinaison de classe d'instance (db.t2.micro), de moteur (MySQL) et de version (8.0) n'est pas prise en charge. Ce problème a été résolu en utilisant la version 5.7 de MySQL, qui est compatible avec db.t2.micro dans le Free Tier.
+Cela signifie que la combinaison de classe d'instance, de moteur et de version n'est pas prise en charge. Ce problème peut être résolu en utilisant une version de MySQL compatible avec le type d'instance choisi. Pour db.t3.micro, MySQL 8.0 est généralement compatible avec le Free Tier AWS.
 
 #### Problème de suppression du groupe d'auto-scaling EC2
 
@@ -362,12 +397,28 @@ Ce problème a été résolu en supprimant complètement le groupe d'auto-scalin
 
 Cette simplification de l'architecture facilite la destruction de l'infrastructure et réduit la complexité globale.
 
+#### Erreur "InvalidVPCNetworkStateFault" lors de la mise à jour de RDS
+
+Si vous rencontrez une erreur comme celle-ci :
+
+```
+Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBInstance, https response error StatusCode: 400, RequestID: 29922280-5375-4639-a2b0-03b5a87ce841, InvalidVPCNetworkStateFault: You cannot move DB instance ***-mysql-db to subnet group ***-rds-subnet-group-20250411122617. The specified DB subnet group and DB instance are in the same VPC. Choose a DB subnet group in different VPC than the specified DB instance and try again.
+```
+
+Cela signifie que Terraform essaie de modifier l'instance RDS pour utiliser un nouveau groupe de sous-réseaux, mais AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS pour un autre groupe dans le même VPC.
+
+Ce problème a été résolu en :
+1. Utilisant un nom fixe pour le groupe de sous-réseaux (sans timestamp)
+2. Supprimant l'option `create_before_destroy` qui créerait un nouveau groupe avant de détruire l'ancien
+
+Si vous devez modifier les sous-réseaux utilisés par RDS, vous devrez recréer complètement l'instance RDS (ce qui implique une perte de données si vous n'avez pas de sauvegarde).
+
 #### Erreur "Some input subnets are invalid" pour RDS
 
 Si vous rencontrez des erreurs comme celle-ci :
 
 ```
-Error: creating RDS DB Subnet Group (***-rds-subnet-group-20250410175302): operation error RDS: CreateDBSubnetGroup, https response error StatusCode: 400, RequestID: c9b9ae0e-2f98-4677-801c-a2b5aa46ce6c, api error InvalidParameterValue: Some input subnets in :[subnet-089180afcefd3b923] are invalid.
+Error: creating RDS DB Subnet Group (***-rds-subnet-group): operation error RDS: CreateDBSubnetGroup, https response error StatusCode: 400, RequestID: c9b9ae0e-2f98-4677-801c-a2b5aa46ce6c, api error InvalidParameterValue: Some input subnets in :[subnet-089180afcefd3b923] are invalid.
 ```
 
 Cela signifie que les sous-réseaux spécifiés pour le groupe de sous-réseaux RDS ne sont pas valides. Ce problème a été résolu en ajoutant l'attribut `map_public_ip_on_launch = true` aux sous-réseaux créés, ce qui les rend compatibles avec RDS.

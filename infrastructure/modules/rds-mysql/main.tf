@@ -3,14 +3,21 @@
 # -----------------------------------------------------------------------------
 # RDS nécessite un groupe de sous-réseaux qui définit dans quels sous-réseaux
 # l'instance peut être placée. Utilise les sous-réseaux fournis (ceux du VPC par défaut).
+#
+# IMPORTANT: Nous utilisons un nom fixe pour le groupe de sous-réseaux car:
+# 1. AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS
+#    pour un autre groupe dans le même VPC
+# 2. Utiliser un timestamp dans le nom créerait un nouveau groupe à chaque exécution
+#    de Terraform, ce qui provoquerait une erreur lors de la mise à jour de l'instance RDS
 resource "aws_db_subnet_group" "rds_subnet_group" {
-  name       = "${var.project_name}-rds-subnet-group-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  name       = "${var.project_name}-rds-subnet-group"
   subnet_ids = var.subnet_ids
 
-  # Permet de recréer la ressource avant de détruire l'ancienne
-  lifecycle {
-    create_before_destroy = true
-  }
+  # Nous ne pouvons pas utiliser create_before_destroy ici car cela créerait un nouveau
+  # groupe de sous-réseaux avant de détruire l'ancien, ce qui provoquerait un conflit de noms
+  # lifecycle {
+  #   create_before_destroy = true
+  # }
 
   tags = {
     Name    = "${var.project_name}-rds-subnet-group"

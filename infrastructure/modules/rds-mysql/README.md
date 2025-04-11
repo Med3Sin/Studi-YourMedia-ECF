@@ -5,6 +5,8 @@ Ce module provisionne une instance de base de données MySQL managée via AWS RD
 ## Ressources Créées
 
 *   **`aws_db_subnet_group.rds_subnet_group`**: Groupe de sous-réseaux requis par RDS, indiquant les sous-réseaux (privés ou publics, selon la configuration du VPC par défaut) dans lesquels l'instance peut être lancée.
+    *   Utilise un nom fixe (sans timestamp) pour éviter les erreurs lors des mises à jour.
+    *   **Note importante**: AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS pour un autre groupe dans le même VPC. Si vous devez modifier les sous-réseaux, vous devrez recréer l'instance RDS complète.
 *   **`aws_db_instance.mysql_db`**: L'instance de base de données MySQL elle-même.
     *   Utilise le moteur MySQL version 8.0.
     *   Configurée avec un type d'instance et une taille de stockage éligibles au Free Tier (`db.t3.micro` par défaut, 20 Go gp2).
