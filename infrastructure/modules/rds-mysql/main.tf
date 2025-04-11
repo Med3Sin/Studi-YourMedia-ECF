@@ -1,6 +1,10 @@
 # -----------------------------------------------------------------------------
 # Groupe de sous-réseaux pour l'instance RDS
 # -----------------------------------------------------------------------------
+# Documentation AWS :
+# - Groupes de sous-réseaux RDS : https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Subnets
+# - Limites et contraintes : https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_VPC.WorkingWithRDSInstanceinaVPC.html#USER_VPC.Subnets.Limitations
+#
 # RDS nécessite un groupe de sous-réseaux qui définit dans quels sous-réseaux
 # l'instance peut être placée. Utilise les sous-réseaux fournis (ceux du VPC par défaut).
 #
@@ -28,6 +32,10 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
 # -----------------------------------------------------------------------------
 # Instance de base de données RDS MySQL
 # -----------------------------------------------------------------------------
+# Documentation AWS :
+# - RDS MySQL : https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.html
+# - Types d'instances RDS : https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html
+# - Limites Free Tier : https://aws.amazon.com/free/?all-free-tier.sort-by=item.additionalFields.SortRank&all-free-tier.sort-order=asc&awsf.Free%20Tier%20Types=tier%23always-free%7Ctier%2312months&awsf.Free%20Tier%20Categories=categories%23databases
 resource "aws_db_instance" "mysql_db" {
   identifier        = "${var.project_name}-mysql-db" # Nom unique de l'instance RDS
   engine            = "mysql"                        # Moteur de base de données MySQL

@@ -29,6 +29,48 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 
 L'architecture cible repose sur AWS et utilise les services suivants :
 
+```
++----------------------------------+     +----------------------------------+
+|            AWS Cloud            |     |          Utilisateurs           |
+|                                 |     |                                 |
+|  +----------------------------+ |     |                                 |
+|  |         VPC par défaut     | |     |                                 |
+|  |                            | |     |                                 |
+|  |  +----------------------+  | |     |                                 |
+|  |  |    EC2 (t2.micro)   |  | |     |                                 |
+|  |  |                      |<-+-+-----+-- SSH (Port 22)                |
+|  |  |    Tomcat + Java    |  | |     |                                 |
+|  |  +----------+----------+  | |     |                                 |
+|  |             |             | |     |                                 |
+|  |             v             | |     |                                 |
+|  |  +----------------------+ | |     |                                 |
+|  |  |   RDS (db.t3.micro)  | | |     |                                 |
+|  |  |                      | | |     |                                 |
+|  |  |       MySQL 8.0      | | |     |                                 |
+|  |  +----------------------+ | |     |                                 |
+|  |                            | |     |                                 |
+|  |  +----------------------+  | |     |                                 |
+|  |  |    EC2 (t2.micro)   |  | |     |                                 |
+|  |  |                      |<-+-+-----+-- HTTP (Port 3000) - Grafana   |
+|  |  |    ECS + Monitoring  |  | |     |                                 |
+|  |  +----------------------+  | |     |                                 |
+|  |                            | |     |                                 |
+|  +----------------------------+ |     |                                 |
+|                                 |     |                                 |
+|  +----------------------------+ |     |                                 |
+|  |      Amplify Hosting      |<-+-----+-- HTTPS - Frontend            |
+|  |                           | |     |                                 |
+|  |     React Native Web     | |     |                                 |
+|  +----------------------------+ |     |                                 |
+|                                 |     |                                 |
+|  +----------------------------+ |     |                                 |
+|  |           S3              | |     |                                 |
+|  |                           | |     |                                 |
+|  |   Stockage des médias    | |     |                                 |
+|  +----------------------------+ |     |                                 |
++----------------------------------+     +----------------------------------+
+```
+
 *   **Compute:**
     *   AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
     *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
@@ -381,6 +423,18 @@ Cela signifie que les sous-réseaux spécifiés pour le groupe de sous-réseaux 
 
 Cette section centralise toutes les corrections et améliorations apportées au projet pour faciliter la maintenance et le suivi des modifications.
 
+### Table des matières des corrections
+
+- [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds) (2023-04-11)
+- [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds) (2023-04-11)
+- [Problèmes connus](#problèmes-connus)
+- [Améliorations futures](#améliorations-futures)
+
+### Historique des versions
+
+- **v1.0.0** (2023-04-10) : Version initiale de l'infrastructure
+- **v1.0.1** (2023-04-11) : Correction du groupe de sous-réseaux RDS et mise à jour du type d'instance RDS
+
 ### Correction du Groupe de Sous-réseaux RDS
 
 **Problème** : Lors de la mise à jour de l'infrastructure, l'erreur suivante se produisait :
@@ -416,3 +470,120 @@ Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBIns
 - `infrastructure/modules/rds-mysql/README.md` : Mise à jour de la documentation
 
 **Compatibilité** : Le type d'instance db.t3.micro est compatible avec MySQL 8.0 dans le Free Tier AWS.
+
+### Problèmes connus
+
+Cette section liste les problèmes connus qui n'ont pas encore été résolus :
+
+1. **Destruction de l'infrastructure** : Malgré la suppression du groupe d'auto-scaling EC2, la destruction complète de l'infrastructure peut encore échouer dans certains cas. Solution temporaire : supprimer manuellement les ressources problématiques via la console AWS avant d'exécuter `terraform destroy`.
+
+2. **Connexion à RDS depuis l'extérieur** : L'instance RDS n'est pas accessible depuis l'extérieur du VPC pour des raisons de sécurité. Pour se connecter à la base de données depuis un outil externe, il faut passer par un tunnel SSH via l'instance EC2.
+
+### Améliorations futures
+
+Cette section liste les améliorations planifiées pour les futures versions :
+
+1. **Mise en place d'un bastion host** : Ajouter une instance EC2 dédiée (bastion host) pour sécuriser l'accès SSH aux instances.
+
+2. **Implémentation de backups automatisés** : Configurer des backups automatisés pour RDS et les données critiques.
+
+3. **Migration vers des sous-réseaux privés** : Déplacer les instances EC2 et RDS dans des sous-réseaux privés pour améliorer la sécurité.
+
+4. **Implémentation d'un système de monitoring plus complet** : Ajouter des dashboards et des alertes plus détaillés dans Grafana.
+
+5. **Optimisation des coûts** : Analyser et optimiser l'utilisation des ressources pour minimiser les coûts tout en restant dans les limites du Free Tier.
+
+## Limites du Free Tier AWS
+
+Cette section détaille les limites du Free Tier AWS pour chaque service utilisé dans ce projet :
+
+### EC2 (Elastic Compute Cloud)
+- **Limite Free Tier** : 750 heures d'utilisation par mois d'instances t2.micro ou t3.micro (Linux)
+- **Notre utilisation** : 2 instances (1 pour l'application Java, 1 pour ECS) = 1440 heures par mois si elles fonctionnent 24/7
+- **Recommandation** : Arrêter les instances lorsqu'elles ne sont pas utilisées pour rester dans les limites du Free Tier
+
+### RDS (Relational Database Service)
+- **Limite Free Tier** : 750 heures d'utilisation par mois d'instances db.t2.micro ou db.t3.micro, 20 Go de stockage SSD (gp2)
+- **Notre utilisation** : 1 instance db.t3.micro avec 20 Go de stockage = 720 heures par mois si elle fonctionne 24/7
+- **Recommandation** : Rester dans les limites du Free Tier, mais attention aux backups qui peuvent générer des coûts supplémentaires
+
+### S3 (Simple Storage Service)
+- **Limite Free Tier** : 5 Go de stockage standard, 20 000 requêtes GET, 2 000 requêtes PUT
+- **Recommandation** : Surveiller l'utilisation du stockage et le nombre de requêtes
+
+### Amplify Hosting
+- **Limite Free Tier** : 1 000 minutes de build par mois, 5 Go de stockage
+- **Recommandation** : Limiter le nombre de déploiements pour éviter de dépasser les minutes de build
+
+### CloudWatch
+- **Limite Free Tier** : 10 métriques personnalisées, 1 million d'API requests, 5 Go de logs ingestion et archivage
+- **Recommandation** : Limiter le nombre de métriques et de logs pour éviter des coûts supplémentaires
+
+### Autres services
+- **Transfert de données** : 1 Go de données sortantes par mois (tous services confondus)
+- **Recommandation** : Surveiller le transfert de données sortantes qui peut rapidement générer des coûts
+
+## Guide de dépannage complet
+
+Cette section fournit des solutions aux problèmes courants que vous pourriez rencontrer lors du déploiement ou de l'utilisation de l'infrastructure.
+
+### Problèmes de déploiement Terraform
+
+#### Erreur : "No valid credential sources found"
+
+**Problème** : Terraform ne trouve pas les identifiants AWS.
+
+**Solution** :
+1. Vérifiez que les secrets GitHub `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont correctement configurés.
+2. Assurez-vous que les variables d'environnement AWS sont passées aux commandes Terraform dans le workflow GitHub Actions.
+3. Vérifiez que l'utilisateur IAM associé aux identifiants a les permissions nécessaires.
+
+#### Erreur : "Error acquiring the state lock"
+
+**Problème** : Le verrou d'état Terraform est déjà acquis par une autre exécution.
+
+**Solution** :
+1. Attendez que l'autre exécution se termine.
+2. Si vous êtes sûr qu'aucune autre exécution n'est en cours, vous pouvez forcer la libération du verrou avec `terraform force-unlock [ID]`.
+
+### Problèmes de connexion aux instances
+
+#### Impossible de se connecter à l'instance EC2 via SSH
+
+**Problème** : Impossible d'établir une connexion SSH à l'instance EC2.
+
+**Solution** :
+1. Vérifiez que le groupe de sécurité autorise le trafic SSH (port 22) depuis votre adresse IP.
+2. Assurez-vous que la paire de clés SSH est correctement configurée et que vous utilisez la bonne clé privée.
+3. Vérifiez que l'instance est en état "running".
+
+#### Impossible de se connecter à la base de données RDS
+
+**Problème** : Impossible d'établir une connexion à la base de données RDS.
+
+**Solution** :
+1. La base de données n'est pas accessible directement depuis l'extérieur du VPC. Utilisez un tunnel SSH via l'instance EC2 :
+   ```
+   ssh -i votre-cle.pem -L 3306:endpoint-rds:3306 ubuntu@ip-ec2
+   ```
+2. Vérifiez que le groupe de sécurité RDS autorise le trafic depuis le groupe de sécurité EC2.
+
+### Problèmes de déploiement d'applications
+
+#### Erreur lors du déploiement du backend Java
+
+**Problème** : Le déploiement du backend Java échoue.
+
+**Solution** :
+1. Vérifiez que Tomcat est correctement installé et en cours d'exécution sur l'instance EC2.
+2. Assurez-vous que les identifiants AWS utilisés ont accès au bucket S3.
+3. Vérifiez les logs Tomcat pour identifier l'erreur spécifique.
+
+#### Erreur lors du déploiement du frontend sur Amplify
+
+**Problème** : Le déploiement du frontend sur Amplify échoue.
+
+**Solution** :
+1. Vérifiez que le token GitHub est correctement configuré.
+2. Assurez-vous que le répertoire `app-react` existe et contient une application React valide.
+3. Vérifiez les logs de build Amplify pour identifier l'erreur spécifique.
