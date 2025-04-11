@@ -112,5 +112,7 @@ jobs:
           echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ github.event.inputs.ec2_public_ip }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ github.event.inputs.s3_bucket_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **URL de l'application:** http://${{ github.event.inputs.ec2_public_ip }}:8080/${{ env.WAR_NAME | replace: '.war', '' }}/" >> $GITHUB_STEP_SUMMARY
+          # Extraction du nom de l'application sans l'extension .war
+          WAR_NAME_WITHOUT_EXTENSION=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
+          echo "* **URL de l'application:** http://${{ github.event.inputs.ec2_public_ip }}:8080/${WAR_NAME_WITHOUT_EXTENSION}/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
