@@ -24,7 +24,7 @@ Ce module provisionne une instance de base de données MySQL managée via AWS RD
 *   `project_name` (String): Nom du projet pour taguer les ressources.
 *   `db_username` (String, Sensitive): Nom d'utilisateur administrateur pour la base de données.
 *   `db_password` (String, Sensitive): Mot de passe pour l'utilisateur administrateur.
-*   `instance_type_rds` (String): Type d'instance RDS (ex: `db.t2.micro`).
+*   `instance_type_rds` (String): Type d'instance RDS (ex: `db.t3.micro`).
 *   `vpc_id` (String): ID du VPC où déployer l'instance.
 *   `subnet_ids` (List(String)): Liste des IDs des sous-réseaux pour le groupe de sous-réseaux RDS.
 *   `rds_security_group_id` (String): ID du groupe de sécurité à attacher à l'instance.
