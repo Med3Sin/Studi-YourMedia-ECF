@@ -66,7 +66,7 @@ variable "instance_type_ec2" {
 variable "instance_type_rds" {
   description = "Type d'instance RDS (Free Tier eligible)."
   type        = string
-  default     = "db.t2.micro"
+  default     = "db.t3.micro"
 }
 
 variable "ecs_task_cpu" {
