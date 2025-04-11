@@ -78,7 +78,18 @@ jobs:
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
-      # Étape 7: Configuration de SSH
+      # Étape 7: Vérification et configuration de SSH
+      - name: Check SSH key
+        id: check-ssh-key
+        run: |
+          if [ -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            echo "::error::Le secret EC2_SSH_PRIVATE_KEY n'est pas configuré. Veuillez le configurer dans les paramètres du dépôt GitHub."
+            echo "::error::Pour plus d'informations, consultez le fichier WORKFLOW-IMPROVEMENTS.md."
+            exit 1
+          else
+            echo "La clé SSH est configurée."
+          fi
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:

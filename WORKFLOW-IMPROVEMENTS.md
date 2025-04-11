@@ -7,7 +7,8 @@ Ce document détaille les corrections et améliorations apportées aux workflows
 1. [Correction du workflow de déploiement backend](#1-correction-du-workflow-de-déploiement-backend)
 2. [Amélioration du workflow de déploiement frontend](#2-amélioration-du-workflow-de-déploiement-frontend)
 3. [Bonnes pratiques pour les workflows GitHub Actions](#3-bonnes-pratiques-pour-les-workflows-github-actions)
-4. [Résolution des problèmes courants](#4-résolution-des-problèmes-courants)
+4. [Configuration de la clé SSH pour le déploiement backend](#4-configuration-de-la-clé-ssh-pour-le-déploiement-backend)
+5. [Résolution des problèmes courants](#5-résolution-des-problèmes-courants)
 
 ## 1. Correction du workflow de déploiement backend
 
@@ -147,13 +148,71 @@ Pour exécuter des commandes dans un répertoire spécifique, utilisez l'attribu
   working-directory: ${{ env.APP_DIR }}
 ```
 
-## 4. Résolution des problèmes courants
+## 4. Configuration de la clé SSH pour le déploiement backend
+
+### Problème identifié
+
+Le workflow de déploiement backend utilise l'action `webfactory/ssh-agent` pour établir une connexion SSH avec l'instance EC2. Cette action nécessite une clé SSH privée, qui doit être stockée dans un secret GitHub nommé `EC2_SSH_PRIVATE_KEY`.
+
+L'erreur suivante se produit lorsque ce secret n'est pas configuré :
+
+```
+Run webfactory/ssh-agent@v0.9.0
+Error: The ssh-private-key argument is empty. Maybe the secret has not been configured, or you are using a wrong secret name in your workflow file.
+```
+
+### Solution mise en œuvre
+
+#### 1. Vérification de la présence de la clé SSH
+
+Ajout d'une étape qui vérifie si le secret `EC2_SSH_PRIVATE_KEY` est configuré avant d'essayer de l'utiliser :
+
+```yaml
+# Étape 7: Vérification et configuration de SSH
+- name: Check SSH key
+  id: check-ssh-key
+  run: |
+    if [ -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+      echo "::error::Le secret EC2_SSH_PRIVATE_KEY n'est pas configuré. Veuillez le configurer dans les paramètres du dépôt GitHub."
+      echo "::error::Pour plus d'informations, consultez le fichier WORKFLOW-IMPROVEMENTS.md."
+      exit 1
+    else
+      echo "La clé SSH est configurée."
+    fi
+```
+
+#### 2. Configuration du secret EC2_SSH_PRIVATE_KEY
+
+Pour configurer le secret `EC2_SSH_PRIVATE_KEY`, suivez ces étapes :
+
+1. **Générer une paire de clés SSH** :
+   ```bash
+   ssh-keygen -t rsa -b 4096 -C "your_email@example.com" -f ec2_key
+   ```
+   Cette commande génère deux fichiers : `ec2_key` (clé privée) et `ec2_key.pub` (clé publique).
+
+2. **Ajouter la clé publique à l'instance EC2** :
+   ```bash
+   cat ec2_key.pub | ssh ec2-user@your-ec2-ip "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+   ```
+   Remplacez `ec2-user` par l'utilisateur approprié (ex: `ubuntu` pour les AMI Ubuntu) et `your-ec2-ip` par l'adresse IP de votre instance EC2.
+
+3. **Ajouter la clé privée comme secret GitHub** :
+   - Allez sur la page de votre dépôt GitHub
+   - Cliquez sur "Settings" (Paramètres)
+   - Dans le menu de gauche, cliquez sur "Secrets and variables" puis "Actions"
+   - Cliquez sur "New repository secret"
+   - Entrez `EC2_SSH_PRIVATE_KEY` comme nom
+   - Copiez tout le contenu du fichier de clé privée (`ec2_key`) et collez-le dans le champ "Value"
+   - Cliquez sur "Add secret"
+
+## 5. Résolution des problèmes courants
 
 ### Problème : Erreur de syntaxe dans les expressions
 
 **Symptôme** : Erreur `Unexpected symbol` dans les expressions.
 
-**Solution** : 
+**Solution** :
 - Évitez d'utiliser des opérateurs ou des fonctions non prises en charge dans les expressions GitHub Actions.
 - Utilisez des commandes shell pour les manipulations de chaînes complexes.
 
