@@ -13,6 +13,9 @@ resource "aws_s3_bucket" "media_storage" {
   # Nom du bucket doit être globalement unique
   bucket = "${var.project_name}-${var.environment}-media-${data.aws_caller_identity.current.account_id}-${random_string.bucket_suffix.result}"
 
+  # Force la suppression du bucket même s'il contient des objets
+  force_destroy = true
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-media-storage"
     Project     = var.project_name
