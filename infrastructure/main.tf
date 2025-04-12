@@ -86,7 +86,7 @@ module "ecs-monitoring" {
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu
   ecs_task_memory         = var.ecs_task_memory
-  ecs_ami_id              = "ami-0925eac45db11fef2" # Utilisation de l'AMI Amazon Linux 2 demandée
+  ecs_ami_id              = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
   key_pair_name           = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
   ssh_private_key_path    = var.ssh_private_key_path # Chemin vers la clé privée SSH
 }
