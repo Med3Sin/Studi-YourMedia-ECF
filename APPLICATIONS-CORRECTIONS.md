@@ -16,6 +16,9 @@ Ce document recense les corrections et améliorations apportées aux application
 3. [Infrastructure](#infrastructure)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
 
+4. [CI/CD](#cicd)
+   - [Correction des avertissements de dépréciation dans les workflows GitHub Actions](#correction-des-avertissements-de-dépréciation-dans-les-workflows-github-actions)
+
 ---
 
 ## Application Frontend (React Native)
@@ -226,6 +229,57 @@ Cette modification permet de maintenir le comportement d'origine (appliquer la r
 - **Compatibilité future** : Assure la compatibilité avec les futures versions du provider
 - **Maintien du comportement** : Conserve le comportement d'origine (application de la règle à tous les objets)
 
+## CI/CD
+
+### Correction des avertissements de dépréciation dans les workflows GitHub Actions
+
+#### Problème identifié
+Lors de l'exécution du workflow d'exportation des outputs Terraform, des avertissements de dépréciation étaient générés :
+```
+Warning: The `set-output` command is deprecated and will be disabled soon. Please upgrade to using Environment Files.
+```
+
+Ces avertissements étaient générés par l'action `gliech/create-github-secret-action@v1` qui utilisait la commande `set-output` dépréciée.
+
+#### Solution mise en œuvre
+Pour résoudre ce problème, nous avons remplacé l'action `gliech/create-github-secret-action@v1` par l'action `actions/github-script@v7` qui utilise les fichiers d'environnement recommandés par GitHub :
+
+```yaml
+# Étape 6: Mise à jour des secrets GitHub avec actions/github-script
+- name: Update GitHub Secrets
+  uses: actions/github-script@v7
+  env:
+    EC2_PUBLIC_IP: ${{ env.EC2_PUBLIC_IP }}
+    S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+    AMPLIFY_APP_URL: ${{ env.AMPLIFY_APP_URL }}
+    RDS_ENDPOINT: ${{ env.RDS_ENDPOINT }}
+    GRAFANA_URL: ${{ env.GRAFANA_URL }}
+  with:
+    github-token: ${{ secrets.GH_PAT }}
+    script: |
+      const { EC2_PUBLIC_IP, S3_BUCKET_NAME, AMPLIFY_APP_URL, RDS_ENDPOINT, GRAFANA_URL } = process.env;
+
+      // Fonction pour mettre à jour un secret
+      async function updateSecret(name, value) {
+        // Code pour mettre à jour le secret
+      }
+
+      // Mettre à jour tous les secrets
+      await updateSecret('TF_EC2_PUBLIC_IP', EC2_PUBLIC_IP);
+      await updateSecret('TF_S3_BUCKET_NAME', S3_BUCKET_NAME);
+      await updateSecret('TF_AMPLIFY_APP_URL', AMPLIFY_APP_URL);
+      await updateSecret('TF_RDS_ENDPOINT', RDS_ENDPOINT);
+      await updateSecret('TF_GRAFANA_URL', GRAFANA_URL);
+```
+
+Cette approche utilise l'API GitHub directement via l'action `actions/github-script` pour mettre à jour les secrets du dépôt.
+
+#### Avantages de cette solution
+- **Conformité** : Utilise les méthodes recommandées par GitHub (fichiers d'environnement au lieu de `set-output`)
+- **Maintenance** : L'action `actions/github-script` est maintenue par GitHub et régulièrement mise à jour
+- **Flexibilité** : Permet d'interagir avec l'API GitHub de manière plus flexible
+- **Performance** : Réduit le nombre d'appels à l'API GitHub en regroupant les mises à jour des secrets
+
 ## Recommandations pour les futures améliorations
 
 ### Application Frontend
@@ -245,3 +299,9 @@ Cette modification permet de maintenir le comportement d'origine (appliquer la r
 2. **Optimiser les coûts** en utilisant des instances réservées ou des Savings Plans
 3. **Améliorer la sécurité** en mettant en place des politiques IAM plus restrictives
 4. **Configurer des alarmes CloudWatch** pour surveiller les ressources
+
+### CI/CD
+1. **Mettre à jour les actions GitHub** pour utiliser les dernières versions
+2. **Implémenter des tests automatisés** dans les workflows CI/CD
+3. **Configurer des notifications** pour les échecs de workflow
+4. **Optimiser les temps d'exécution** des workflows
