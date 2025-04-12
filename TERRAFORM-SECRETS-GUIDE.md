@@ -1,0 +1,96 @@
+# Guide d'utilisation des secrets GitHub avec Terraform
+
+Ce document explique comment configurer et utiliser les secrets GitHub pour les variables Terraform sensibles dans le projet YourMédia.
+
+## Problématique
+
+Lors de l'exécution de Terraform via GitHub Actions, certaines variables sensibles (comme les identifiants de base de données, les tokens API, etc.) ne doivent pas être stockées en clair dans le code. Ces variables doivent être fournies de manière sécurisée via les secrets GitHub.
+
+## Variables sensibles requises
+
+Les variables suivantes sont considérées comme sensibles et doivent être configurées en tant que secrets GitHub :
+
+| Nom du secret | Description | Utilisé dans |
+|---------------|-------------|-------------|
+| `AWS_ACCESS_KEY_ID` | Clé d'accès AWS pour l'authentification | Tous les workflows |
+| `AWS_SECRET_ACCESS_KEY` | Clé secrète AWS pour l'authentification | Tous les workflows |
+| `DB_USERNAME` | Nom d'utilisateur pour la base de données RDS | Workflow d'infrastructure |
+| `DB_PASSWORD` | Mot de passe pour la base de données RDS | Workflow d'infrastructure |
+| `EC2_SSH_PRIVATE_KEY` | Clé SSH privée pour se connecter aux instances EC2 | Workflows de déploiement |
+| `EC2_SSH_PUBLIC_KEY` | Clé SSH publique pour configurer l'accès SSH aux instances EC2 | Workflow d'infrastructure |
+| `EC2_KEY_PAIR_NAME` | Nom de la paire de clés EC2 dans AWS | Workflow d'infrastructure |
+| `GH_PAT` | Token d'accès personnel GitHub pour les intégrations | Workflow d'infrastructure |
+
+## Configuration des secrets GitHub
+
+Pour configurer ces secrets dans votre dépôt GitHub :
+
+1. Accédez à votre dépôt GitHub
+2. Cliquez sur "Settings" (Paramètres)
+3. Dans le menu de gauche, cliquez sur "Secrets and variables" puis "Actions"
+4. Cliquez sur "New repository secret"
+5. Entrez le nom du secret (par exemple, `DB_USERNAME`)
+6. Entrez la valeur du secret
+7. Cliquez sur "Add secret"
+
+Répétez ces étapes pour chaque secret requis.
+
+## Utilisation des secrets dans les workflows GitHub Actions
+
+Les secrets sont référencés dans les workflows GitHub Actions en utilisant la syntaxe `${{ secrets.NOM_DU_SECRET }}`. Par exemple :
+
+```yaml
+- name: Terraform Plan
+  run: |
+    terraform plan \
+      -var="db_username=${{ secrets.DB_USERNAME }}" \
+      -var="db_password=${{ secrets.DB_PASSWORD }}" \
+      -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
+      -var="github_token=${{ secrets.GH_PAT }}" \
+      -out=tfplan
+```
+
+## Secrets créés automatiquement
+
+Certains secrets sont créés automatiquement par le workflow d'infrastructure lors de l'exécution de `terraform apply` :
+
+| Nom du secret | Description |
+|---------------|-------------|
+| `EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend |
+| `S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds |
+| `MONITORING_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus |
+
+Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
+
+## Résolution des problèmes courants
+
+### Erreur : "Error: No value for required variable"
+
+Si vous rencontrez cette erreur lors de l'exécution de Terraform, cela signifie qu'une variable requise n'a pas été fournie. Vérifiez que :
+
+1. Le secret correspondant est correctement configuré dans GitHub
+2. Le secret est correctement référencé dans le workflow GitHub Actions
+3. La variable est correctement définie dans les fichiers Terraform
+
+### Erreur : "Error: Invalid AWS credentials"
+
+Si vous rencontrez cette erreur, vérifiez que :
+
+1. Les secrets `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont correctement configurés
+2. Les identifiants AWS ont les permissions nécessaires pour créer les ressources
+3. La région AWS spécifiée est correcte
+
+### Erreur : "Error: Error connecting to DB"
+
+Si vous rencontrez cette erreur, vérifiez que :
+
+1. Les secrets `DB_USERNAME` et `DB_PASSWORD` sont correctement configurés
+2. Les groupes de sécurité permettent l'accès à la base de données
+3. La base de données est en cours d'exécution
+
+## Bonnes pratiques
+
+1. **Rotation régulière des secrets** : Changez régulièrement vos secrets, en particulier les clés d'accès AWS et les mots de passe.
+2. **Principe du moindre privilège** : Utilisez des identifiants avec le minimum de permissions nécessaires.
+3. **Ne jamais exposer les secrets** : Ne jamais afficher les secrets dans les logs ou les outputs des workflows.
+4. **Vérification des workflows** : Avant de fusionner des modifications dans les workflows, vérifiez qu'elles ne compromettent pas la sécurité des secrets.

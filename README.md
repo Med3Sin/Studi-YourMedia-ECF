@@ -22,7 +22,8 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Workflows Disponibles](#workflows-disponibles)
     *   [Configuration SSH](#configuration-ssh)
     *   [Configuration des Secrets](#configuration-des-secrets)
-9.  [Résolution des problèmes courants](#résolution-des-problèmes-courants)
+9.  [Utilisation des Secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md)
+10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
 
 ## Architecture Globale
 
@@ -307,6 +308,8 @@ Les secrets suivants sont créés automatiquement lors de l'exécution du workfl
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 
+**Pour plus de détails sur la configuration et l'utilisation des secrets GitHub avec Terraform, consultez le [Guide d'utilisation des secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md).**
+
 > **Instructions détaillées pour créer un GH_PAT** :
 >
 > 1. **Accédez à votre compte GitHub** :
@@ -344,6 +347,36 @@ Ces secrets sont utilisés par les workflows de déploiement des applications po
 >    - Cliquez sur "Add secret"
 
 ## Résolution des problèmes courants
+
+### Erreurs liées aux variables Terraform
+
+Si vous rencontrez des erreurs du type "Error: No value for required variable" lors de l'exécution de Terraform, cela signifie qu'une variable requise n'a pas été fournie. Consultez le [Guide d'utilisation des secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md) pour plus d'informations sur la configuration des variables sensibles.
+
+### Erreurs de déploiement du backend
+
+Si le déploiement du backend échoue avec des erreurs SSH, vérifiez que :
+
+1. La clé SSH privée est correctement configurée dans les secrets GitHub (`EC2_SSH_PRIVATE_KEY`)
+2. L'instance EC2 est en cours d'exécution et accessible
+3. Le groupe de sécurité de l'instance EC2 autorise les connexions SSH (port 22)
+
+### Erreurs de compilation du frontend
+
+Si la compilation du frontend échoue, vérifiez que :
+
+1. Les dépendances sont correctement installées (`npm install`)
+2. Le code source ne contient pas d'erreurs de syntaxe
+3. Les variables d'environnement nécessaires sont correctement configurées
+
+### Erreurs de connexion à Grafana ou Prometheus
+
+Si vous ne pouvez pas accéder à Grafana ou Prometheus, vérifiez que :
+
+1. L'instance EC2 de monitoring est en cours d'exécution
+2. Les conteneurs Docker sont en cours d'exécution (`docker ps`)
+3. Les ports 3000 (Grafana) et 9090 (Prometheus) sont ouverts dans le groupe de sécurité
+
+Pour plus d'informations sur la résolution des problèmes, consultez la [documentation AWS](https://docs.aws.amazon.com/fr_fr/) ou ouvrez une issue dans ce dépôt GitHub.
 
 ### Workflow GitHub Actions bloqué sur `terraform plan`
 
