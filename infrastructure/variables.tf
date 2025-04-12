@@ -44,6 +44,12 @@ variable "ec2_key_pair_name" {
   # ou directement dans le workflow GitHub Actions.
 }
 
+variable "ssh_private_key_path" {
+  description = "Chemin vers la clé privée SSH pour se connecter aux instances EC2."
+  type        = string
+  default     = "~/.ssh/id_rsa"
+}
+
 variable "operator_ip" {
   description = "Votre adresse IP publique pour autoriser l'accès SSH à l'EC2 et l'accès à Grafana."
   type        = string

@@ -40,21 +40,23 @@ Docker est installé sur l'instance EC2 avec les commandes suivantes :
 
 ```bash
 # Mettre à jour le système
-yum update -y
+sudo yum update -y
 
 # Installer Docker
-amazon-linux-extras enable docker
-yum install -y docker
-systemctl enable docker
-systemctl start docker
+sudo amazon-linux-extras enable docker
+sudo yum install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
 
 # Ajouter l'utilisateur ec2-user au groupe docker
-usermod -a -G docker ec2-user
+sudo usermod -a -G docker ec2-user
 
 # Installer Docker Compose
-curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 ```
+
+Notez que toutes les commandes utilisent `sudo` pour s'assurer qu'elles s'exécutent avec les privilèges nécessaires.
 
 ## Configuration de Grafana
 
@@ -126,11 +128,11 @@ Ces URLs sont exportées en tant qu'outputs Terraform et stockées dans les secr
 2. Vérifiez que le groupe de sécurité autorise le trafic entrant sur le port 3000
 3. Vérifiez que le conteneur Grafana est en cours d'exécution :
    ```bash
-   docker ps | grep grafana
+   sudo docker ps | grep grafana
    ```
 4. Vérifiez les logs du conteneur Grafana :
    ```bash
-   docker logs grafana
+   sudo docker logs grafana
    ```
 
 ### Problème : Prometheus n'est pas accessible
@@ -139,11 +141,11 @@ Ces URLs sont exportées en tant qu'outputs Terraform et stockées dans les secr
 2. Vérifiez que le groupe de sécurité autorise le trafic entrant sur le port 9090
 3. Vérifiez que le conteneur Prometheus est en cours d'exécution :
    ```bash
-   docker ps | grep prometheus
+   sudo docker ps | grep prometheus
    ```
 4. Vérifiez les logs du conteneur Prometheus :
    ```bash
-   docker logs prometheus
+   sudo docker logs prometheus
    ```
 
 ### Problème : Prometheus ne collecte pas de métriques
@@ -158,5 +160,5 @@ Ces URLs sont exportées en tant qu'outputs Terraform et stockées dans les secr
    ```
 3. Vérifiez les logs du conteneur Prometheus :
    ```bash
-   docker logs prometheus
+   sudo docker logs prometheus
    ```

@@ -4,65 +4,29 @@
 # pour l'instance EC2 de monitoring
 
 # Mettre à jour le système
-yum update -y
+sudo yum update -y
 
 # Installer Docker
-amazon-linux-extras enable docker
-yum install -y docker
-systemctl enable docker
-systemctl start docker
+sudo amazon-linux-extras enable docker
+sudo yum install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
 
 # Ajouter l'utilisateur ec2-user au groupe docker
-usermod -a -G docker ec2-user
+sudo usermod -a -G docker ec2-user
 
 # Installer Docker Compose
-curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
 # Créer le répertoire pour les configurations
-mkdir -p /opt/monitoring
+sudo mkdir -p /opt/monitoring
 
-# Créer le fichier docker-compose.yml
-cat > /opt/monitoring/docker-compose.yml << 'EOF'
-version: '3'
-
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    restart: always
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    depends_on:
-      - prometheus
-    restart: always
-
-volumes:
-  prometheus_data:
-  grafana_data:
-EOF
+# Copier le fichier docker-compose.yml depuis le template
+sudo cp ${docker_compose_path} /opt/monitoring/docker-compose.yml
 
 # Créer le fichier de configuration pour Prometheus
-cat > /opt/monitoring/prometheus.yml << 'EOF'
+sudo cat > /opt/monitoring/prometheus.yml << 'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -78,11 +42,14 @@ scrape_configs:
 EOF
 
 # Remplacer EC2_INSTANCE_PRIVATE_IP par l'IP privée de l'instance EC2 Java/Tomcat
-sed -i "s/EC2_INSTANCE_PRIVATE_IP/${ec2_instance_private_ip}/g" /opt/monitoring/prometheus.yml
+sudo sed -i "s/EC2_INSTANCE_PRIVATE_IP/${ec2_instance_private_ip}/g" /opt/monitoring/prometheus.yml
+
+# Définir les permissions correctes
+sudo chown -R ec2-user:ec2-user /opt/monitoring
 
 # Démarrer les conteneurs
 cd /opt/monitoring
-docker-compose up -d
+sudo docker-compose up -d
 
 # Afficher un message de confirmation
 echo "Grafana et Prometheus ont été installés avec succès."

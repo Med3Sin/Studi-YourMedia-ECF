@@ -43,3 +43,14 @@ variable "ecs_ami_id" {
   type        = string
   default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 optimisée pour ECS dans eu-west-3 (Paris)
 }
+
+variable "key_pair_name" {
+  description = "Nom de la paire de clés SSH pour l'instance EC2."
+  type        = string
+}
+
+variable "ssh_private_key_path" {
+  description = "Chemin vers la clé privée SSH pour se connecter à l'instance EC2."
+  type        = string
+  default     = "~/.ssh/id_rsa"
+}
