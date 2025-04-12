@@ -244,7 +244,10 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `DB_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
 *   `DB_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
 *   `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 existante dans AWS pour l'accès SSH.
-*   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements). Voir le guide [SSH-CONFIGURATION-GUIDE.md](SSH-CONFIGURATION-GUIDE.md) pour plus de détails sur la configuration SSH.
+*   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements).
+*   `EC2_SSH_PUBLIC_KEY`: Le contenu de votre clé SSH publique (utilisée pour configurer l'accès SSH aux instances EC2 lors de leur création).
+
+Voir le guide [SSH-CONFIGURATION-GUIDE.md](SSH-CONFIGURATION-GUIDE.md) pour plus de détails sur la configuration SSH.
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 *   `TF_API_TOKEN`: Un token API Terraform Cloud pour l'authentification et le stockage sécurisé de l'état Terraform. **Ce secret est obligatoire pour que le workflow fonctionne.**
 
@@ -309,9 +312,9 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 
 ### Configuration de la clé SSH publique pour les instances EC2
 
-Le workflow `0-infra-deploy-destroy.yml` permet de spécifier une clé SSH publique à ajouter aux instances EC2 lors de leur création. Cette fonctionnalité est particulièrement utile pour configurer l'accès SSH aux instances EC2 sans avoir à se connecter manuellement aux instances après leur création.
+Le workflow `0-infra-deploy-destroy.yml` permet de configurer automatiquement l'accès SSH aux instances EC2 lors de leur création. Vous avez deux options :
 
-Pour utiliser cette fonctionnalité :
+#### Option 1 : Utiliser la clé SSH publique stockée dans GitHub Secrets (recommandé)
 
 1. Générez une paire de clés SSH sur votre machine locale :
    ```bash
@@ -323,9 +326,23 @@ Pour utiliser cette fonctionnalité :
    cat ~/.ssh/yourmedia_ec2_key.pub
    ```
 
-3. Lors du déclenchement du workflow `0-infra-deploy-destroy.yml`, collez la clé publique dans le champ "Clé SSH publique pour les instances EC2".
+3. Ajoutez la clé publique en tant que secret GitHub nommé `EC2_SSH_PUBLIC_KEY` :
+   - Accédez à votre dépôt GitHub > Settings > Secrets and variables > Actions
+   - Cliquez sur "New repository secret"
+   - Nom : `EC2_SSH_PUBLIC_KEY`
+   - Valeur : (collez le contenu de votre clé publique)
 
-4. La clé publique sera automatiquement ajoutée au fichier `~/.ssh/authorized_keys` de l'utilisateur `ec2-user` sur les instances EC2 créées.
+4. Lors du déclenchement du workflow `0-infra-deploy-destroy.yml`, assurez-vous que l'option "Utiliser la clé SSH publique stockée dans les secrets GitHub" est activée (c'est le cas par défaut).
+
+#### Option 2 : Spécifier une clé SSH publique lors du déclenchement du workflow
+
+1. Générez une paire de clés SSH sur votre machine locale comme décrit ci-dessus.
+
+2. Lors du déclenchement du workflow `0-infra-deploy-destroy.yml` :
+   - Désactivez l'option "Utiliser la clé SSH publique stockée dans les secrets GitHub"
+   - Collez la clé publique dans le champ "Clé SSH publique pour les instances EC2"
+
+Dans les deux cas, la clé publique sera automatiquement ajoutée au fichier `~/.ssh/authorized_keys` de l'utilisateur `ec2-user` sur les instances EC2 créées.
 
 Pour plus de détails sur la configuration SSH, consultez le guide [SSH-CONFIGURATION-GUIDE.md](SSH-CONFIGURATION-GUIDE.md).
 
