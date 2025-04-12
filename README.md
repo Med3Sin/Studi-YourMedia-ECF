@@ -24,10 +24,6 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Configuration des Secrets](#configuration-des-secrets)
 9.  [Utilisation des Secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md)
 10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
-11. [Corrections et Améliorations](#corrections-et-améliorations)
-    *   [Suppression forcée du bucket S3](#suppression-forcée-du-bucket-s3)
-    *   [Correction du Groupe de Sous-réseaux RDS](#correction-du-groupe-de-sous-réseaux-rds)
-    *   [Mise à jour du Type d'Instance RDS](#mise-à-jour-du-type-dinstance-rds)
 
 ## Architecture Globale
 
@@ -401,80 +397,3 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 ### Erreur "Context access might be invalid: GH_PAT"
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
-
-### Problème de destruction de l'infrastructure
-
-Si le workflow de destruction de l'infrastructure échoue avec des erreurs liées au bucket S3 contenant des objets, cela est dû au fait que Terraform ne peut pas supprimer un bucket S3 qui contient des objets par défaut.
-
-Ce problème a été résolu en ajoutant l'option `force_destroy = true` à la configuration du bucket S3 dans le module Terraform. Cette option permet à Terraform de supprimer automatiquement tous les objets du bucket lors de la destruction de l'infrastructure.
-
-**Fichiers modifiés** :
-- `infrastructure/modules/s3/main.tf` : Ajout de l'option `force_destroy = true` à la ressource `aws_s3_bucket`
-
-Cette modification est particulièrement utile dans les scénarios suivants :
-1. Échec partiel du déploiement de l'infrastructure
-2. Tests et environnements de développement temporaires
-3. Nettoyage complet des ressources
-
-**Note** : L'état Terraform est automatiquement sauvegardé dans Terraform Cloud lors de l'exécution des workflows, ce qui permet de garder une trace des ressources créées même en cas d'échec partiel du déploiement.
-
-## Corrections et Améliorations
-
-Cette section centralise toutes les corrections et améliorations apportées au projet pour faciliter la maintenance et le suivi des modifications.
-
-### Suppression forcée du bucket S3
-
-**Problème** : Lors de la destruction de l'infrastructure, le workflow échouait car Terraform ne pouvait pas supprimer le bucket S3 contenant des objets.
-
-**Cause** :
-- Par défaut, Terraform refuse de supprimer un bucket S3 qui contient des objets
-- Lors d'un échec partiel de déploiement, des objets peuvent être créés dans le bucket
-- L'état Terraform est sauvegardé dans Terraform Cloud, mais la destruction échoue à cause des objets dans le bucket
-
-**Solution** :
-1. Ajout de l'option `force_destroy = true` à la configuration du bucket S3
-2. Cette option permet à Terraform de supprimer automatiquement tous les objets du bucket lors de la destruction
-
-**Fichiers modifiés** :
-- `infrastructure/modules/s3/main.tf`
-
-**Bénéfices** :
-- Destruction complète de l'infrastructure même après un échec partiel de déploiement
-- Nettoyage automatique des ressources temporaires
-- Simplification du processus de destruction pour les environnements de test
-
-### Correction du Groupe de Sous-réseaux RDS
-
-**Problème** : Lors de la mise à jour de l'infrastructure, l'erreur suivante se produisait :
-
-```
-Error: updating RDS DB Instance (***-mysql-db): operation error RDS: ModifyDBInstance, https response error StatusCode: 400, RequestID: 29922280-5375-4639-a2b0-03b5a87ce841, InvalidVPCNetworkStateFault: You cannot move DB instance ***-mysql-db to subnet group ***-rds-subnet-group-20250411122617. The specified DB subnet group and DB instance are in the same VPC. Choose a DB subnet group in different VPC than the specified DB instance and try again.
-```
-
-**Cause** :
-- Le nom du groupe de sous-réseaux RDS incluait un timestamp (`formatdate("YYYYMMDDhhmmss", timestamp())`)
-- À chaque exécution de Terraform, un nouveau groupe de sous-réseaux était créé avec un nom différent
-- Terraform essayait ensuite de mettre à jour l'instance RDS pour utiliser ce nouveau groupe
-- AWS ne permet pas de changer le groupe de sous-réseaux d'une instance RDS pour un autre groupe dans le même VPC
-
-**Solution** :
-1. Utilisation d'un nom fixe pour le groupe de sous-réseaux (sans timestamp)
-2. Suppression du bloc `lifecycle { create_before_destroy = true }` qui créerait un nouveau groupe avant de détruire l'ancien
-
-**Fichiers modifiés** :
-- `infrastructure/modules/rds-mysql/main.tf`
-
-**Limitation** : Si vous devez modifier les sous-réseaux utilisés par RDS, vous devrez recréer complètement l'instance RDS (ce qui implique une perte de données si vous n'avez pas de sauvegarde).
-
-### Mise à jour du Type d'Instance RDS
-
-**Modification** : Le type d'instance RDS a été mis à jour de `db.t2.micro` à `db.t3.micro`.
-
-**Raison** : Les instances db.t3.micro offrent de meilleures performances et sont également éligibles au Free Tier AWS.
-
-**Fichiers modifiés** :
-- `infrastructure/variables.tf` : Modification de la valeur par défaut de la variable `instance_type_rds`
-- `infrastructure/modules/rds-mysql/main.tf` : Utilisation de la variable au lieu d'une valeur codée en dur
-- `infrastructure/modules/rds-mysql/README.md` : Mise à jour de la documentation
-
-**Compatibilité** : Le type d'instance db.t3.micro est compatible avec MySQL 8.0 dans le Free Tier AWS.
