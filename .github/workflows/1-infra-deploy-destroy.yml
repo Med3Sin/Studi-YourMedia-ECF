@@ -59,6 +59,7 @@ jobs:
         with:
           terraform_version: ">=1.0"  # Version compatible avec le code
           terraform_wrapper: false    # Désactive le wrapper pour une meilleure gestion des erreurs
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }} # Token pour Terraform Cloud
 
       # Étape 3: Configuration des identifiants AWS
       - name: Configure AWS Credentials

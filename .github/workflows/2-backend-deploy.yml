@@ -81,9 +81,9 @@ jobs:
       # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs
       - name: Set Environment Variables
         run: |
-          # Utiliser les secrets s'ils existent, sinon utiliser les inputs
-          echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP || secrets.EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
-          echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
+          # Utiliser les secrets Terraform (préfixés par TF_) s'ils existent, sinon utiliser les inputs
+          echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
+          echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
           echo "RDS_ENDPOINT=${{ secrets.TF_RDS_ENDPOINT || '' }}" >> $GITHUB_ENV
 
           # Mettre à jour le nom du WAR pour inclure l'environnement

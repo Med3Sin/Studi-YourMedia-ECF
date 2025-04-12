@@ -1,6 +1,6 @@
-# Guide d'utilisation des secrets GitHub avec Terraform
+# Guide d'utilisation des secrets GitHub avec Terraform Cloud
 
-Ce document explique comment configurer et utiliser les secrets GitHub pour les variables Terraform sensibles dans le projet YourMédia.
+Ce document explique comment configurer et utiliser les secrets GitHub et Terraform Cloud pour les variables sensibles dans le projet YourMédia.
 
 ## Problématique
 
@@ -23,7 +23,7 @@ Les variables suivantes sont considérées comme sensibles et doivent être conf
 | `EC2_KEY_PAIR_NAME` | Nom de la paire de clés EC2 dans AWS | Workflow d'infrastructure | 10 avril 2025 |
 | `GH_PAT` | Token d'accès personnel GitHub pour les intégrations | Workflow d'infrastructure | 7 avril 2025 |
 | `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur pour Grafana | Workflow d'infrastructure | 7 avril 2025 |
-| `TF_API_TOKEN` | Token d'API pour Terraform Cloud | Workflow d'infrastructure | 10 avril 2025 |
+| `TF_API_TOKEN` | Token d'API pour Terraform Cloud | Workflow d'infrastructure | 10 avril 2025 | **Obligatoire pour l'intégration avec Terraform Cloud** |
 
 ## Configuration des secrets GitHub
 
@@ -62,13 +62,13 @@ Le workflow d'infrastructure a été mis à jour pour utiliser automatiquement l
 
 Certains secrets sont créés automatiquement par le workflow d'infrastructure lors de l'exécution de `terraform apply` :
 
-| Nom du secret | Description | Date d'expiration |
-|---------------|-------------|------------------|
-| `TF_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend | 12 avril 2025 |
-| `TF_S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds | 12 avril 2025 |
-| `TF_GRAFANA_URL` | URL d'accès à l'interface Grafana | 12 avril 2025 |
-| `TF_RDS_ENDPOINT` | Point de terminaison de la base de données RDS | 12 avril 2025 |
-| `TF_AMPLIFY_APP_URL` | URL de l'application déployée sur AWS Amplify | 12 avril 2025 |
+| Nom du secret | Description | Date d'expiration | Environnement |
+|---------------|-------------|------------------|---------------|
+| `TF_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend | 12 avril 2025 | dev, pre-prod, prod |
+| `TF_S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds | 12 avril 2025 | dev, pre-prod, prod |
+| `TF_GRAFANA_URL` | URL d'accès à l'interface Grafana | 12 avril 2025 | dev, pre-prod, prod |
+| `TF_RDS_ENDPOINT` | Point de terminaison de la base de données RDS | 12 avril 2025 | dev, pre-prod, prod |
+| `TF_AMPLIFY_APP_URL` | URL de l'application déployée sur AWS Amplify | 12 avril 2025 | dev, pre-prod, prod |
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 
@@ -98,9 +98,24 @@ Si vous rencontrez cette erreur, vérifiez que :
 2. Les groupes de sécurité permettent l'accès à la base de données
 3. La base de données est en cours d'exécution
 
+## Configuration de Terraform Cloud
+
+Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfstate) et gérer les environnements. Voici comment cela fonctionne :
+
+1. **Organisation** : L'organisation Terraform Cloud est `Med3Sin`
+2. **Workspaces** : Un workspace est créé pour chaque environnement (`Med3Sin-dev`, `Med3Sin-pre-prod`, `Med3Sin-prod`)
+3. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
+
+### Avantages de cette approche
+
+- **Sécurité** : L'état Terraform est stocké de manière sécurisée dans Terraform Cloud
+- **Isolation des environnements** : Chaque environnement a son propre workspace
+- **Traçabilité** : Terraform Cloud conserve un historique des exécutions
+
 ## Bonnes pratiques
 
 1. **Rotation régulière des secrets** : Changez régulièrement vos secrets, en particulier les clés d'accès AWS et les mots de passe.
 2. **Principe du moindre privilège** : Utilisez des identifiants avec le minimum de permissions nécessaires.
 3. **Ne jamais exposer les secrets** : Ne jamais afficher les secrets dans les logs ou les outputs des workflows.
 4. **Vérification des workflows** : Avant de fusionner des modifications dans les workflows, vérifiez qu'elles ne compromettent pas la sécurité des secrets.
+5. **Utilisation des préfixes standardisés** : Tous les secrets générés par Terraform sont préfixés par `TF_` pour une meilleure organisation.

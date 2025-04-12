@@ -29,15 +29,15 @@ output "s3_bucket_name" {
 
 output "monitoring_ec2_public_ip" {
   description = "Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus."
-  value       = module.ecs-monitoring.ec2_instance_public_ip
+  value       = module.ec2-monitoring.ec2_instance_public_ip
 }
 
 output "grafana_url" {
   description = "URL d'accès à Grafana."
-  value       = module.ecs-monitoring.grafana_url
+  value       = module.ec2-monitoring.grafana_url
 }
 
 output "prometheus_url" {
   description = "URL d'accès à Prometheus."
-  value       = module.ecs-monitoring.prometheus_url
+  value       = module.ec2-monitoring.prometheus_url
 }
