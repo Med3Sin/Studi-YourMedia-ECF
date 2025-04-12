@@ -1,66 +1,45 @@
 # -----------------------------------------------------------------------------
-# IAM Role pour l'instance EC2
+# IAM Role pour l'instance EC2 de monitoring
 # -----------------------------------------------------------------------------
-data "aws_iam_policy_document" "ec2_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
 
+# Rôle IAM pour l'instance EC2 de monitoring
 resource "aws_iam_role" "monitoring_role" {
-  name               = "${var.project_name}-monitoring-role-${formatdate("YYYYMMDDhhmmss", timestamp())}"
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+  name = "${var.project_name}-monitoring-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
 
   tags = {
     Name    = "${var.project_name}-monitoring-role"
     Project = var.project_name
   }
-
-  # Permet de recréer la ressource avant de détruire l'ancienne
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
-# Politique pour accéder à ECR (si nécessaire)
+# Politique pour accéder à ECR (si nécessaire pour tirer des images Docker)
 resource "aws_iam_role_policy_attachment" "ecr_policy" {
   role       = aws_iam_role.monitoring_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonECR-FullAccess"
 }
 
-# Profil d'instance EC2 pour attacher le rôle à l'instance
+# Profil d'instance pour attacher le rôle IAM à l'instance EC2
 resource "aws_iam_instance_profile" "monitoring_profile" {
-  name = "${var.project_name}-monitoring-profile-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  name = "${var.project_name}-monitoring-profile"
   role = aws_iam_role.monitoring_role.name
-
-  tags = {
-    Name    = "${var.project_name}-monitoring-profile"
-    Project = var.project_name
-  }
-
-  # Permet de recréer la ressource avant de détruire l'ancienne
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # -----------------------------------------------------------------------------
 # Préparation des fichiers de configuration
 # -----------------------------------------------------------------------------
-# Préparation du fichier docker-compose.yml
-data "template_file" "docker_compose" {
-  template = file("${path.module}/scripts/docker-compose.yml.tpl")
-}
-
-# Création d'un fichier local pour docker-compose.yml
-resource "local_file" "docker_compose" {
-  content  = data.template_file.docker_compose.rendered
-  filename = "${path.module}/scripts/docker-compose.yml"
-}
 
 # Préparation du script d'initialisation
 data "template_file" "install_script" {
@@ -76,15 +55,14 @@ data "template_file" "install_script" {
 # -----------------------------------------------------------------------------
 # Provisionnement du fichier docker-compose.yml sur l'instance EC2
 resource "null_resource" "copy_docker_compose" {
-  # Déclencher uniquement lorsque l'instance est créée ou que le fichier docker-compose.yml change
+  # Déclencher uniquement lorsque l'instance est créée
   triggers = {
     instance_id = aws_instance.monitoring_instance.id
-    docker_compose_sha1 = sha1(data.template_file.docker_compose.rendered)
   }
 
   # Copier le fichier docker-compose.yml sur l'instance EC2
   provisioner "file" {
-    content     = data.template_file.docker_compose.rendered
+    source      = "${path.module}/scripts/docker-compose.yml"
     destination = "/tmp/docker-compose.yml"
 
     connection {
