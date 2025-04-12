@@ -92,6 +92,7 @@ module "ec2-java-tomcat" {
   ami_id                = var.ami_id
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
+  ssh_public_key        = var.ssh_public_key  # Clé SSH publique pour l'accès SSH
   subnet_id             = local.subnet_id_az1 # Déploie dans le premier sous-réseau disponible
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
@@ -112,8 +113,8 @@ module "ecs-monitoring" {
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu
   ecs_task_memory         = var.ecs_task_memory
-  ecs_ami_id              = "ami-0925eac45db11fef2" # Utilisation de l'AMI Amazon Linux 2 demandée
-  key_pair_name           = var.ec2_key_pair_name # Utilisation de la même paire de clés que pour l'EC2 Java/Tomcat
+  ecs_ami_id              = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
+  key_pair_name           = var.ec2_key_pair_name    # Utilisation de la même paire de clés que pour l'EC2 Java/Tomcat
   ssh_private_key_path    = var.ssh_private_key_path # Chemin vers la clé privée SSH
 }
 

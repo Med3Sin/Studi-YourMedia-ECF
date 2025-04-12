@@ -20,6 +20,10 @@ on:
           - plan     # Prévisualiser les changements sans les appliquer
           - apply    # Appliquer les changements à l'infrastructure
           - destroy  # Détruire l'infrastructure existante
+      ssh_public_key:
+        description: 'Clé SSH publique pour les instances EC2 (optionnel)'
+        required: false
+        type: string
 
 
 
@@ -135,6 +139,7 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
+            -var="ssh_public_key=${{ github.event.inputs.ssh_public_key || '' }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
@@ -178,6 +183,7 @@ jobs:
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
+            -var="ssh_public_key=${{ github.event.inputs.ssh_public_key || '' }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}"

@@ -76,6 +76,27 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 
 # -----------------------------------------------------------------------------
+# Configuration SSH pour l'instance EC2
+# -----------------------------------------------------------------------------
+
+# Création d'un script pour ajouter la clé SSH publique à l'instance EC2
+data "template_file" "ssh_config" {
+  template = <<-EOF
+#!/bin/bash
+
+# Ajouter la clé SSH publique à authorized_keys si elle est fournie
+if [ -n "${var.ssh_public_key}" ]; then
+  mkdir -p /home/ec2-user/.ssh
+  echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
+  chmod 700 /home/ec2-user/.ssh
+  chmod 600 /home/ec2-user/.ssh/authorized_keys
+  chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+  echo "Clé SSH publique ajoutée avec succès."
+fi
+EOF
+}
+
+# -----------------------------------------------------------------------------
 # Instance EC2
 # -----------------------------------------------------------------------------
 
@@ -95,8 +116,16 @@ resource "aws_instance" "app_server" {
   vpc_security_group_ids = [var.ec2_security_group_id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
-  # Script exécuté au premier démarrage de l'instance
-  user_data = data.template_file.install_script.rendered
+  # Combiner les scripts d'installation et de configuration SSH
+  user_data = <<-EOF
+#!/bin/bash
+
+# Configuration SSH
+${data.template_file.ssh_config.rendered}
+
+# Installation de Java et Tomcat
+${data.template_file.install_script.rendered}
+EOF
 
   # S'assurer que le profil IAM est créé avant l'instance
   depends_on = [aws_iam_instance_profile.ec2_profile]
