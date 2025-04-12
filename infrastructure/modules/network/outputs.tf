@@ -21,8 +21,3 @@ output "vpc_id" {
   description = "ID du VPC utilisé"
   value       = var.vpc_id
 }
-
-output "subnet_ids" {
-  description = "Liste des IDs des sous-réseaux utilisés"
-  value       = var.subnet_ids
-}
