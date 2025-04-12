@@ -54,6 +54,10 @@ Les secrets sont référencés dans les workflows GitHub Actions en utilisant la
       -out=tfplan
 ```
 
+### Automatisation de la paire de clés EC2
+
+Le workflow d'infrastructure a été mis à jour pour utiliser automatiquement le nom de la paire de clés EC2 stocké dans le secret GitHub `EC2_KEY_PAIR_NAME`. Cela élimine la nécessité de saisir manuellement ce paramètre lors de l'exécution du workflow.
+
 ## Secrets créés automatiquement
 
 Certains secrets sont créés automatiquement par le workflow d'infrastructure lors de l'exécution de `terraform apply` :

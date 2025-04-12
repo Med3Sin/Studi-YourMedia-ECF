@@ -20,10 +20,7 @@ on:
           - plan     # Prévisualiser les changements sans les appliquer
           - apply    # Appliquer les changements à l'infrastructure
           - destroy  # Détruire l'infrastructure existante
-      ssh_key_pair_name:
-        description: 'Nom de la paire de clés EC2 existante dans AWS pour SSH'
-        required: true
-        type: string
+
 
 
 # Variables d'environnement globales
@@ -87,7 +84,7 @@ jobs:
           terraform plan \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
+            -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
@@ -150,7 +147,7 @@ jobs:
           terraform destroy -auto-approve \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
+            -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \

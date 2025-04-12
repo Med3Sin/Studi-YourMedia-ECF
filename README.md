@@ -115,8 +115,7 @@ Pour déployer ou détruire l'infrastructure, utilisez le workflow GitHub Action
 2. Sélectionnez le workflow "1 - Deploy/Destroy Infrastructure (Terraform)"
 3. Cliquez sur "Run workflow"
 4. Sélectionnez l'action à exécuter (`plan`, `apply` ou `destroy`)
-5. Entrez le nom de votre paire de clés SSH EC2
-6. Cliquez sur "Run workflow"
+5. Cliquez sur "Run workflow"
 
 **Note importante :** Lors de l'exécution de l'action `apply`, le workflow stocke automatiquement les outputs Terraform (adresse IP de l'EC2, nom du bucket S3, etc.) dans les secrets GitHub. Ces secrets seront utilisés par les workflows de déploiement des applications, ce qui vous évitera de saisir manuellement ces informations.
 
