@@ -18,6 +18,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2](#configuration-de-grafanaprometheus-dans-des-conteneurs-docker-sur-ec2)
    - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
    - [Suppression du fichier docker-compose.yml.tpl redondant](#suppression-du-fichier-docker-composeyml-tpl-redondant)
+   - [Correction des variables manquantes dans le module de monitoring](#correction-des-variables-manquantes-dans-le-module-de-monitoring)
 
 4. [Documentation](#documentation)
    - [Mise à jour de la documentation du module de monitoring](#mise-à-jour-de-la-documentation-du-module-de-monitoring)
@@ -213,6 +214,39 @@ Le module de monitoring contenait deux fichiers docker-compose quasiment identiq
 - **Réduction de la complexité** : Moins de fichiers à maintenir
 - **Élimination de la confusion** : Un seul fichier docker-compose à modifier
 - **Cohérence** : Assure que les modifications futures seront appliquées au bon fichier
+
+### Correction des variables manquantes dans le module de monitoring
+
+#### Problème identifié
+Après la migration de ECS vers Docker sur EC2, le module `ecs-monitoring` nécessitait de nouvelles variables qui n'étaient pas fournies dans l'appel du module, ce qui provoquait l'erreur suivante lors de la validation Terraform :
+
+```
+Error: Missing required argument
+  on main.tf line 78, in module "ecs-monitoring":
+  78: module "ecs-monitoring" {
+The argument "key_pair_name" is required, but no definition was found.
+```
+
+#### Solution mise en œuvre
+1. **Ajout des variables manquantes** dans l'appel au module `ecs-monitoring` dans le fichier `main.tf` :
+   - `key_pair_name` : Nom de la paire de clés SSH pour l'instance EC2 de monitoring
+   - `ssh_private_key_path` : Chemin vers la clé privée SSH pour se connecter à l'instance EC2
+
+2. **Ajout d'une nouvelle variable** dans le fichier `variables.tf` principal :
+   - `ssh_private_key_path` : Chemin vers la clé privée SSH
+
+3. **Mise à jour du workflow GitHub Actions** pour fournir la valeur de `ssh_private_key_path` lors de l'exécution de Terraform
+
+4. **Mise à jour des outputs** dans le fichier `outputs.tf` pour refléter la nouvelle architecture Docker sur EC2 :
+   - Remplacement de `ecs_cluster_name` par `monitoring_ec2_public_ip`, `grafana_url` et `prometheus_url`
+
+5. **Correction du script d'initialisation** pour éviter les problèmes d'encodage UTF-8 en utilisant un template Terraform local au lieu d'un fichier externe
+
+#### Avantages de cette solution
+- **Cohérence** : Toutes les variables nécessaires sont maintenant fournies
+- **Fiabilité** : Évite les erreurs lors de l'exécution de Terraform
+- **Simplicité** : Utilisation d'un template local pour le script d'initialisation, évitant les problèmes d'encodage
+- **Clarté** : Outputs plus descriptifs et cohérents avec l'architecture actuelle
 
 ## Documentation
 

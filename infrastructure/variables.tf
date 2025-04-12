@@ -84,3 +84,10 @@ variable "repo_name" {
   type        = string
   # Sera fourni via les secrets GitHub Actions ou une variable d'environnement.
 }
+
+variable "ssh_private_key_path" {
+  description = "Chemin vers la clé privée SSH pour se connecter aux instances EC2."
+  type        = string
+  default     = "~/.ssh/id_rsa"
+  # Cette valeur par défaut sera remplacée par le chemin réel dans le workflow GitHub Actions.
+}

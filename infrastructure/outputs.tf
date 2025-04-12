@@ -27,12 +27,17 @@ output "s3_bucket_name" {
 # Output supprimé pour éviter les problèmes de sensibilité
 # L'URL Amplify peut être récupérée directement depuis la console AWS
 
-output "grafana_access_note" {
-  description = "Note sur comment accéder à Grafana."
-  value       = "Accédez à Grafana via l'IP publique de l'instance EC2 exécutant le conteneur Grafana sur le port 3000. Ex: http://<EC2_PUBLIC_IP>:3000"
+output "monitoring_ec2_public_ip" {
+  description = "Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus."
+  value       = module.ecs-monitoring.ec2_instance_public_ip
 }
 
-output "ecs_cluster_name" {
-  description = "Nom du cluster ECS pour le monitoring."
-  value       = module.ecs-monitoring.ecs_cluster_name
+output "grafana_url" {
+  description = "URL d'accès à Grafana."
+  value       = module.ecs-monitoring.grafana_url
+}
+
+output "prometheus_url" {
+  description = "URL d'accès à Prometheus."
+  value       = module.ecs-monitoring.prometheus_url
 }

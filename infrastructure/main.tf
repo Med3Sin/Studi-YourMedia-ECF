@@ -73,7 +73,7 @@ module "ec2-java-tomcat" {
 }
 
 # -----------------------------------------------------------------------------
-# Module Monitoring ECS Fargate (Prometheus/Grafana)
+# Module Monitoring Docker sur EC2 (Prometheus/Grafana)
 # -----------------------------------------------------------------------------
 module "ecs-monitoring" {
   source = "./modules/ecs-monitoring"
@@ -87,6 +87,8 @@ module "ecs-monitoring" {
   ecs_task_cpu            = var.ecs_task_cpu
   ecs_task_memory         = var.ecs_task_memory
   ecs_ami_id              = "ami-0925eac45db11fef2" # Utilisation de l'AMI Amazon Linux 2 demandée
+  key_pair_name           = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
+  ssh_private_key_path    = var.ssh_private_key_path # Chemin vers la clé privée SSH
 }
 
 # -----------------------------------------------------------------------------
