@@ -60,11 +60,16 @@ jobs:
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
-      # Étape 5: Compilation de l'application web (Expo Export)
-      - name: Build web application
+      # Étape 5: Installation d'Expo CLI et compilation de l'application web
+      - name: Install Expo CLI and build web application
         run: |
+          echo "::group::Installing Expo CLI"
+          npm install -g expo-cli
+          echo "::endgroup::"
+
           echo "::group::Building web application"
-          ${{ env.PACKAGE_MANAGER }} run build
+          # Utiliser directement expo export pour éviter les problèmes avec les plugins natifs
+          npx expo export --platform web
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
