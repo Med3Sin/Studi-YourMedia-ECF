@@ -19,8 +19,14 @@ sudo usermod -a -G docker ec2-user
 sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 
-# Créer le répertoire pour les configurations
+# Créer les répertoires pour les configurations et les données
 sudo mkdir -p /opt/monitoring
+sudo mkdir -p /opt/monitoring/prometheus-data
+sudo mkdir -p /opt/monitoring/grafana-data
+
+# Définir les permissions pour les répertoires de données
+sudo chmod 777 /opt/monitoring/prometheus-data
+sudo chmod 777 /opt/monitoring/grafana-data
 
 # Copier le fichier docker-compose.yml depuis le template
 sudo cp ${docker_compose_path} /opt/monitoring/docker-compose.yml
