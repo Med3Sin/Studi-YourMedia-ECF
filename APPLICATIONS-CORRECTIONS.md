@@ -15,6 +15,8 @@ Ce document recense les corrections et améliorations apportées aux application
 
 3. [Infrastructure](#infrastructure)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
+   - [Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2](#configuration-de-grafanaprometheus-dans-des-conteneurs-docker-sur-ec2)
+   - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
 
 4. [CI/CD](#cicd)
    - [Correction des avertissements de dépréciation dans les workflows GitHub Actions](#correction-des-avertissements-de-dépréciation-dans-les-workflows-github-actions)
@@ -231,6 +233,39 @@ Cette modification permet de maintenir le comportement d'origine (appliquer la r
 
 ## Infrastructure
 
+### Correction de la configuration du cycle de vie du bucket S3
+
+#### Problème identifié
+Lors de l'application de l'infrastructure avec Terraform, l'erreur suivante était rencontrée :
+```
+Error: "filter" or "prefix" is required in rule[0] of lifecycle_rule
+```
+
+Cette erreur indique que la configuration du cycle de vie du bucket S3 nécessite soit un filtre, soit un préfixe pour chaque règle.
+
+#### Solution mise en œuvre
+Nous avons mis à jour la configuration du cycle de vie du bucket S3 pour inclure un filtre vide, ce qui applique la règle à tous les objets du bucket :
+
+```hcl
+lifecycle_rule {
+  id      = "expire-all-objects"
+  enabled = true
+
+  filter {} # Filtre vide = s'applique à tous les objets
+
+  expiration {
+    days = 1
+  }
+}
+```
+
+Cette modification satisfait l'exigence du provider AWS Terraform tout en maintenant le comportement d'origine (application de la règle à tous les objets).
+
+#### Avantages de cette solution
+- **Conformité** : Satisfait les exigences du provider AWS Terraform
+- **Compatibilité future** : Assure la compatibilité avec les futures versions du provider
+- **Maintien du comportement** : Conserve le comportement d'origine (application de la règle à tous les objets)
+
 ### Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2
 
 #### Problème identifié
@@ -249,6 +284,33 @@ Nous avons modifié l'infrastructure pour déployer Grafana et Prometheus dans d
 - **Simplicité** : Configuration plus simple et plus directe avec Docker
 - **Flexibilité** : Possibilité de personnaliser facilement la configuration des conteneurs
 - **Performances** : Meilleure performance pour les services de monitoring
+
+### Correction de l'erreur de référence à ECS dans le module de monitoring
+
+#### Problème identifié
+Après la migration de ECS Fargate vers Docker sur EC2 pour le monitoring, une erreur était rencontrée lors de l'application de l'infrastructure :
+
+```
+Error: Reference to undeclared resource
+  on modules/ecs-monitoring/ec2-capacity.tf line 60, in resource "aws_instance" "ecs_instance":
+  60:     echo ECS_CLUSTER=${aws_ecs_cluster.monitoring_cluster.name} >> /etc/ecs/ecs.config
+A managed resource "aws_ecs_cluster" "monitoring_cluster" has not been
+declared in module.ecs-monitoring.
+```
+
+Cette erreur indique qu'il y avait encore des références à des ressources ECS qui n'existaient plus dans le module de monitoring.
+
+#### Solution mise en œuvre
+Nous avons nettoyé le module de monitoring en supprimant les fichiers et références obsolètes :
+
+1. **Suppression du fichier `ec2-capacity.tf`** qui contenait des références à ECS
+2. **Suppression des fichiers de définition de tâches ECS** qui n'étaient plus nécessaires
+3. **Mise à jour du README du module** pour refléter la nouvelle architecture Docker
+
+#### Avantages de cette solution
+- **Cohérence** : Élimination des références obsolètes pour éviter les erreurs
+- **Clarté** : Documentation mise à jour pour refléter l'architecture actuelle
+- **Simplicité** : Réduction du nombre de fichiers et de ressources pour une meilleure maintenabilité
 
 ## CI/CD
 
