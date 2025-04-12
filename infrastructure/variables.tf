@@ -102,3 +102,17 @@ variable "ssh_private_key_path" {
   default     = "~/.ssh/id_rsa"
   # Cette valeur par défaut sera remplacée par le chemin réel dans le workflow GitHub Actions.
 }
+
+variable "aws_access_key" {
+  description = "Clé d'accès AWS pour l'authentification."
+  type        = string
+  sensitive   = true
+  # Sera fourni via les secrets GitHub Actions.
+}
+
+variable "aws_secret_key" {
+  description = "Clé secrète AWS pour l'authentification."
+  type        = string
+  sensitive   = true
+  # Sera fourni via les secrets GitHub Actions.
+}
