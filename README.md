@@ -16,7 +16,7 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Déploiement du Backend](#déploiement-du-backend)
 6.  [Application Frontend (React Native Web)](#application-frontend-react-native-web)
     *   [Déploiement du Frontend](#déploiement-du-frontend)
-7.  [Monitoring (ECS avec EC2 - Prometheus & Grafana)](#monitoring-ecs-avec-ec2---prometheus--grafana)
+7.  [Monitoring (Docker sur EC2 - Prometheus & Grafana)](#monitoring-docker-sur-ec2---prometheus--grafana)
     *   [Accès à Grafana](#accès-à-grafana)
 8.  [CI/CD (GitHub Actions)](#cicd-github-actions)
     *   [Workflows Disponibles](#workflows-disponibles)
@@ -74,7 +74,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 *   **Compute:**
     *   AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
-    *   AWS ECS avec EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
+    *   Docker sur EC2 (t2.micro) pour exécuter les conteneurs de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
 *   **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 *   **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 *   **Réseau:** Utilisation du VPC par défaut pour la simplicité, avec détection automatique des sous-réseaux disponibles ou création automatique de sous-réseaux si nécessaire, et des groupes de sécurité spécifiques pour contrôler les flux. Les accès SSH et Grafana sont ouverts à toutes les adresses IP pour simplifier le développement, mais cette configuration devrait être restreinte en production.
@@ -176,13 +176,35 @@ Le déploiement du frontend est géré par AWS Amplify, qui est configuré pour 
 
 Pour déployer manuellement le frontend, vous pouvez utiliser le workflow GitHub Actions `3-frontend-deploy.yml` qui vérifie la compilation du code React Native Web. Le déploiement réel est ensuite géré par AWS Amplify via la connexion directe au dépôt GitHub.
 
-## Monitoring (ECS avec EC2 - Prometheus & Grafana)
+## Monitoring (Docker sur EC2 - Prometheus & Grafana)
 
-*(Détails sur la configuration du monitoring)*
+Le monitoring de l'application est assuré par Prometheus et Grafana, déployés dans des conteneurs Docker sur une instance EC2 dédiée. Cette approche permet de rester dans les limites du Free Tier AWS tout en offrant une solution de monitoring complète.
+
+La configuration est détaillée dans le document [MONITORING-CONFIGURATION.md](MONITORING-CONFIGURATION.md).
+
+Les principales caractéristiques de cette configuration sont :
+
+1. **Utilisation de Docker** au lieu d'ECS Fargate pour réduire les coûts
+2. **Stockage local** pour les données Prometheus et Grafana sur l'instance EC2
+3. **Limitation des ressources** des conteneurs pour optimiser l'utilisation de l'instance t2.micro
+4. **Rotation des logs** pour éviter de consommer trop d'espace disque
+5. **Rétention des données** limitée à 15 jours et 1 Go pour Prometheus
 
 ### Accès à Grafana
 
-*(Comment accéder à l'interface Grafana une fois déployée)*
+Une fois l'infrastructure déployée, Grafana est accessible à l'adresse suivante :
+
+```
+http://<MONITORING_IP>:3000
+```
+
+Où `<MONITORING_IP>` est l'adresse IP publique de l'instance EC2 de monitoring. Cette adresse est disponible dans les outputs Terraform et est exportée en tant que secret GitHub `TF_MONITORING_IP` par le workflow `1-terraform-outputs-to-secrets.yml`.
+
+Les identifiants par défaut pour se connecter à Grafana sont :
+- **Utilisateur** : admin
+- **Mot de passe** : admin
+
+Lors de la première connexion, Grafana vous demandera de changer le mot de passe.
 
 ## CI/CD (GitHub Actions)
 
@@ -222,7 +244,7 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `DB_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
 *   `DB_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
 *   `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 existante dans AWS pour l'accès SSH.
-*   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements).
+*   `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements). Voir le guide [SSH-CONFIGURATION-GUIDE.md](SSH-CONFIGURATION-GUIDE.md) pour plus de détails sur la configuration SSH.
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 *   `TF_API_TOKEN`: Un token API Terraform Cloud pour l'authentification et le stockage sécurisé de l'état Terraform. **Ce secret est obligatoire pour que le workflow fonctionne.**
 
@@ -284,6 +306,28 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 >    - Cliquez sur "Add secret"
 
 ## Résolution des problèmes courants
+
+### Configuration de la clé SSH publique pour les instances EC2
+
+Le workflow `0-infra-deploy-destroy.yml` permet de spécifier une clé SSH publique à ajouter aux instances EC2 lors de leur création. Cette fonctionnalité est particulièrement utile pour configurer l'accès SSH aux instances EC2 sans avoir à se connecter manuellement aux instances après leur création.
+
+Pour utiliser cette fonctionnalité :
+
+1. Générez une paire de clés SSH sur votre machine locale :
+   ```bash
+   ssh-keygen -t rsa -b 4096 -f ~/.ssh/yourmedia_ec2_key -N ""
+   ```
+
+2. Copiez le contenu de la clé publique :
+   ```bash
+   cat ~/.ssh/yourmedia_ec2_key.pub
+   ```
+
+3. Lors du déclenchement du workflow `0-infra-deploy-destroy.yml`, collez la clé publique dans le champ "Clé SSH publique pour les instances EC2".
+
+4. La clé publique sera automatiquement ajoutée au fichier `~/.ssh/authorized_keys` de l'utilisateur `ec2-user` sur les instances EC2 créées.
+
+Pour plus de détails sur la configuration SSH, consultez le guide [SSH-CONFIGURATION-GUIDE.md](SSH-CONFIGURATION-GUIDE.md).
 
 ### Workflow GitHub Actions bloqué sur `terraform plan`
 
@@ -459,6 +503,8 @@ Cette section centralise toutes les corrections et améliorations apportées au 
 - **v1.0.1** (2023-04-11) : Correction du groupe de sous-réseaux RDS et mise à jour du type d'instance RDS
 - **v1.0.2** (2023-04-12) : Ajout du vidage automatique du bucket S3 pour faciliter la destruction de l'infrastructure
 - **v1.0.3** (2023-04-12) : Adaptation des scripts pour Amazon Linux 2 HVM
+- **v1.0.4** (2023-04-13) : Remplacement d'ECS Fargate par Docker sur EC2 pour le monitoring
+- **v1.0.5** (2023-04-13) : Ajout de la configuration SSH automatique pour les instances EC2
 
 ### Correction du Groupe de Sous-réseaux RDS
 
