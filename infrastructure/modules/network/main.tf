@@ -2,13 +2,14 @@
 # Security Group pour l'instance EC2 (ec2-java-tomcat)
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ec2_sg" {
-  name        = "${var.project_name}-ec2-sg"
+  name        = "${var.project_name}-${var.environment}-ec2-sg"
   description = "Autorise le trafic entrant pour l'instance EC2 (SSH, HTTP, Tomcat, Prometheus)"
   vpc_id      = var.vpc_id
 
   tags = {
-    Name    = "${var.project_name}-ec2-sg"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-ec2-sg"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -72,13 +73,14 @@ resource "aws_security_group_rule" "ec2_egress_all" {
 # Security Group pour la base de données RDS (rds-mysql)
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "rds_sg" {
-  name        = "${var.project_name}-rds-sg"
+  name        = "${var.project_name}-${var.environment}-rds-sg"
   description = "Autorise le trafic entrant MySQL depuis l'instance EC2"
   vpc_id      = var.vpc_id
 
   tags = {
-    Name    = "${var.project_name}-rds-sg"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-rds-sg"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -109,13 +111,14 @@ resource "aws_security_group_rule" "rds_egress_all" {
 # Security Group pour les tâches ECS Fargate (ecs-monitoring)
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ecs_sg" {
-  name        = "${var.project_name}-ecs-sg"
+  name        = "${var.project_name}-${var.environment}-ecs-sg"
   description = "Autorise le trafic entrant pour Grafana et sortant pour Prometheus"
   vpc_id      = var.vpc_id
 
   tags = {
-    Name    = "${var.project_name}-ecs-sg"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-ecs-sg"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 

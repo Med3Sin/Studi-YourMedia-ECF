@@ -3,6 +3,17 @@ variable "project_name" {
   type        = string
 }
 
+variable "environment" {
+  description = "Environnement de déploiement (dev, pre-prod, prod)."
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "pre-prod", "prod"], var.environment)
+    error_message = "L'environnement doit être 'dev', 'pre-prod' ou 'prod'."
+  }
+}
+
 variable "vpc_id" {
   description = "ID du VPC où créer les groupes de sécurité."
   type        = string

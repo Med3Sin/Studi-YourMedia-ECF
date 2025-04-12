@@ -9,8 +9,9 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 
   tags = {
-    Name    = "${var.project_name}-vpc"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-vpc"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -22,8 +23,9 @@ resource "aws_subnet" "main_az1" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name    = "${var.project_name}-subnet-az1"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-subnet-az1"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -36,8 +38,9 @@ resource "aws_subnet" "main_az2" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name    = "${var.project_name}-subnet-az2"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-subnet-az2"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -46,8 +49,9 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name    = "${var.project_name}-igw"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-igw"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -61,8 +65,9 @@ resource "aws_route_table" "main" {
   }
 
   tags = {
-    Name    = "${var.project_name}-rt"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-rt"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -85,6 +90,7 @@ module "network" {
   source = "./modules/network"
 
   project_name = var.project_name
+  environment  = var.environment
   vpc_id       = aws_vpc.main.id
   operator_ip  = var.operator_ip
 }
@@ -96,6 +102,7 @@ module "s3" {
   source = "./modules/s3"
 
   project_name = var.project_name
+  environment  = var.environment
   aws_region   = var.aws_region # Nécessaire pour la politique de déploiement Amplify
 }
 
@@ -106,6 +113,7 @@ module "rds-mysql" {
   source = "./modules/rds-mysql"
 
   project_name          = var.project_name
+  environment           = var.environment
   db_username           = var.db_username
   db_password           = var.db_password
   instance_type_rds     = var.instance_type_rds
@@ -121,6 +129,7 @@ module "ec2-java-tomcat" {
   source = "./modules/ec2-java-tomcat"
 
   project_name          = var.project_name
+  environment           = var.environment
   ami_id                = var.ami_id
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
@@ -137,6 +146,7 @@ module "ecs-monitoring" {
   source = "./modules/ecs-monitoring"
 
   project_name            = var.project_name
+  environment             = var.environment
   aws_region              = var.aws_region
   vpc_id                  = aws_vpc.main.id
   subnet_ids              = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité

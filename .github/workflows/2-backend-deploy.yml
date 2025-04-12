@@ -17,6 +17,15 @@ on:
         description: 'Nom du bucket S3 (optionnel)'
         required: false
         type: string
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev      # Environnement de développement
+          - pre-prod # Environnement de pré-production
+          - prod     # Environnement de production
 
 # Variables d'environnement globales
 env:
@@ -24,7 +33,7 @@ env:
   JAVA_DISTRIBUTION: 'temurin' # Distribution Java (Adoptium Temurin)
   AWS_REGION: eu-west-3      # Région AWS (Paris)
   APP_DIR: ./app-java        # Répertoire de l'application Java
-  WAR_NAME: yourmedia-backend.war # Nom du fichier WAR
+  WAR_NAME: yourmedia-backend.war # Nom du fichier WAR (sera modifié pour inclure l'environnement)
 
 jobs:
   build-and-deploy:
@@ -77,6 +86,11 @@ jobs:
           echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || secrets.S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
           echo "RDS_ENDPOINT=${{ secrets.TF_RDS_ENDPOINT || '' }}" >> $GITHUB_ENV
 
+          # Mettre à jour le nom du WAR pour inclure l'environnement
+          WAR_BASE_NAME=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
+          echo "WAR_NAME=${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
+          echo "Nom du WAR mis à jour: ${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war"
+
       # Étape 6: Téléchargement du WAR sur S3
       - name: Upload WAR to S3
         run: |
@@ -118,6 +132,7 @@ jobs:
         run: |
           echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
           echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
           WAR_NAME_NO_EXT=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')

@@ -10,6 +10,17 @@ variable "project_name" {
   default     = "yourmedia"
 }
 
+variable "environment" {
+  description = "Environnement de déploiement (dev, pre-prod, prod)."
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "pre-prod", "prod"], var.environment)
+    error_message = "L'environnement doit être 'dev', 'pre-prod' ou 'prod'."
+  }
+}
+
 variable "db_username" {
   description = "Nom d'utilisateur pour la base de données RDS."
   type        = string

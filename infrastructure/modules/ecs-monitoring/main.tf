@@ -4,7 +4,7 @@
 
 # Rôle IAM pour l'instance EC2 de monitoring
 resource "aws_iam_role" "monitoring_role" {
-  name = "${var.project_name}-monitoring-role"
+  name = "${var.project_name}-${var.environment}-monitoring-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -20,8 +20,9 @@ resource "aws_iam_role" "monitoring_role" {
   })
 
   tags = {
-    Name    = "${var.project_name}-monitoring-role"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-monitoring-role"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -33,7 +34,7 @@ resource "aws_iam_role_policy_attachment" "ecr_policy" {
 
 # Profil d'instance pour attacher le rôle IAM à l'instance EC2
 resource "aws_iam_instance_profile" "monitoring_profile" {
-  name = "${var.project_name}-monitoring-profile"
+  name = "${var.project_name}-${var.environment}-monitoring-profile"
   role = aws_iam_role.monitoring_role.name
 }
 
@@ -144,7 +145,8 @@ resource "aws_instance" "monitoring_instance" {
   user_data = local.install_script_template
 
   tags = {
-    Name    = "${var.project_name}-monitoring-instance"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-monitoring-instance"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }

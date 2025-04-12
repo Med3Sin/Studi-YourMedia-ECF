@@ -9,6 +9,16 @@ name: 3 - Build Frontend (React Native Web CI)
 
 on:
   workflow_dispatch: # Permet le déclenchement manuel
+    inputs:
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev      # Environnement de développement
+          - pre-prod # Environnement de pré-production
+          - prod     # Environnement de production
   push:
     branches: [ main ] # Déclenche sur push vers la branche main (pour vérification CI)
     paths:
@@ -69,6 +79,9 @@ jobs:
         run: |
           echo "## Résumé de la compilation Frontend" >> $GITHUB_STEP_SUMMARY
           echo "* **Application:** Frontend React Native Web" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "* **Branche:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Déclencheur:** ${{ github.event_name == 'workflow_dispatch' && 'Manuel' || 'Push' }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Compilation réussie ✅" >> $GITHUB_STEP_SUMMARY

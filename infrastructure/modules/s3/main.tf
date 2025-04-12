@@ -11,11 +11,12 @@ resource "random_string" "bucket_suffix" {
 
 resource "aws_s3_bucket" "media_storage" {
   # Nom du bucket doit être globalement unique
-  bucket = "${var.project_name}-media-${data.aws_caller_identity.current.account_id}-${random_string.bucket_suffix.result}"
+  bucket = "${var.project_name}-${var.environment}-media-${data.aws_caller_identity.current.account_id}-${random_string.bucket_suffix.result}"
 
   tags = {
-    Name    = "${var.project_name}-media-storage"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-media-storage"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
