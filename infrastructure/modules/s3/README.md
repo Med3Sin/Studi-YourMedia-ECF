@@ -11,13 +11,8 @@ Ce module crée et configure un bucket S3 pour le projet YourMédia.
 
 *   **`aws_s3_bucket.media_storage`**: Le bucket S3 principal.
     *   Le nom est généré dynamiquement pour assurer l'unicité globale en incluant le nom du projet, l'ID du compte AWS et une chaîne aléatoire.
-    *   L'attribut `force_destroy = true` permet de supprimer le bucket même s'il contient des objets, ce qui facilite la destruction de l'infrastructure.
 *   **`aws_s3_bucket_public_access_block`**: Bloque tout accès public au bucket par défaut.
 *   **`aws_s3_bucket_versioning`**: Active le versioning sur le bucket pour pouvoir récupérer des versions précédentes des objets.
-*   **`aws_s3_bucket_lifecycle_configuration`**: Configure des règles de cycle de vie pour :
-    *   Supprimer automatiquement les anciennes versions des objets après 1 jour.
-    *   Supprimer les marqueurs de suppression expirés.
-    *   Ces règles facilitent le nettoyage et la suppression du bucket.
 *   **`aws_s3_bucket_server_side_encryption_configuration`**: Configure le chiffrement côté serveur par défaut (SSE-S3/AES256).
 *   **`aws_s3_bucket_policy`**: Attache une politique au bucket pour autoriser spécifiquement le service AWS Amplify (`amplify.amazonaws.com`) à lire les objets dans le préfixe `builds/frontend/` (nécessaire pour le déploiement Amplify depuis S3, bien que nous utilisions la connexion directe au repo GitHub pour le build Amplify dans la configuration actuelle).
 

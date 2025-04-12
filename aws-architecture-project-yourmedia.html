@@ -8,7 +8,7 @@
       margin: 0;
       padding: 20px;
     }
-
+    
     .diagram-container {
       max-width: 800px;
       margin: 0 auto;
@@ -17,55 +17,55 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       padding: 20px;
     }
-
+    
     h1 {
       text-align: center;
       color: #333;
       margin-bottom: 30px;
     }
-
+    
     .section {
       margin-bottom: 20px;
       border-radius: 8px;
       padding: 15px;
       position: relative;
     }
-
+    
     .section-title {
       font-weight: bold;
       margin-bottom: 15px;
       font-size: 18px;
     }
-
+    
     .users-section {
       background-color: #e7f5fe;
       border: 2px solid #0078d7;
     }
-
+    
     .cicd-section {
       background-color: #fef0e6;
       border: 2px solid #ff6b35;
     }
-
+    
     .aws-section {
       background-color: #edf7ee;
       border: 2px solid #30a559;
     }
-
+    
     .aws-subsection {
       margin-bottom: 15px;
       padding: 10px;
       background-color: rgba(255, 255, 255, 0.7);
       border-radius: 6px;
     }
-
+    
     .component-row {
       display: flex;
       justify-content: space-around;
       flex-wrap: wrap;
       margin-bottom: 10px;
     }
-
+    
     .component {
       width: 150px;
       padding: 10px;
@@ -76,47 +76,47 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       transition: transform 0.2s, box-shadow 0.2s;
     }
-
+    
     .component:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
-
+    
     .users-component {
       border: 1px solid #0078d7;
     }
-
+    
     .cicd-component {
       border: 1px solid #ff6b35;
     }
-
+    
     .compute-component {
       border: 1px solid #30a559;
       background-color: #f0f9f1;
     }
-
+    
     .storage-component {
       border: 1px solid #9e44ae;
       background-color: #f9f0ff;
     }
-
+    
     .frontend-component {
       border: 1px solid #0098db;
       background-color: #e6f7ff;
     }
-
+    
     .component-title {
       font-weight: bold;
       margin-bottom: 5px;
       font-size: 14px;
     }
-
+    
     .component-subtitle {
       font-size: 12px;
       color: #666;
       line-height: 1.4;
     }
-
+    
     .free-tier-badge {
       position: absolute;
       top: -10px;
@@ -129,7 +129,7 @@
       border-radius: 12px;
       border: 1px solid #ff9900;
     }
-
+    
     .connections {
       text-align: center;
       font-size: 12px;
@@ -138,11 +138,11 @@
       background-color: #f8f9fa;
       border-radius: 6px;
     }
-
+    
     .connection {
       margin: 8px 0;
     }
-
+    
     .arrow {
       margin: 0 6px;
       color: #666;
@@ -153,7 +153,7 @@
   <div class="diagram-container">
     <h1>AWS Free Tier Architecture</h1>
     <div class="free-tier-badge">Free Tier Optimized</div>
-
+    
     <!-- Users Section -->
     <div class="section users-section">
       <div class="section-title" style="color: #0078d7;">User Interaction Layer</div>
@@ -172,7 +172,7 @@
         </div>
       </div>
     </div>
-
+    
     <!-- CI/CD Section -->
     <div class="section cicd-section">
       <div class="section-title" style="color: #ff6b35;">CI/CD Pipeline</div>
@@ -197,11 +197,11 @@
         </div>
       </div>
     </div>
-
+    
     <!-- AWS Section -->
     <div class="section aws-section">
       <div class="section-title" style="color: #30a559;">AWS Cloud (Free Tier)</div>
-
+      
       <!-- Computing Subsection -->
       <div class="aws-subsection">
         <div class="section-title" style="color: #30a559; font-size: 16px;">Computing Layer</div>
@@ -212,11 +212,11 @@
           </div>
           <div class="component compute-component">
             <div class="component-title">EC2 t2.micro</div>
-            <div class="component-subtitle">Docker<br>Prometheus + Grafana</div>
+            <div class="component-subtitle">ECS Cluster<br>Prometheus + Grafana</div>
           </div>
         </div>
       </div>
-
+      
       <!-- Storage Subsection -->
       <div class="aws-subsection">
         <div class="section-title" style="color: #9e44ae; font-size: 16px;">Storage Layer</div>
@@ -231,7 +231,7 @@
           </div>
         </div>
       </div>
-
+      
       <!-- Frontend Subsection -->
       <div class="aws-subsection">
         <div class="section-title" style="color: #0098db; font-size: 16px;">Frontend Layer</div>
@@ -243,7 +243,7 @@
         </div>
       </div>
     </div>
-
+    
     <!-- Key Connections -->
     <div class="connections">
       <div class="connection"><b>Web Users</b> <span class="arrow">→</span> <b>Amplify</b> <span class="arrow">[HTTPS]</span></div>
@@ -253,11 +253,11 @@
       <div class="connection"><b>Prometheus</b> <span class="arrow">→</span> <b>EC2</b> <span class="arrow">[Metrics Scraping]</span></div>
       <div class="connection"><b>Admins</b> <span class="arrow">→</span> <b>Grafana</b> <span class="arrow">[HTTP]</span></div>
     </div>
-
+    
     <!-- Free Tier Notes -->
     <div style="font-size: 12px; color: #666; text-align: center; margin-top: 20px; padding: 10px; background-color: #fffde7; border-radius: 6px;">
       <p><b>Free Tier Optimizations:</b> All services configured to stay within AWS Free Tier limits</p>
-      <p>Docker containers on EC2 t2.micro instances instead of ECS Fargate to remain Free Tier eligible</p>
+      <p>ECS uses EC2 t2.micro instances instead of Fargate to remain Free Tier eligible</p>
     </div>
   </div>
 </body>

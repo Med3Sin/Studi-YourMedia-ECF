@@ -18,12 +18,6 @@ variable "key_pair_name" {
   type        = string
 }
 
-variable "ssh_public_key" {
-  description = "Clé SSH publique à ajouter à l'instance EC2 pour l'accès SSH."
-  type        = string
-  default     = "" # Vide par défaut, sera fournie via le workflow GitHub Actions
-}
-
 variable "subnet_id" {
   description = "ID du sous-réseau public où déployer l'instance EC2."
   type        = string

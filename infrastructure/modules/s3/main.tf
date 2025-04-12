@@ -13,9 +13,6 @@ resource "aws_s3_bucket" "media_storage" {
   # Nom du bucket doit être globalement unique
   bucket = "${var.project_name}-media-${data.aws_caller_identity.current.account_id}-${random_string.bucket_suffix.result}"
 
-  # Permet de supprimer le bucket même s'il contient des objets
-  force_destroy = true
-
   tags = {
     Name    = "${var.project_name}-media-storage"
     Project = var.project_name
@@ -37,34 +34,6 @@ resource "aws_s3_bucket_versioning" "media_storage_versioning" {
   bucket = aws_s3_bucket.media_storage.id
   versioning_configuration {
     status = "Enabled"
-  }
-}
-
-# Configuration du cycle de vie pour faciliter la suppression du bucket
-resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
-  # Dépend du versioning car les règles de cycle de vie interagissent avec le versioning
-  depends_on = [aws_s3_bucket_versioning.media_storage_versioning]
-
-  bucket = aws_s3_bucket.media_storage.id
-
-  rule {
-    id     = "cleanup-old-versions"
-    status = "Enabled"
-
-    # Filtre avec préfixe vide pour appliquer la règle à tous les objets
-    filter {
-      prefix = ""
-    }
-
-    # Expiration des versions non-courantes après 1 jour
-    noncurrent_version_expiration {
-      noncurrent_days = 1
-    }
-
-    # Suppression des marqueurs de suppression expirés
-    expiration {
-      expired_object_delete_marker = true
-    }
   }
 }
 

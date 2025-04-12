@@ -9,18 +9,13 @@ name: 2 - Build and Deploy Backend (Java WAR)
 on:
   workflow_dispatch:
     inputs:
-      manual_override:
-        description: 'Utiliser les valeurs manuelles au lieu des secrets GitHub'
-        required: false
-        default: false
-        type: boolean
       ec2_public_ip:
-        description: 'Adresse IP publique de l''instance EC2 (uniquement si override manuel)'
-        required: false
+        description: 'Adresse IP publique de l\'instance EC2 (depuis les outputs Terraform)'
+        required: true
         type: string
       s3_bucket_name:
-        description: 'Nom du bucket S3 (uniquement si override manuel)'
-        required: false
+        description: 'Nom du bucket S3 (depuis les outputs Terraform)'
+        required: true
         type: string
 
 # Variables d'environnement globales
@@ -37,24 +32,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Étape 0: Récupération des paramètres depuis GitHub Secrets ou inputs manuels
-      - name: Set parameters from GitHub Secrets
-        if: ${{ !inputs.manual_override }}
-        run: |
-          echo "Using parameters from GitHub Secrets..."
-          echo "EC2_PUBLIC_IP=${{ secrets.TF_EC2_PUBLIC_IP }}" >> $GITHUB_ENV
-          echo "S3_BUCKET_NAME=${{ secrets.TF_S3_BUCKET_NAME }}" >> $GITHUB_ENV
-
-          echo "Retrieved EC2 Public IP: ${{ secrets.TF_EC2_PUBLIC_IP }}"
-          echo "Retrieved S3 Bucket Name: ${{ secrets.TF_S3_BUCKET_NAME }}"
-
-      - name: Set manual parameters
-        if: ${{ inputs.manual_override }}
-        run: |
-          echo "Using manually provided parameters..."
-          echo "EC2_PUBLIC_IP=${{ inputs.ec2_public_ip }}" >> $GITHUB_ENV
-          echo "S3_BUCKET_NAME=${{ inputs.s3_bucket_name }}" >> $GITHUB_ENV
-
       # Étape 1: Récupération du code source
       - name: Checkout code
         uses: actions/checkout@v4
@@ -96,70 +73,34 @@ jobs:
       - name: Upload WAR to S3
         run: |
           echo "::group::Upload to S3"
-          aws s3 cp target/${{ env.WAR_NAME }} s3://${{ env.S3_BUCKET_NAME }}/builds/backend/${{ env.WAR_NAME }}
-          echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET_NAME }}/builds/backend/${{ env.WAR_NAME }}"
+          aws s3 cp target/${{ env.WAR_NAME }} s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}
+          echo "WAR téléversé avec succès sur S3: s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}"
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
-      # Étape 7: Vérification et configuration de SSH
-      - name: Check SSH key
-        id: check-ssh-key
-        run: |
-          if [ -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
-            echo "::error::Le secret EC2_SSH_PRIVATE_KEY n'est pas configuré. Veuillez le configurer dans les paramètres du dépôt GitHub."
-            echo "::error::Pour plus d'informations, consultez le fichier SSH-CONFIGURATION-GUIDE.md."
-            exit 1
-          else
-            echo "La clé SSH est configurée."
-
-            # Vérification du format de la clé SSH (doit commencer par -----BEGIN et se terminer par -----END)
-            if [[ "${{ secrets.EC2_SSH_PRIVATE_KEY }}" != *"-----BEGIN"* ]] || [[ "${{ secrets.EC2_SSH_PRIVATE_KEY }}" != *"-----END"* ]]; then
-              echo "::error::Le format de la clé SSH semble incorrect. Assurez-vous que la clé commence par -----BEGIN et se termine par -----END."
-              echo "::error::Pour plus d'informations, consultez le fichier SSH-CONFIGURATION-GUIDE.md."
-              exit 1
-            fi
-          fi
-
+      # Étape 7: Configuration de SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          log-public-key: true
 
       # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
           echo "::group::Deploy to EC2"
-          # Affichage des informations de débogage
-          echo "Débogage SSH:"
-          echo "- Utilisateur SSH: ec2-user"
-          echo "- Adresse IP EC2: ${{ env.EC2_PUBLIC_IP }}"
-          echo "- Répertoire SSH: $HOME/.ssh"
-          ls -la $HOME/.ssh
-
-          # Vérification de la clé SSH
-          echo "Vérification de la clé SSH:"
-          ssh-add -l
-
           # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
-          echo "Ajout de la clé d'hôte EC2 aux known_hosts:"
-          ssh-keyscan -v -H ${{ env.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
-
-          # Test de connexion SSH simple
-          echo "Test de connexion SSH simple:"
-          ssh -v -o StrictHostKeyChecking=no ec2-user@${{ env.EC2_PUBLIC_IP }} "echo 'Connexion SSH réussie'"
+          ssh-keyscan -H ${{ github.event.inputs.ec2_public_ip }} >> ~/.ssh/known_hosts
 
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          echo "Connexion SSH pour déploiement:"
-          ssh -v ec2-user@${{ env.EC2_PUBLIC_IP }} << EOF
+          ssh ec2-user@${{ github.event.inputs.ec2_public_ip }} << EOF
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
                 sudo yum update -y
-                sudo yum install -y aws-cli
+                sudo yum install -y awscli
             fi
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
-            sudo aws s3 cp s3://${{ env.S3_BUCKET_NAME }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
+            sudo aws s3 cp s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
             echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
           EOF
           echo "::endgroup::"
@@ -169,9 +110,7 @@ jobs:
         run: |
           echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
           echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
-          echo "* **Instance EC2:** ${{ env.EC2_PUBLIC_IP }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Bucket S3:** ${{ env.S3_BUCKET_NAME }}" >> $GITHUB_STEP_SUMMARY
-          # Extraction du nom de l'application sans l'extension .war
-          WAR_NAME_WITHOUT_EXTENSION=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
-          echo "* **URL de l'application:** http://${{ env.EC2_PUBLIC_IP }}:8080/${WAR_NAME_WITHOUT_EXTENSION}/" >> $GITHUB_STEP_SUMMARY
+          echo "* **Instance EC2:** ${{ github.event.inputs.ec2_public_ip }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Bucket S3:** ${{ github.event.inputs.s3_bucket_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'application:** http://${{ github.event.inputs.ec2_public_ip }}:8080/${{ env.WAR_NAME | replace: '.war', '' }}/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY

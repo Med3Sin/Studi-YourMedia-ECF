@@ -7,43 +7,17 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Récupérer tous les sous-réseaux du VPC par défaut
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
+# Récupérer des sous-réseaux spécifiques dans différentes zones de disponibilité
+data "aws_subnet" "default_az1" {
+  availability_zone = "${var.aws_region}a"
+  vpc_id            = data.aws_vpc.default.id
+  default_for_az    = true
 }
 
-# Créer des sous-réseaux si aucun n'est trouvé
-resource "aws_subnet" "az1" {
-  count                   = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
-  vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 1)
-  availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "${var.project_name}-subnet-az1"
-  }
-}
-
-resource "aws_subnet" "az2" {
-  count                   = length(data.aws_subnets.default.ids) > 0 ? 0 : 1
-  vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = cidrsubnet(data.aws_vpc.default.cidr_block, 8, 2)
-  availability_zone       = "${var.aws_region}b"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "${var.project_name}-subnet-az2"
-  }
-}
-
-locals {
-  # Utiliser les sous-réseaux existants ou les nouveaux sous-réseaux créés
-  subnet_id_az1 = length(data.aws_subnets.default.ids) > 0 ? tolist(data.aws_subnets.default.ids)[0] : aws_subnet.az1[0].id
-  subnet_id_az2 = length(data.aws_subnets.default.ids) > 1 ? tolist(data.aws_subnets.default.ids)[1] : (length(data.aws_subnets.default.ids) > 0 ? tolist(data.aws_subnets.default.ids)[0] : aws_subnet.az2[0].id)
+data "aws_subnet" "default_az2" {
+  availability_zone = "${var.aws_region}b"
+  vpc_id            = data.aws_vpc.default.id
+  default_for_az    = true
 }
 
 # -----------------------------------------------------------------------------
@@ -78,7 +52,7 @@ module "rds-mysql" {
   db_password           = var.db_password
   instance_type_rds     = var.instance_type_rds
   vpc_id                = data.aws_vpc.default.id
-  subnet_ids            = [local.subnet_id_az1, local.subnet_id_az2] # Utilise deux sous-réseaux pour la haute disponibilité
+  subnet_ids            = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
   rds_security_group_id = module.network.rds_security_group_id
 }
 
@@ -92,8 +66,7 @@ module "ec2-java-tomcat" {
   ami_id                = var.ami_id
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
-  ssh_public_key        = var.ssh_public_key  # Clé SSH publique pour l'accès SSH
-  subnet_id             = local.subnet_id_az1 # Déploie dans le premier sous-réseau disponible
+  subnet_id             = data.aws_subnet.default_az1.id # Déploie dans le sous-réseau par défaut de la première zone de disponibilité
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
   # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
@@ -108,14 +81,12 @@ module "ecs-monitoring" {
   project_name            = var.project_name
   aws_region              = var.aws_region
   vpc_id                  = data.aws_vpc.default.id
-  subnet_ids              = [local.subnet_id_az1, local.subnet_id_az2] # Utilise deux sous-réseaux pour la haute disponibilité
+  subnet_ids              = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
   ecs_security_group_id   = module.network.ecs_security_group_id
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu
   ecs_task_memory         = var.ecs_task_memory
-  ecs_ami_id              = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
-  key_pair_name           = var.ec2_key_pair_name    # Utilisation de la même paire de clés que pour l'EC2 Java/Tomcat
-  ssh_private_key_path    = var.ssh_private_key_path # Chemin vers la clé privée SSH
+  ecs_ami_id              = "ami-0925eac45db11fef2" # Utilisation de l'AMI Amazon Linux 2 demandée
 }
 
 # -----------------------------------------------------------------------------
@@ -127,57 +98,38 @@ locals {
 }
 
 resource "aws_amplify_app" "frontend_app" {
-  count = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
-  name  = "${var.project_name}-frontend"
-  # Utiliser une URL de dépôt valide ou null pour créer l'application sans dépôt
-  repository   = null             # Désactiver temporairement la connexion au dépôt GitHub
-  access_token = var.github_token # Token PAT GitHub
+  count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
+  name         = "${var.project_name}-frontend"
+  repository   = "https://github.com/${var.repo_owner}/${var.repo_name}" # URL du repo GitHub
+  access_token = var.github_token                                        # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)
   # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.
   # Cependant, la configuration la plus simple est de laisser Amplify builder depuis le repo.
   # On choisit cette option pour simplifier le Terraform. Le workflow GH Actions fera juste le push.
-  # Spécifier le répertoire app-react comme répertoire de base
   build_spec = <<-EOT
     version: 1
     frontend:
       phases:
         preBuild:
           commands:
-            - cd app-react
-            - yarn install || npm install
+            - yarn install # Ou npm install
         build:
           commands:
-            - yarn run build || npm run build
+            - yarn run build # Ou npm run build
       artifacts:
-        baseDirectory: app-react/build # Dossier de sortie du build React
+        baseDirectory: build # Ou le dossier de sortie de votre build web
         files:
           - '**/*'
       cache:
         paths:
-          - app-react/node_modules/**/*
+          - node_modules/**/*
   EOT
 
   # Variables d'environnement pour le build Amplify si nécessaire
-  environment_variables = {
-    NODE_ENV = "production"
-  }
-
-  # Activer la détection automatique des branches
-  enable_auto_branch_creation = true
-  enable_branch_auto_build    = true
-  enable_branch_auto_deletion = true
-
-  # Configuration de la branche par défaut (main)
-  auto_branch_creation_patterns = ["main", "dev", "feature/*"]
-
-  # Configuration de la branche principale
-  auto_branch_creation_config {
-    enable_auto_build           = true
-    enable_pull_request_preview = true
-    framework                   = "React"
-    stage                       = "PRODUCTION"
-  }
+  # environment_variables = {
+  #   EXAMPLE_VAR = "example_value"
+  # }
 
   tags = {
     Project   = var.project_name
@@ -193,15 +145,6 @@ resource "aws_amplify_branch" "main" {
 
   # Activer le build automatique à chaque push sur cette branche
   enable_auto_build = true
-
-  # Configuration spécifique à React
-  framework = "React"
-  stage     = "PRODUCTION"
-
-  # Variables d'environnement spécifiques à la branche main
-  environment_variables = {
-    NODE_ENV = "production"
-  }
 
   tags = {
     Project   = var.project_name

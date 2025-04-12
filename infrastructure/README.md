@@ -19,30 +19,6 @@ Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrast
 
 L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-destroy.yml`. Ce workflow permet d'exécuter les commandes Terraform (`plan`, `apply`, `destroy`) de manière sécurisée et automatisée.
 
-### Configuration des identifiants
-
-#### Configuration de Terraform Cloud
-
-Ce projet utilise Terraform Cloud comme backend pour stocker l'état Terraform de manière sécurisée. Pour utiliser Terraform Cloud, vous devez :
-
-1. Créer un compte sur [Terraform Cloud](https://app.terraform.io/)
-2. Créer une organisation nommée "Med3Sin"
-3. Créer un workspace nommé "Med3Sin"
-4. Générer un token API dans votre profil utilisateur
-5. Ajouter ce token comme secret GitHub nommé `TF_API_TOKEN`
-
-Si vous rencontrez l'erreur "Required token could not be found", cela signifie que le token Terraform Cloud n'est pas correctement configuré. Assurez-vous que le secret `TF_API_TOKEN` est bien configuré dans les paramètres de votre dépôt GitHub.
-
-#### Configuration des identifiants AWS
-
-Pour que Terraform puisse créer des ressources dans AWS, vous devez configurer les identifiants AWS. Pour cela, vous devez :
-
-1. Créer un utilisateur IAM dans AWS avec les droits nécessaires
-2. Générer une clé d'accès et une clé secrète pour cet utilisateur
-3. Ajouter ces clés comme secrets GitHub nommés `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY`
-
-Si vous rencontrez l'erreur "No valid credential sources found", cela signifie que les identifiants AWS ne sont pas correctement configurés. Assurez-vous que les secrets `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont bien configurés dans les paramètres de votre dépôt GitHub.
-
 ### Optimisations Free Tier
 
 Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
@@ -69,7 +45,7 @@ Si vous souhaitez exécuter Terraform localement (pour tester par exemple) :
     # terraform.tfvars
     db_username         = "admin"
     db_password         = "votreMotDePasseSecret"
-    # ec2_key_pair_name est maintenant stocké dans le secret GitHub EC2_KEY_PAIR_NAME
+    ec2_key_pair_name   = "votre-cle-ssh-aws"
     github_token        = "votre-token-github-pat" # Correspond au secret GH_PAT dans GitHub Actions
     repo_owner          = "votre-user-github"
     repo_name           = "nom-du-repo"
