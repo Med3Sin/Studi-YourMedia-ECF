@@ -43,7 +43,8 @@ resource "aws_db_instance" "mysql_db" {
   # apply_immediately    = true              # Appliquer les changements immédiatement (peut causer interruption)
 
   tags = {
-    Name    = "${var.project_name}-mysql-db"
-    Project = var.project_name
+    Name        = "${var.project_name}-${var.environment}-mysql-db"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }

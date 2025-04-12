@@ -29,12 +29,12 @@ resource "aws_subnet" "main_az1" {
   }
 }
 
-# Création d'un sous-réseau dans la même zone de disponibilité pour les besoins de l'architecture
-# (certains services AWS nécessitent plusieurs sous-réseaux)
+# Création d'un sous-réseau dans une deuxième zone de disponibilité pour RDS
+# (RDS nécessite des sous-réseaux dans au moins deux zones de disponibilité)
 resource "aws_subnet" "main_az2" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = "${var.aws_region}a"
+  availability_zone       = "${var.aws_region}b"
   map_public_ip_on_launch = true
 
   tags = {
@@ -170,7 +170,7 @@ locals {
 resource "aws_amplify_app" "frontend_app" {
   count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
   name         = "${var.project_name}-frontend"
-  repository   = "https://github.com/${var.repo_owner}/${var.repo_name}" # URL du repo GitHub
+  repository   = "https://github.com/${var.repo_owner}/Studi-YourMedia-ECF" # URL du repo GitHub
   access_token = var.github_token                                        # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)

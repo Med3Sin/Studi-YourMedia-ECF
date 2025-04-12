@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-${var.environment}-ec2-sg"
-  description = "Autorise le trafic entrant pour l'instance EC2 (SSH, HTTP, Tomcat, Prometheus)"
+  description = "Allows inbound traffic for EC2 instance (SSH, HTTP, Tomcat, Prometheus)"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -74,7 +74,7 @@ resource "aws_security_group_rule" "ec2_egress_all" {
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-${var.environment}-rds-sg"
-  description = "Autorise le trafic entrant MySQL depuis l'instance EC2"
+  description = "Allows MySQL inbound traffic from EC2 instance"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -112,7 +112,7 @@ resource "aws_security_group_rule" "rds_egress_all" {
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.project_name}-${var.environment}-ecs-sg"
-  description = "Autorise le trafic entrant pour Grafana et sortant pour Prometheus"
+  description = "Allows inbound traffic for Grafana and outbound for Prometheus"
   vpc_id      = var.vpc_id
 
   tags = {

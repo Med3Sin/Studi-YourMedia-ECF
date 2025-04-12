@@ -26,10 +26,15 @@ resource "aws_iam_role" "monitoring_role" {
   }
 }
 
-# Politique pour accéder à ECR (si nécessaire pour tirer des images Docker)
-resource "aws_iam_role_policy_attachment" "ecr_policy" {
+# Politique pour accéder aux services AWS nécessaires
+resource "aws_iam_role_policy_attachment" "ssm_policy" {
   role       = aws_iam_role.monitoring_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonECR-FullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
+  role       = aws_iam_role.monitoring_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 # Profil d'instance pour attacher le rôle IAM à l'instance EC2
