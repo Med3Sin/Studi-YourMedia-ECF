@@ -20,7 +20,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
    - [Suppression du fichier docker-compose.yml.tpl redondant](#suppression-du-fichier-docker-composeyml-tpl-redondant)
    - [Correction des variables manquantes dans le module de monitoring](#correction-des-variables-manquantes-dans-le-module-de-monitoring)
-   - [Correction de la détection des sous-réseaux AWS](#correction-de-la-détection-des-sous-réseaux-aws)
+   - [Création d'un VPC et de sous-réseaux dédiés](#création-dun-vpc-et-de-sous-réseaux-dédiés)
 
 4. [Documentation](#documentation)
    - [Mise à jour de la documentation du module de monitoring](#mise-à-jour-de-la-documentation-du-module-de-monitoring)
@@ -276,7 +276,7 @@ The argument "key_pair_name" is required, but no definition was found.
 - **Simplicité** : Utilisation d'un template local pour le script d'initialisation, évitant les problèmes d'encodage
 - **Clarté** : Outputs plus descriptifs et cohérents avec l'architecture actuelle
 
-### Correction de la détection des sous-réseaux AWS
+### Création d'un VPC et de sous-réseaux dédiés
 
 #### Problème identifié
 Lors de l'exécution de `terraform plan`, des erreurs apparaissaient concernant l'impossibilité de trouver les sous-réseaux spécifiés :
@@ -296,21 +296,32 @@ Error: no matching EC2 Subnet found
   17: data "aws_subnet" "default_az2" {
 ```
 
-Ces erreurs étaient dues au fait que la configuration tentait de trouver des sous-réseaux spécifiques dans des zones de disponibilité précises avec l'attribut `default_for_az = true`, mais ces sous-réseaux n'existaient pas ou ne correspondaient pas aux critères spécifiés.
+Ces erreurs étaient dues au fait que la configuration tentait de trouver des sous-réseaux spécifiques dans le VPC par défaut, mais ces sous-réseaux n'existaient pas ou ne correspondaient pas aux critères spécifiés.
 
 #### Solution mise en œuvre
-1. **Modification de l'approche de détection des sous-réseaux** :
-   - Utilisation de la ressource `aws_subnets` pour récupérer tous les sous-réseaux du VPC par défaut
-   - Sélection des deux premiers sous-réseaux disponibles au lieu de rechercher des sous-réseaux spécifiques par zone de disponibilité
+1. **Création d'un VPC dédié au projet** :
+   - Création d'un nouveau VPC avec un bloc CIDR `10.0.0.0/16`
+   - Activation du support DNS et des noms d'hôtes DNS
 
-2. **Implémentation d'une logique de fallback** :
-   - Utilisation de la fonction `element` avec l'opérateur modulo pour garantir que nous avons toujours un deuxième sous-réseau, même s'il n'y en a qu'un seul disponible
+2. **Création de sous-réseaux dans une seule zone de disponibilité** :
+   - Création de deux sous-réseaux dans la même zone de disponibilité (`eu-west-3a`)
+   - Configuration des sous-réseaux pour attribuer automatiquement des adresses IP publiques
+
+3. **Configuration de l'accès Internet** :
+   - Création d'une Internet Gateway
+   - Création d'une table de routage avec une route par défaut vers Internet
+   - Association de la table de routage aux deux sous-réseaux
+
+4. **Mise à jour des références dans les modules** :
+   - Modification de toutes les références au VPC par défaut pour utiliser le nouveau VPC
+   - Modification de toutes les références aux sous-réseaux par défaut pour utiliser les nouveaux sous-réseaux
 
 #### Avantages de cette solution
-- **Robustesse** : Fonctionne même si les sous-réseaux par défaut ont été modifiés ou si les zones de disponibilité spécifiques ne sont pas disponibles
-- **Flexibilité** : S'adapte automatiquement aux sous-réseaux disponibles dans le VPC
-- **Simplicité** : Élimine le besoin de spécifier manuellement les zones de disponibilité
-- **Fiabilité** : Réduit les risques d'erreur lors du déploiement dans différentes régions AWS
+- **Contrôle total** : Contrôle complet sur la configuration du VPC et des sous-réseaux
+- **Isolation** : Isolation des ressources du projet dans un VPC dédié
+- **Optimisation des coûts** : Utilisation d'une seule zone de disponibilité pour rester dans les limites du Free Tier AWS
+- **Simplicité** : Configuration claire et explicite sans dépendance aux ressources par défaut d'AWS
+- **Reproductibilité** : Infrastructure entièrement définie dans le code, facilitant la reproduction dans différents environnements
 
 ## Documentation
 

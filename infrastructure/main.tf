@@ -1,28 +1,81 @@
 # Fichier principal Terraform pour l'infrastructure YourMédia
 
 # -----------------------------------------------------------------------------
-# Récupération des informations du VPC par défaut
+# Création d'un VPC dédié au projet
 # -----------------------------------------------------------------------------
-data "aws_vpc" "default" {
-  default = true
-}
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
-# Récupérer tous les sous-réseaux du VPC par défaut
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+  tags = {
+    Name    = "${var.project_name}-vpc"
+    Project = var.project_name
   }
 }
 
-# Récupérer les détails du premier sous-réseau
-data "aws_subnet" "default_az1" {
-  id = element(tolist(data.aws_subnets.default.ids), 0)
+# Création d'un sous-réseau dans la zone de disponibilité eu-west-3a
+resource "aws_subnet" "main_az1" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "${var.project_name}-subnet-az1"
+    Project = var.project_name
+  }
 }
 
-# Récupérer les détails du deuxième sous-réseau (s'il existe)
-data "aws_subnet" "default_az2" {
-  id = element(tolist(data.aws_subnets.default.ids), 1 % length(data.aws_subnets.default.ids))
+# Création d'un sous-réseau dans la même zone de disponibilité pour les besoins de l'architecture
+# (certains services AWS nécessitent plusieurs sous-réseaux)
+resource "aws_subnet" "main_az2" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name    = "${var.project_name}-subnet-az2"
+    Project = var.project_name
+  }
+}
+
+# Création d'une Internet Gateway pour permettre l'accès à Internet
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name    = "${var.project_name}-igw"
+    Project = var.project_name
+  }
+}
+
+# Création d'une table de routage pour le VPC
+resource "aws_route_table" "main" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name    = "${var.project_name}-rt"
+    Project = var.project_name
+  }
+}
+
+# Association de la table de routage au premier sous-réseau
+resource "aws_route_table_association" "main_az1" {
+  subnet_id      = aws_subnet.main_az1.id
+  route_table_id = aws_route_table.main.id
+}
+
+# Association de la table de routage au deuxième sous-réseau
+resource "aws_route_table_association" "main_az2" {
+  subnet_id      = aws_subnet.main_az2.id
+  route_table_id = aws_route_table.main.id
 }
 
 # -----------------------------------------------------------------------------
@@ -32,7 +85,7 @@ module "network" {
   source = "./modules/network"
 
   project_name = var.project_name
-  vpc_id       = data.aws_vpc.default.id
+  vpc_id       = aws_vpc.main.id
   operator_ip  = var.operator_ip
 }
 
@@ -56,8 +109,8 @@ module "rds-mysql" {
   db_username           = var.db_username
   db_password           = var.db_password
   instance_type_rds     = var.instance_type_rds
-  vpc_id                = data.aws_vpc.default.id
-  subnet_ids            = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
+  vpc_id                = aws_vpc.main.id
+  subnet_ids            = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
   rds_security_group_id = module.network.rds_security_group_id
 }
 
@@ -71,7 +124,7 @@ module "ec2-java-tomcat" {
   ami_id                = var.ami_id
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
-  subnet_id             = data.aws_subnet.default_az1.id # Déploie dans le sous-réseau par défaut de la première zone de disponibilité
+  subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
   # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
@@ -85,8 +138,8 @@ module "ecs-monitoring" {
 
   project_name            = var.project_name
   aws_region              = var.aws_region
-  vpc_id                  = data.aws_vpc.default.id
-  subnet_ids              = [data.aws_subnet.default_az1.id, data.aws_subnet.default_az2.id] # Utilise deux sous-réseaux pour la haute disponibilité
+  vpc_id                  = aws_vpc.main.id
+  subnet_ids              = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
   ecs_security_group_id   = module.network.ecs_security_group_id
   ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   ecs_task_cpu            = var.ecs_task_cpu
