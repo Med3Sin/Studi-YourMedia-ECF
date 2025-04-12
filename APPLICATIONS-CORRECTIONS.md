@@ -229,7 +229,55 @@ Cette modification permet de maintenir le comportement d'origine (appliquer la r
 - **Compatibilité future** : Assure la compatibilité avec les futures versions du provider
 - **Maintien du comportement** : Conserve le comportement d'origine (application de la règle à tous les objets)
 
+## Infrastructure
+
+### Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2
+
+#### Problème identifié
+La configuration initiale utilisait ECS Fargate pour déployer Grafana et Prometheus, ce qui n'était pas optimal pour rester dans les limites du Free Tier AWS. De plus, les services Grafana et Prometheus n'étaient pas accessibles aux URLs attendues.
+
+#### Solution mise en œuvre
+Nous avons modifié l'infrastructure pour déployer Grafana et Prometheus dans des conteneurs Docker sur une instance EC2 dédiée au monitoring :
+
+1. **Création d'un script d'initialisation** pour l'instance EC2 qui installe Docker et configure les conteneurs Grafana et Prometheus
+2. **Modification du module ecs-monitoring** pour utiliser une instance EC2 au lieu de ECS Fargate
+3. **Exposition des ports** 3000 (Grafana) et 9090 (Prometheus) sur l'instance EC2
+4. **Mise à jour des outputs Terraform** pour exposer les URLs de Grafana et Prometheus
+
+#### Avantages de cette solution
+- **Économie de coûts** : Utilisation d'une seule instance EC2 au lieu de services ECS Fargate, ce qui est plus économique et reste dans les limites du Free Tier AWS
+- **Simplicité** : Configuration plus simple et plus directe avec Docker
+- **Flexibilité** : Possibilité de personnaliser facilement la configuration des conteneurs
+- **Performances** : Meilleure performance pour les services de monitoring
+
 ## CI/CD
+
+### Résolution des problèmes de connexion SSH pour le déploiement backend
+
+#### Problème identifié
+Lors de l'exécution du workflow de déploiement backend, l'erreur suivante était rencontrée :
+```
+ec2-user@***: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).
+Error: Process completed with exit code 255.
+```
+
+Cette erreur indiquait que la clé SSH configurée dans les secrets GitHub n'était pas autorisée à se connecter à l'instance EC2.
+
+#### Solution mise en œuvre
+Pour résoudre ce problème, nous avons créé un guide détaillé (`SSH-CONFIGURATION-GUIDE.md`) qui explique comment :
+
+1. **Générer une paire de clés SSH** sur la machine locale ou directement sur l'instance EC2
+2. **Configurer la clé publique** sur l'instance EC2 en l'ajoutant au fichier `~/.ssh/authorized_keys` de l'utilisateur `ec2-user`
+3. **Configurer la clé privée** dans les secrets GitHub sous le nom `EC2_SSH_PRIVATE_KEY`
+4. **Vérifier la configuration** en exécutant le workflow de déploiement backend
+
+Le guide inclut également une section de résolution des problèmes pour aider les développeurs à diagnostiquer et résoudre les problèmes de connexion SSH.
+
+#### Avantages de cette solution
+- **Documentation claire** : Le guide fournit des instructions détaillées pour la configuration SSH
+- **Sécurité** : La solution utilise des clés SSH pour l'authentification, ce qui est plus sécurisé que les mots de passe
+- **Autonomie** : Les développeurs peuvent configurer eux-mêmes la connexion SSH sans avoir besoin d'aide
+- **Débogage facilité** : Le guide inclut des instructions pour le débogage des problèmes de connexion SSH
 
 ### Correction des avertissements de dépréciation dans les workflows GitHub Actions
 
@@ -254,10 +302,11 @@ Pour résoudre ce problème, nous avons remplacé l'action `gliech/create-github
     AMPLIFY_APP_URL: ${{ env.AMPLIFY_APP_URL }}
     RDS_ENDPOINT: ${{ env.RDS_ENDPOINT }}
     GRAFANA_URL: ${{ env.GRAFANA_URL }}
+    MONITORING_IP: ${{ env.MONITORING_IP }}
   with:
     github-token: ${{ secrets.GH_PAT }}
     script: |
-      const { EC2_PUBLIC_IP, S3_BUCKET_NAME, AMPLIFY_APP_URL, RDS_ENDPOINT, GRAFANA_URL } = process.env;
+      const { EC2_PUBLIC_IP, S3_BUCKET_NAME, AMPLIFY_APP_URL, RDS_ENDPOINT, GRAFANA_URL, MONITORING_IP } = process.env;
 
       // Fonction pour mettre à jour un secret
       async function updateSecret(name, value) {
@@ -270,6 +319,7 @@ Pour résoudre ce problème, nous avons remplacé l'action `gliech/create-github
       await updateSecret('TF_AMPLIFY_APP_URL', AMPLIFY_APP_URL);
       await updateSecret('TF_RDS_ENDPOINT', RDS_ENDPOINT);
       await updateSecret('TF_GRAFANA_URL', GRAFANA_URL);
+      await updateSecret('TF_MONITORING_IP', MONITORING_IP);
 ```
 
 Cette approche utilise l'API GitHub directement via l'action `actions/github-script` pour mettre à jour les secrets du dépôt.

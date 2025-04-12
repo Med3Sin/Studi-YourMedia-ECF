@@ -1,23 +1,24 @@
-output "ecs_cluster_name" {
-  description = "Nom du cluster ECS créé pour le monitoring."
-  value       = aws_ecs_cluster.monitoring_cluster.name
+output "ec2_instance_id" {
+  description = "ID de l'instance EC2 hébergeant Grafana et Prometheus."
+  value       = aws_instance.monitoring_instance.id
 }
 
-output "prometheus_service_name" {
-  description = "Nom du service ECS pour Prometheus."
-  value       = aws_ecs_service.prometheus_service.name
+output "ec2_instance_public_ip" {
+  description = "Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus."
+  value       = aws_instance.monitoring_instance.public_ip
 }
 
-output "grafana_service_name" {
-  description = "Nom du service ECS pour Grafana."
-  value       = aws_ecs_service.grafana_service.name
+output "ec2_instance_private_ip" {
+  description = "Adresse IP privée de l'instance EC2 hébergeant Grafana et Prometheus."
+  value       = aws_instance.monitoring_instance.private_ip
 }
 
-output "cloudwatch_log_group_name" {
-  description = "Nom du groupe de logs CloudWatch pour les tâches ECS."
-  value       = aws_cloudwatch_log_group.ecs_logs.name
+output "grafana_url" {
+  description = "URL d'accès à Grafana."
+  value       = "http://${aws_instance.monitoring_instance.public_ip}:3000"
 }
 
-# Note: L'accès à Grafana se fera via l'IP publique de la tâche Fargate Grafana.
-# Cette IP doit être récupérée manuellement depuis la console AWS (ECS -> Cluster -> Service Grafana -> Tâches -> Cliquer sur la tâche -> Network -> Public IP)
-# ou via l'AWS CLI après le déploiement. L'URL sera http://<IP_PUBLIQUE_GRAFANA>:3000
+output "prometheus_url" {
+  description = "URL d'accès à Prometheus."
+  value       = "http://${aws_instance.monitoring_instance.public_ip}:9090"
+}

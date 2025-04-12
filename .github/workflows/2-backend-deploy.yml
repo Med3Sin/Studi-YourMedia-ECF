@@ -107,26 +107,51 @@ jobs:
         run: |
           if [ -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
             echo "::error::Le secret EC2_SSH_PRIVATE_KEY n'est pas configuré. Veuillez le configurer dans les paramètres du dépôt GitHub."
-            echo "::error::Pour plus d'informations, consultez le fichier WORKFLOW-IMPROVEMENTS.md."
+            echo "::error::Pour plus d'informations, consultez le fichier SSH-CONFIGURATION-GUIDE.md."
             exit 1
           else
             echo "La clé SSH est configurée."
+
+            # Vérification du format de la clé SSH (doit commencer par -----BEGIN et se terminer par -----END)
+            if [[ "${{ secrets.EC2_SSH_PRIVATE_KEY }}" != *"-----BEGIN"* ]] || [[ "${{ secrets.EC2_SSH_PRIVATE_KEY }}" != *"-----END"* ]]; then
+              echo "::error::Le format de la clé SSH semble incorrect. Assurez-vous que la clé commence par -----BEGIN et se termine par -----END."
+              echo "::error::Pour plus d'informations, consultez le fichier SSH-CONFIGURATION-GUIDE.md."
+              exit 1
+            fi
           fi
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          log-public-key: true
 
       # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
           echo "::group::Deploy to EC2"
+          # Affichage des informations de débogage
+          echo "Débogage SSH:"
+          echo "- Utilisateur SSH: ec2-user"
+          echo "- Adresse IP EC2: ${{ env.EC2_PUBLIC_IP }}"
+          echo "- Répertoire SSH: $HOME/.ssh"
+          ls -la $HOME/.ssh
+
+          # Vérification de la clé SSH
+          echo "Vérification de la clé SSH:"
+          ssh-add -l
+
           # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
-          ssh-keyscan -H ${{ env.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+          echo "Ajout de la clé d'hôte EC2 aux known_hosts:"
+          ssh-keyscan -v -H ${{ env.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+
+          # Test de connexion SSH simple
+          echo "Test de connexion SSH simple:"
+          ssh -v -o StrictHostKeyChecking=no ec2-user@${{ env.EC2_PUBLIC_IP }} "echo 'Connexion SSH réussie'"
 
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh ec2-user@${{ env.EC2_PUBLIC_IP }} << EOF
+          echo "Connexion SSH pour déploiement:"
+          ssh -v ec2-user@${{ env.EC2_PUBLIC_IP }} << EOF
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
