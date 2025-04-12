@@ -9,6 +9,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Mise à jour des références aux workflows dans la documentation](#mise-à-jour-des-références-aux-workflows-dans-la-documentation)
    - [Correction des paramètres d'entrée du workflow d'infrastructure](#correction-des-paramètres-dentrée-du-workflow-dinfrastructure)
    - [Mise à jour des instructions détaillées pour chaque workflow](#mise-à-jour-des-instructions-détaillées-pour-chaque-workflow)
+   - [Automatisation du stockage des outputs Terraform dans les secrets GitHub](#automatisation-du-stockage-des-outputs-terraform-dans-les-secrets-github)
 
 2. [Backend (Java)](#backend-java)
    - [Configuration de l'utilisateur SSH pour le déploiement](#configuration-de-lutilisateur-ssh-pour-le-déploiement)
@@ -99,6 +100,32 @@ La documentation ne contenait pas d'instructions détaillées et à jour pour l'
 - **Clarté** : Instructions précises et détaillées pour chaque workflow
 - **Facilité d'utilisation** : Réduction des erreurs lors de l'utilisation des workflows
 - **Autonomie** : Permet aux utilisateurs de déployer l'application sans assistance
+
+### Automatisation du stockage des outputs Terraform dans les secrets GitHub
+
+#### Problème identifié
+Les workflows de déploiement des applications nécessitaient la saisie manuelle des informations d'infrastructure (adresse IP de l'EC2, nom du bucket S3, etc.) à chaque exécution. Ces informations étaient disponibles dans les outputs Terraform, mais n'étaient pas automatiquement accessibles aux autres workflows.
+
+#### Solution mise en œuvre
+1. **Modification du workflow d'infrastructure** (`1-infra-deploy-destroy.yml`) :
+   - Ajout d'une étape pour récupérer les outputs Terraform après l'application de l'infrastructure
+   - Stockage de ces outputs dans des variables d'environnement GitHub Actions
+   - Création de secrets GitHub à partir de ces variables d'environnement
+
+2. **Modification du workflow de déploiement backend** (`2-backend-deploy.yml`) :
+   - Rendus optionnels les paramètres d'entrée (adresse IP de l'EC2, nom du bucket S3)
+   - Ajout d'une étape pour récupérer les informations depuis les secrets GitHub si disponibles
+   - Utilisation d'une logique de fallback : utiliser les secrets s'ils existent, sinon utiliser les paramètres d'entrée
+
+3. **Mise à jour de la documentation** :
+   - Ajout d'informations sur les secrets créés automatiquement
+   - Mise à jour des instructions de déploiement pour refléter cette automatisation
+
+#### Avantages de cette solution
+- **Automatisation** : Réduction des étapes manuelles pour le déploiement des applications
+- **Fiabilité** : Élimination des erreurs de saisie lors du déploiement
+- **Cohérence** : Utilisation des mêmes valeurs dans tous les workflows
+- **Flexibilité** : Possibilité de fournir manuellement les paramètres si nécessaire
 
 ## Backend (Java)
 

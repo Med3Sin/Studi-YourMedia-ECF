@@ -117,6 +117,8 @@ Pour déployer ou détruire l'infrastructure, utilisez le workflow GitHub Action
 5. Entrez le nom de votre paire de clés SSH EC2
 6. Cliquez sur "Run workflow"
 
+**Note importante :** Lors de l'exécution de l'action `apply`, le workflow stocke automatiquement les outputs Terraform (adresse IP de l'EC2, nom du bucket S3, etc.) dans les secrets GitHub. Ces secrets seront utilisés par les workflows de déploiement des applications, ce qui vous évitera de saisir manuellement ces informations.
+
 ## Application Backend (Java Spring Boot)
 
 *(Détails sur l'application Java)*
@@ -126,12 +128,12 @@ Pour déployer ou détruire l'infrastructure, utilisez le workflow GitHub Action
 Pour déployer l'application backend, utilisez le workflow GitHub Actions `2-backend-deploy.yml`. Ce workflow compile l'application Java, téléverse le fichier WAR sur S3, puis le déploie sur l'instance EC2 via SSH.
 
 1. Assurez-vous que l'infrastructure est déjà déployée via le workflow `1-infra-deploy-destroy.yml`
-2. Notez l'adresse IP publique de l'instance EC2 et le nom du bucket S3 depuis les outputs Terraform
-3. Accédez à l'onglet "Actions" de votre dépôt GitHub
-4. Sélectionnez le workflow "2 - Build and Deploy Backend (Java WAR)"
-5. Cliquez sur "Run workflow"
-6. Entrez l'adresse IP publique de l'instance EC2 et le nom du bucket S3
-7. Cliquez sur "Run workflow"
+2. Accédez à l'onglet "Actions" de votre dépôt GitHub
+3. Sélectionnez le workflow "2 - Build and Deploy Backend (Java WAR)"
+4. Cliquez sur "Run workflow"
+5. Cliquez sur "Run workflow" sans paramètres supplémentaires (les informations d'infrastructure sont automatiquement récupérées depuis les secrets GitHub)
+
+**Note :** Si les secrets GitHub ne sont pas disponibles (par exemple, si vous n'avez pas exécuté le workflow d'infrastructure ou si vous souhaitez déployer sur une infrastructure différente), vous pouvez toujours fournir manuellement l'adresse IP de l'EC2 et le nom du bucket S3 dans les champs prévus à cet effet.
 
 Une fois le déploiement terminé, l'application sera accessible à l'URL : `http://<IP_PUBLIQUE_EC2>:8080/yourmedia-backend/`
 
@@ -284,6 +286,8 @@ ssh-keygen -y -f /chemin/vers/votre/cle_privee > /chemin/vers/votre/cle_privee.p
 
 Pour que les workflows fonctionnent, vous devez configurer les secrets suivants dans votre repository GitHub (`Settings` > `Secrets and variables` > `Actions`) :
 
+#### Secrets à configurer manuellement
+
 *   `AWS_ACCESS_KEY_ID`: Votre Access Key ID AWS.
 *   `AWS_SECRET_ACCESS_KEY`: Votre Secret Access Key AWS.
 *   `DB_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
@@ -292,6 +296,16 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 *   `EC2_SSH_PUBLIC_KEY`: Le contenu de votre clé SSH publique (utilisée pour configurer l'accès SSH aux instances EC2).
 *   `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 dans AWS (utilisé par Terraform pour configurer les instances EC2).
 *   `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify. **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
+
+#### Secrets créés automatiquement par le workflow d'infrastructure
+
+Les secrets suivants sont créés automatiquement lors de l'exécution du workflow d'infrastructure avec l'action `apply` :
+
+*   `EC2_PUBLIC_IP`: L'adresse IP publique de l'instance EC2 hébergeant le backend Java.
+*   `S3_BUCKET_NAME`: Le nom du bucket S3 pour le stockage des médias et des builds.
+*   `MONITORING_EC2_PUBLIC_IP`: L'adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus.
+
+Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 
 > **Instructions détaillées pour créer un GH_PAT** :
 >
