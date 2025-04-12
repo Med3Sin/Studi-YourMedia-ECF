@@ -91,6 +91,7 @@ jobs:
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
+            -var="ssh_private_key_path=~/.ssh/id_rsa" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -108,6 +109,19 @@ jobs:
           # Affiche les outputs après l'application
           echo "\n\n--- Outputs de l'infrastructure ---"
           terraform output
+
+          # Stockage des outputs dans les secrets GitHub
+          echo "::group::Stockage des outputs dans les secrets GitHub"
+          # Récupération des outputs importants
+          EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)
+          S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+          MONITORING_EC2_PUBLIC_IP=$(terraform output -raw monitoring_ec2_public_ip)
+
+          # Stockage dans les secrets GitHub
+          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
+          echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
+          echo "MONITORING_EC2_PUBLIC_IP=$MONITORING_EC2_PUBLIC_IP" >> $GITHUB_ENV
+          echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si l'application échoue
 
       # Étape 9: Destruction de l'infrastructure Terraform
@@ -122,15 +136,45 @@ jobs:
             -var="ec2_key_pair_name=${{ github.event.inputs.ssh_key_pair_name }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
-            -var="repo_name=${{ github.repository }}"
+            -var="repo_name=${{ github.repository }}" \
+            -var="ssh_private_key_path=~/.ssh/id_rsa"
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si la destruction échoue
 
-      # Étape 10: Résumé de l'exécution
+      # Étape 10: Création des secrets GitHub à partir des outputs Terraform
+      - name: Create GitHub Secrets
+        if: github.event.inputs.action == 'apply'
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: EC2_PUBLIC_IP
+          value: ${{ env.EC2_PUBLIC_IP }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Create S3 Bucket Secret
+        if: github.event.inputs.action == 'apply'
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: S3_BUCKET_NAME
+          value: ${{ env.S3_BUCKET_NAME }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Create Monitoring EC2 Secret
+        if: github.event.inputs.action == 'apply'
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: MONITORING_EC2_PUBLIC_IP
+          value: ${{ env.MONITORING_EC2_PUBLIC_IP }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      # Étape 11: Résumé de l'exécution
       - name: Summary
         run: |
           echo "## Résumé de l'exécution Terraform" >> $GITHUB_STEP_SUMMARY
           echo "* **Action exécutée:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
+            echo "* **Outputs stockés dans les secrets GitHub:** EC2_PUBLIC_IP, S3_BUCKET_NAME, MONITORING_EC2_PUBLIC_IP" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
           echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Succès ✅" >> $GITHUB_STEP_SUMMARY

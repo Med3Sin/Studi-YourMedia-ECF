@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       ec2_public_ip:
-        description: 'Adresse IP publique de l\'instance EC2 (depuis les outputs Terraform)'
-        required: true
+        description: 'IP publique EC2 (optionnel)'
+        required: false
         type: string
       s3_bucket_name:
-        description: 'Nom du bucket S3 (depuis les outputs Terraform)'
-        required: true
+        description: 'Nom du bucket S3 (optionnel)'
+        required: false
         type: string
 
 # Variables d'environnement globales
@@ -69,12 +69,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs
+      - name: Set Environment Variables
+        run: |
+          # Utiliser les secrets s'ils existent, sinon utiliser les inputs
+          echo "EC2_IP=${{ secrets.EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
+
       # Étape 6: Téléchargement du WAR sur S3
       - name: Upload WAR to S3
         run: |
           echo "::group::Upload to S3"
-          aws s3 cp target/${{ env.WAR_NAME }} s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}
-          echo "WAR téléversé avec succès sur S3: s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }}"
+          aws s3 cp target/${{ env.WAR_NAME }} s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }}
+          echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }}"
           echo "::endgroup::"
         working-directory: ${{ env.APP_DIR }}
 
@@ -89,10 +96,10 @@ jobs:
         run: |
           echo "::group::Deploy to EC2"
           # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
-          ssh-keyscan -H ${{ github.event.inputs.ec2_public_ip }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
 
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh ec2-user@${{ github.event.inputs.ec2_public_ip }} << EOF
+          ssh ec2-user@${{ env.EC2_IP }} << EOF
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
@@ -100,7 +107,7 @@ jobs:
                 sudo yum install -y awscli
             fi
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
-            sudo aws s3 cp s3://${{ github.event.inputs.s3_bucket_name }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
+            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
             echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
           EOF
           echo "::endgroup::"
@@ -110,7 +117,8 @@ jobs:
         run: |
           echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
           echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
-          echo "* **Instance EC2:** ${{ github.event.inputs.ec2_public_ip }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Bucket S3:** ${{ github.event.inputs.s3_bucket_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **URL de l'application:** http://${{ github.event.inputs.ec2_public_ip }}:8080/${{ env.WAR_NAME | replace: '.war', '' }}/" >> $GITHUB_STEP_SUMMARY
+          echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
+          WAR_NAME_NO_EXT=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
+          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/$WAR_NAME_NO_EXT/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
