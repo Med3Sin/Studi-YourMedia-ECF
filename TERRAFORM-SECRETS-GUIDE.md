@@ -116,6 +116,16 @@ Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (
 
 **Note importante** : Avec cette approche, il faut être prudent lors des opérations de destruction. Assurez-vous de sélectionner le bon environnement pour éviter de détruire des ressources d'un autre environnement.
 
+### Particularités de l'intégration avec Terraform Cloud
+
+Lorsque vous utilisez Terraform Cloud, certaines commandes Terraform fonctionnent différemment :
+
+1. **Pas de fichiers de plan sauvegardés** : Terraform Cloud n'autorise pas l'utilisation de la commande `terraform plan -out=tfplan` suivie de `terraform apply tfplan`. Au lieu de cela, nous utilisons `terraform plan` suivi de `terraform apply -auto-approve` avec les mêmes variables.
+
+2. **Exécution distante** : Les commandes Terraform sont exécutées sur les serveurs de Terraform Cloud, pas localement. Cela signifie que les outputs ne sont pas toujours immédiatement disponibles.
+
+3. **Variables d'environnement** : Les variables sensibles peuvent être stockées directement dans Terraform Cloud, mais nous préférons les gérer via GitHub Secrets pour plus de flexibilité.
+
 ### Avantages de cette approche
 
 - **Sécurité** : L'état Terraform est stocké de manière sécurisée dans Terraform Cloud
