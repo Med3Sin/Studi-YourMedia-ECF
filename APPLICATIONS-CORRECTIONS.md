@@ -20,6 +20,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
    - [Suppression du fichier docker-compose.yml.tpl redondant](#suppression-du-fichier-docker-composeyml-tpl-redondant)
    - [Correction des variables manquantes dans le module de monitoring](#correction-des-variables-manquantes-dans-le-module-de-monitoring)
+   - [Correction de la détection des sous-réseaux AWS](#correction-de-la-détection-des-sous-réseaux-aws)
 
 4. [Documentation](#documentation)
    - [Mise à jour de la documentation du module de monitoring](#mise-à-jour-de-la-documentation-du-module-de-monitoring)
@@ -274,6 +275,42 @@ The argument "key_pair_name" is required, but no definition was found.
 - **Fiabilité** : Évite les erreurs lors de l'exécution de Terraform
 - **Simplicité** : Utilisation d'un template local pour le script d'initialisation, évitant les problèmes d'encodage
 - **Clarté** : Outputs plus descriptifs et cohérents avec l'architecture actuelle
+
+### Correction de la détection des sous-réseaux AWS
+
+#### Problème identifié
+Lors de l'exécution de `terraform plan`, des erreurs apparaissaient concernant l'impossibilité de trouver les sous-réseaux spécifiés :
+
+```
+Error: no matching EC2 Subnet found
+
+  with data.aws_subnet.default_az1,
+  on main.tf line 11, in data "aws_subnet" "default_az1":
+  11: data "aws_subnet" "default_az1" {
+
+
+Error: no matching EC2 Subnet found
+
+  with data.aws_subnet.default_az2,
+  on main.tf line 17, in data "aws_subnet" "default_az2":
+  17: data "aws_subnet" "default_az2" {
+```
+
+Ces erreurs étaient dues au fait que la configuration tentait de trouver des sous-réseaux spécifiques dans des zones de disponibilité précises avec l'attribut `default_for_az = true`, mais ces sous-réseaux n'existaient pas ou ne correspondaient pas aux critères spécifiés.
+
+#### Solution mise en œuvre
+1. **Modification de l'approche de détection des sous-réseaux** :
+   - Utilisation de la ressource `aws_subnets` pour récupérer tous les sous-réseaux du VPC par défaut
+   - Sélection des deux premiers sous-réseaux disponibles au lieu de rechercher des sous-réseaux spécifiques par zone de disponibilité
+
+2. **Implémentation d'une logique de fallback** :
+   - Utilisation de la fonction `element` avec l'opérateur modulo pour garantir que nous avons toujours un deuxième sous-réseau, même s'il n'y en a qu'un seul disponible
+
+#### Avantages de cette solution
+- **Robustesse** : Fonctionne même si les sous-réseaux par défaut ont été modifiés ou si les zones de disponibilité spécifiques ne sont pas disponibles
+- **Flexibilité** : S'adapte automatiquement aux sous-réseaux disponibles dans le VPC
+- **Simplicité** : Élimine le besoin de spécifier manuellement les zones de disponibilité
+- **Fiabilité** : Réduit les risques d'erreur lors du déploiement dans différentes régions AWS
 
 ## Documentation
 

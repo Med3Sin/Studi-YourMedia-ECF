@@ -7,17 +7,22 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Récupérer des sous-réseaux spécifiques dans différentes zones de disponibilité
-data "aws_subnet" "default_az1" {
-  availability_zone = "${var.aws_region}a"
-  vpc_id            = data.aws_vpc.default.id
-  default_for_az    = true
+# Récupérer tous les sous-réseaux du VPC par défaut
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
 
+# Récupérer les détails du premier sous-réseau
+data "aws_subnet" "default_az1" {
+  id = element(tolist(data.aws_subnets.default.ids), 0)
+}
+
+# Récupérer les détails du deuxième sous-réseau (s'il existe)
 data "aws_subnet" "default_az2" {
-  availability_zone = "${var.aws_region}b"
-  vpc_id            = data.aws_vpc.default.id
-  default_for_az    = true
+  id = element(tolist(data.aws_subnets.default.ids), 1 % length(data.aws_subnets.default.ids))
 }
 
 # -----------------------------------------------------------------------------
