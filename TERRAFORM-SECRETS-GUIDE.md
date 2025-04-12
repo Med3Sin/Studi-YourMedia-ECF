@@ -24,6 +24,7 @@ Les variables suivantes sont considérées comme sensibles et doivent être conf
 | `GH_PAT` | Token d'accès personnel GitHub pour les intégrations | Workflow d'infrastructure | 7 avril 2025 |
 | `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur pour Grafana | Workflow d'infrastructure | 7 avril 2025 |
 | `TF_API_TOKEN` | Token d'API pour Terraform Cloud | Workflow d'infrastructure | 10 avril 2025 | **Obligatoire pour l'intégration avec Terraform Cloud** |
+| `TF_WORKSPACE_ID` | ID du workspace Terraform Cloud (sans le préfixe "ws-") | Workflow d'infrastructure | 10 avril 2025 | **Obligatoire pour l'intégration avec Terraform Cloud** |
 
 ## Configuration des secrets GitHub
 
@@ -107,6 +108,26 @@ Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfst
 3. **Type de workflow** : Nous utilisons un workflow basé sur CLI (Command Line Interface) plutôt qu'un workflow basé sur VCS
 4. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
 
+### Étapes pour configurer Terraform Cloud
+
+1. **Créer un compte Terraform Cloud** sur [app.terraform.io](https://app.terraform.io/)
+2. **Créer une organisation** nommée `Med3Sin`
+3. **Créer un workspace** :
+   - Cliquez sur "New Workspace"
+   - Sélectionnez "CLI-driven workflow"
+   - Nommez le workspace `Med3Sin-CLI`
+   - Cliquez sur "Create workspace"
+4. **Récupérer l'ID du workspace** :
+   - Allez dans les paramètres du workspace
+   - L'ID du workspace est visible dans l'URL : `https://app.terraform.io/app/Med3Sin/workspaces/Med3Sin-CLI/settings/general`
+   - L'ID est la partie après `/workspaces/` et avant `/settings` (ex: `ws-1234abcd`)
+   - Notez cet ID sans le préfixe "ws-" pour le configurer comme secret GitHub `TF_WORKSPACE_ID`
+5. **Générer un token API** :
+   - Allez dans votre profil utilisateur (User Settings > Tokens)
+   - Cliquez sur "Create an API token"
+   - Donnez un nom au token (ex: "GitHub Actions")
+   - Copiez le token généré et configurez-le comme secret GitHub `TF_API_TOKEN`
+
 ### Gestion des environnements
 
 Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (dev, pre-prod, prod) sont gérés via la variable `environment` dans Terraform :
@@ -117,6 +138,14 @@ Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (
 
 **Note importante** : Avec cette approche, il faut être prudent lors des opérations de destruction. Assurez-vous de sélectionner le bon environnement pour éviter de détruire des ressources d'un autre environnement.
 
+### Gestion des variables AWS
+
+Les identifiants AWS sont configurés comme variables dans Terraform Cloud via l'API :
+
+1. Les secrets GitHub `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont utilisés pour créer des variables Terraform Cloud
+2. Ces variables sont créées automatiquement lors de l'exécution du workflow via des appels API à Terraform Cloud
+3. Les variables sont marquées comme sensibles dans Terraform Cloud pour plus de sécurité
+
 ### Particularités de l'intégration avec Terraform Cloud
 
 Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particularités sont à noter :
@@ -125,7 +154,7 @@ Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particular
 
 2. **Exécution distante** : Les commandes Terraform sont exécutées sur les serveurs de Terraform Cloud, pas localement. Cela signifie que les outputs ne sont pas toujours immédiatement disponibles.
 
-3. **Variables d'environnement** : Les variables sensibles peuvent être stockées directement dans Terraform Cloud, mais nous préférons les gérer via GitHub Secrets pour plus de flexibilité.
+3. **Variables d'environnement** : Les variables sensibles sont stockées dans Terraform Cloud via l'API, mais configurées à partir des secrets GitHub pour plus de flexibilité.
 
 4. **Fichiers de plan** : Avec un workflow CLI, nous pouvons utiliser des fichiers de plan sauvegardés (`terraform plan -out=tfplan`), contrairement aux workspaces avec connexion VCS.
 

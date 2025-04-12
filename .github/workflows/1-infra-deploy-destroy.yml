@@ -69,14 +69,51 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 4: Initialisation de Terraform
+      # Étape 4: Configuration des variables Terraform Cloud
+      - name: Configure Terraform Cloud Variables
+        run: |
+          # Créer un fichier de configuration pour l'API Terraform Cloud
+          cat > ~/.terraformrc << EOF
+          credentials "app.terraform.io" {
+            token = "${{ secrets.TF_API_TOKEN }}"
+          }
+          EOF
+
+          # Définir les variables AWS dans Terraform Cloud via l'API
+          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
+            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d '{
+              "data": {
+                "type": "vars",
+                "attributes": {
+                  "key": "aws_access_key",
+                  "value": "${{ secrets.AWS_ACCESS_KEY_ID }}",
+                  "category": "terraform",
+                  "sensitive": true
+                }
+              }
+            }'
+
+          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
+            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d '{
+              "data": {
+                "type": "vars",
+                "attributes": {
+                  "key": "aws_secret_key",
+                  "value": "${{ secrets.AWS_SECRET_ACCESS_KEY }}",
+                  "category": "terraform",
+                  "sensitive": true
+                }
+              }
+            }'
+
+      # Étape 5: Initialisation de Terraform
       - name: Terraform Init
         id: init
         run: terraform init
-        env:
-          # Transmettre les identifiants AWS à Terraform Cloud
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # Étape 5: Validation de la configuration Terraform
       - name: Terraform Validate
@@ -104,25 +141,15 @@ jobs:
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
             -var="environment=${{ github.event.inputs.environment }}" \
-            -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si le plan échoue
-        env:
-          # Transmettre les identifiants AWS à Terraform Cloud
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # Étape 8: Application des changements Terraform
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action == 'apply'
-        env:
-          # Transmettre les identifiants AWS à Terraform Cloud
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           echo "::group::Terraform Apply"
           terraform apply -auto-approve tfplan
@@ -175,10 +202,6 @@ jobs:
       - name: Terraform Destroy
         id: destroy
         if: github.event.inputs.action == 'destroy'
-        env:
-          # Transmettre les identifiants AWS à Terraform Cloud
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
           echo "::group::Terraform Destroy"
           terraform destroy -auto-approve \
@@ -189,9 +212,7 @@ jobs:
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
-            -var="environment=${{ github.event.inputs.environment }}" \
-            -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            -var="environment=${{ github.event.inputs.environment }}"
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si la destruction échoue
 
