@@ -10,16 +10,20 @@ Lors de l'exécution de Terraform via GitHub Actions, certaines variables sensib
 
 Les variables suivantes sont considérées comme sensibles et doivent être configurées en tant que secrets GitHub :
 
-| Nom du secret | Description | Utilisé dans |
-|---------------|-------------|-------------|
-| `AWS_ACCESS_KEY_ID` | Clé d'accès AWS pour l'authentification | Tous les workflows |
-| `AWS_SECRET_ACCESS_KEY` | Clé secrète AWS pour l'authentification | Tous les workflows |
-| `DB_USERNAME` | Nom d'utilisateur pour la base de données RDS | Workflow d'infrastructure |
-| `DB_PASSWORD` | Mot de passe pour la base de données RDS | Workflow d'infrastructure |
-| `EC2_SSH_PRIVATE_KEY` | Clé SSH privée pour se connecter aux instances EC2 | Workflows de déploiement |
-| `EC2_SSH_PUBLIC_KEY` | Clé SSH publique pour configurer l'accès SSH aux instances EC2 | Workflow d'infrastructure |
-| `EC2_KEY_PAIR_NAME` | Nom de la paire de clés EC2 dans AWS | Workflow d'infrastructure |
-| `GH_PAT` | Token d'accès personnel GitHub pour les intégrations | Workflow d'infrastructure |
+### Secrets à configurer manuellement
+
+| Nom du secret | Description | Utilisé dans | Date d'expiration |
+|---------------|-------------|-------------|------------------|
+| `AWS_ACCESS_KEY_ID` | Clé d'accès AWS pour l'authentification | Tous les workflows | 10 avril 2025 |
+| `AWS_SECRET_ACCESS_KEY` | Clé secrète AWS pour l'authentification | Tous les workflows | 10 avril 2025 |
+| `DB_USERNAME` | Nom d'utilisateur pour la base de données RDS | Workflow d'infrastructure | 7 avril 2025 |
+| `DB_PASSWORD` | Mot de passe pour la base de données RDS | Workflow d'infrastructure | 7 avril 2025 |
+| `EC2_SSH_PRIVATE_KEY` | Clé SSH privée pour se connecter aux instances EC2 | Workflows de déploiement | 11 avril 2025 |
+| `EC2_SSH_PUBLIC_KEY` | Clé SSH publique pour configurer l'accès SSH aux instances EC2 | Workflow d'infrastructure | 12 avril 2025 |
+| `EC2_KEY_PAIR_NAME` | Nom de la paire de clés EC2 dans AWS | Workflow d'infrastructure | 10 avril 2025 |
+| `GH_PAT` | Token d'accès personnel GitHub pour les intégrations | Workflow d'infrastructure | 7 avril 2025 |
+| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur pour Grafana | Workflow d'infrastructure | 7 avril 2025 |
+| `TF_API_TOKEN` | Token d'API pour Terraform Cloud | Workflow d'infrastructure | 10 avril 2025 |
 
 ## Configuration des secrets GitHub
 
@@ -54,11 +58,13 @@ Les secrets sont référencés dans les workflows GitHub Actions en utilisant la
 
 Certains secrets sont créés automatiquement par le workflow d'infrastructure lors de l'exécution de `terraform apply` :
 
-| Nom du secret | Description |
-|---------------|-------------|
-| `EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend |
-| `S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds |
-| `MONITORING_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus |
+| Nom du secret | Description | Date d'expiration |
+|---------------|-------------|------------------|
+| `TF_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend | 12 avril 2025 |
+| `TF_S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds | 12 avril 2025 |
+| `TF_GRAFANA_URL` | URL d'accès à l'interface Grafana | 12 avril 2025 |
+| `TF_RDS_ENDPOINT` | Point de terminaison de la base de données RDS | 12 avril 2025 |
+| `TF_AMPLIFY_APP_URL` | URL de l'application déployée sur AWS Amplify | 12 avril 2025 |
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 

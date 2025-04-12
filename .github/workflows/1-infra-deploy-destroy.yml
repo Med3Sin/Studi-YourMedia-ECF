@@ -116,11 +116,28 @@ jobs:
           EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)
           S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
           MONITORING_EC2_PUBLIC_IP=$(terraform output -raw monitoring_ec2_public_ip)
+          RDS_ENDPOINT=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
+          GRAFANA_URL=$(terraform output -raw grafana_url 2>/dev/null || echo "")
+          AMPLIFY_APP_URL=$(terraform output -raw amplify_app_url 2>/dev/null || echo "")
 
           # Stockage dans les secrets GitHub
           echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
           echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
           echo "MONITORING_EC2_PUBLIC_IP=$MONITORING_EC2_PUBLIC_IP" >> $GITHUB_ENV
+
+          # Stockage des outputs additionnels s'ils existent
+          if [ ! -z "$RDS_ENDPOINT" ]; then
+            echo "RDS_ENDPOINT=$RDS_ENDPOINT" >> $GITHUB_ENV
+          fi
+
+          if [ ! -z "$GRAFANA_URL" ]; then
+            echo "GRAFANA_URL=$GRAFANA_URL" >> $GITHUB_ENV
+          fi
+
+          if [ ! -z "$AMPLIFY_APP_URL" ]; then
+            echo "AMPLIFY_APP_URL=$AMPLIFY_APP_URL" >> $GITHUB_ENV
+          fi
+
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si l'application échoue
 
@@ -142,28 +159,52 @@ jobs:
         continue-on-error: false  # Arrête le workflow si la destruction échoue
 
       # Étape 10: Création des secrets GitHub à partir des outputs Terraform
-      - name: Create GitHub Secrets
-        if: github.event.inputs.action == 'apply'
+      - name: Create EC2 Public IP Secret
+        if: github.event.inputs.action == 'apply' && env.EC2_PUBLIC_IP != ''
         uses: gliech/create-github-secret-action@v1
         with:
-          name: EC2_PUBLIC_IP
+          name: TF_EC2_PUBLIC_IP
           value: ${{ env.EC2_PUBLIC_IP }}
           pa_token: ${{ secrets.GH_PAT }}
 
       - name: Create S3 Bucket Secret
-        if: github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
         uses: gliech/create-github-secret-action@v1
         with:
-          name: S3_BUCKET_NAME
+          name: TF_S3_BUCKET_NAME
           value: ${{ env.S3_BUCKET_NAME }}
           pa_token: ${{ secrets.GH_PAT }}
 
       - name: Create Monitoring EC2 Secret
-        if: github.event.inputs.action == 'apply'
+        if: github.event.inputs.action == 'apply' && env.MONITORING_EC2_PUBLIC_IP != ''
         uses: gliech/create-github-secret-action@v1
         with:
-          name: MONITORING_EC2_PUBLIC_IP
+          name: TF_MONITORING_EC2_PUBLIC_IP
           value: ${{ env.MONITORING_EC2_PUBLIC_IP }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Create RDS Endpoint Secret
+        if: github.event.inputs.action == 'apply' && env.RDS_ENDPOINT != ''
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: TF_RDS_ENDPOINT
+          value: ${{ env.RDS_ENDPOINT }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Create Grafana URL Secret
+        if: github.event.inputs.action == 'apply' && env.GRAFANA_URL != ''
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: TF_GRAFANA_URL
+          value: ${{ env.GRAFANA_URL }}
+          pa_token: ${{ secrets.GH_PAT }}
+
+      - name: Create Amplify App URL Secret
+        if: github.event.inputs.action == 'apply' && env.AMPLIFY_APP_URL != ''
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: TF_AMPLIFY_APP_URL
+          value: ${{ env.AMPLIFY_APP_URL }}
           pa_token: ${{ secrets.GH_PAT }}
 
       # Étape 11: Résumé de l'exécution
@@ -173,7 +214,13 @@ jobs:
           echo "* **Action exécutée:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
-            echo "* **Outputs stockés dans les secrets GitHub:** EC2_PUBLIC_IP, S3_BUCKET_NAME, MONITORING_EC2_PUBLIC_IP" >> $GITHUB_STEP_SUMMARY
+            echo "* **Outputs stockés dans les secrets GitHub:**" >> $GITHUB_STEP_SUMMARY
+            if [ ! -z "$EC2_PUBLIC_IP" ]; then echo "  - TF_EC2_PUBLIC_IP" >> $GITHUB_STEP_SUMMARY; fi
+            if [ ! -z "$S3_BUCKET_NAME" ]; then echo "  - TF_S3_BUCKET_NAME" >> $GITHUB_STEP_SUMMARY; fi
+            if [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then echo "  - TF_MONITORING_EC2_PUBLIC_IP" >> $GITHUB_STEP_SUMMARY; fi
+            if [ ! -z "$RDS_ENDPOINT" ]; then echo "  - TF_RDS_ENDPOINT" >> $GITHUB_STEP_SUMMARY; fi
+            if [ ! -z "$GRAFANA_URL" ]; then echo "  - TF_GRAFANA_URL" >> $GITHUB_STEP_SUMMARY; fi
+            if [ ! -z "$AMPLIFY_APP_URL" ]; then echo "  - TF_AMPLIFY_APP_URL" >> $GITHUB_STEP_SUMMARY; fi
           fi
           echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
           echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
