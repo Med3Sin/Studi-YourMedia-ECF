@@ -103,8 +103,9 @@ Si vous rencontrez cette erreur, vérifiez que :
 Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfstate) de manière sécurisée. Voici comment cela fonctionne :
 
 1. **Organisation** : L'organisation Terraform Cloud est `Med3Sin`
-2. **Workspace** : Un workspace unique `Med3Sin` est utilisé pour stocker l'état Terraform
-3. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
+2. **Workspace** : Un workspace unique `Med3Sin-CLI` est utilisé pour stocker l'état Terraform
+3. **Type de workflow** : Nous utilisons un workflow basé sur CLI (Command Line Interface) plutôt qu'un workflow basé sur VCS
+4. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
 
 ### Gestion des environnements
 
@@ -118,13 +119,15 @@ Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (
 
 ### Particularités de l'intégration avec Terraform Cloud
 
-Lorsque vous utilisez Terraform Cloud, certaines commandes Terraform fonctionnent différemment :
+Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particularités sont à noter :
 
-1. **Pas de fichiers de plan sauvegardés** : Terraform Cloud n'autorise pas l'utilisation de la commande `terraform plan -out=tfplan` suivie de `terraform apply tfplan`. Au lieu de cela, nous utilisons `terraform plan` suivi de `terraform apply -auto-approve` avec les mêmes variables.
+1. **Workflow CLI vs VCS** : Nous utilisons un workflow CLI plutôt qu'un workflow VCS. Cela signifie que Terraform Cloud n'est pas directement connecté à notre dépôt GitHub, mais est plutôt contrôlé via les commandes CLI exécutées dans nos workflows GitHub Actions.
 
 2. **Exécution distante** : Les commandes Terraform sont exécutées sur les serveurs de Terraform Cloud, pas localement. Cela signifie que les outputs ne sont pas toujours immédiatement disponibles.
 
 3. **Variables d'environnement** : Les variables sensibles peuvent être stockées directement dans Terraform Cloud, mais nous préférons les gérer via GitHub Secrets pour plus de flexibilité.
+
+4. **Fichiers de plan** : Avec un workflow CLI, nous pouvons utiliser des fichiers de plan sauvegardés (`terraform plan -out=tfplan`), contrairement aux workspaces avec connexion VCS.
 
 ### Avantages de cette approche
 
