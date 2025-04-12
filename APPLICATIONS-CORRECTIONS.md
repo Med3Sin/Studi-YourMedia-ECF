@@ -13,6 +13,9 @@ Ce document recense les corrections et améliorations apportées aux application
    - [Adaptation des scripts pour Amazon Linux 2](#adaptation-des-scripts-pour-amazon-linux-2)
    - [Optimisation du déploiement sur Tomcat](#optimisation-du-déploiement-sur-tomcat)
 
+3. [Infrastructure](#infrastructure)
+   - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
+
 ---
 
 ## Application Frontend (React Native)
@@ -22,7 +25,7 @@ Ce document recense les corrections et améliorations apportées aux application
 #### Problème identifié
 Lors de la compilation du projet React Native, l'erreur suivante était rencontrée :
 ```
-A problem occurred configuring project ':packages:react-native:ReactAndroid'. 
+A problem occurred configuring project ':packages:react-native:ReactAndroid'.
 Plugin [id: 'com.facebook.react'] was not found in any of the following sources:
 ```
 
@@ -39,7 +42,7 @@ Pour résoudre ce problème, nous avons modifié l'approche de build pour utilis
        echo "::group::Installing Expo CLI"
        npm install -g expo-cli
        echo "::endgroup::"
-       
+
        echo "::group::Building web application"
        # Utiliser directement expo export pour éviter les problèmes avec les plugins natifs
        npx expo export --platform web
@@ -186,6 +189,43 @@ Pour optimiser le déploiement de l'application Java sur Tomcat, nous avons :
 
 ---
 
+## Infrastructure
+
+### Correction de la configuration du cycle de vie du bucket S3
+
+#### Problème identifié
+Lors du déploiement de l'infrastructure avec Terraform, l'avertissement suivant était rencontré :
+```
+Warning: Invalid Attribute Combination
+
+  with module.s3.aws_s3_bucket_lifecycle_configuration.media_storage_lifecycle,
+  on modules/s3/main.tf line 55, in resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle":
+  55:     filter {}
+
+No attribute specified when one (and only one) of
+[rule[0].filter[0].prefix.<.object_size_greater_than,rule[0].filter[0].prefix.<.object_size_less_than,rule[0].filter[0].prefix.<.and,rule[0].filter[0].prefix.<.tag]
+is required
+```
+
+Cet avertissement indiquait que le bloc `filter {}` vide n'était pas valide et qu'au moins un attribut devait être spécifié.
+
+#### Solution mise en œuvre
+Pour résoudre ce problème, nous avons modifié le bloc `filter` pour inclure un attribut `prefix` avec une valeur vide :
+
+```hcl
+# Filtre avec préfixe vide pour appliquer la règle à tous les objets
+filter {
+  prefix = ""
+}
+```
+
+Cette modification permet de maintenir le comportement d'origine (appliquer la règle à tous les objets) tout en satisfaisant l'exigence du provider AWS Terraform.
+
+#### Avantages de cette solution
+- **Conformité** : Satisfait les exigences du provider AWS Terraform
+- **Compatibilité future** : Assure la compatibilité avec les futures versions du provider
+- **Maintien du comportement** : Conserve le comportement d'origine (application de la règle à tous les objets)
+
 ## Recommandations pour les futures améliorations
 
 ### Application Frontend
@@ -199,3 +239,9 @@ Pour optimiser le déploiement de l'application Java sur Tomcat, nous avons :
 2. **Configurer la rotation des logs** pour éviter de remplir le disque
 3. **Optimiser les paramètres JVM** pour améliorer les performances
 4. **Mettre en place un mécanisme de rollback** en cas d'échec du déploiement
+
+### Infrastructure
+1. **Mettre en place des tests d'infrastructure** avec Terratest ou Kitchen-Terraform
+2. **Optimiser les coûts** en utilisant des instances réservées ou des Savings Plans
+3. **Améliorer la sécurité** en mettant en place des politiques IAM plus restrictives
+4. **Configurer des alarmes CloudWatch** pour surveiller les ressources
