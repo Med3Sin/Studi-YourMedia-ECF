@@ -2,7 +2,7 @@ terraform {
   cloud {
     organization = "Med3Sin"
     workspaces {
-      name = "Med3Sin-${var.environment}"
+      name = "Med3Sin"
     }
   }
 

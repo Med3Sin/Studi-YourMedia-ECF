@@ -100,16 +100,27 @@ Si vous rencontrez cette erreur, vérifiez que :
 
 ## Configuration de Terraform Cloud
 
-Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfstate) et gérer les environnements. Voici comment cela fonctionne :
+Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfstate) de manière sécurisée. Voici comment cela fonctionne :
 
 1. **Organisation** : L'organisation Terraform Cloud est `Med3Sin`
-2. **Workspaces** : Un workspace est créé pour chaque environnement (`Med3Sin-dev`, `Med3Sin-pre-prod`, `Med3Sin-prod`)
+2. **Workspace** : Un workspace unique `Med3Sin` est utilisé pour stocker l'état Terraform
 3. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
+
+### Gestion des environnements
+
+Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (dev, pre-prod, prod) sont gérés via la variable `environment` dans Terraform :
+
+1. Lors de l'exécution du workflow, sélectionnez l'environnement souhaité dans le menu déroulant
+2. Cette valeur est passée à Terraform via la variable `environment`
+3. Toutes les ressources sont créées avec des noms incluant l'environnement (ex: `yourmedia-dev-ec2`, `yourmedia-prod-ec2`)
+
+**Note importante** : Avec cette approche, il faut être prudent lors des opérations de destruction. Assurez-vous de sélectionner le bon environnement pour éviter de détruire des ressources d'un autre environnement.
 
 ### Avantages de cette approche
 
 - **Sécurité** : L'état Terraform est stocké de manière sécurisée dans Terraform Cloud
-- **Isolation des environnements** : Chaque environnement a son propre workspace
+- **Simplicité** : Un seul workspace à gérer
+- **Flexibilité** : Possibilité de déployer plusieurs environnements sans créer de nouveaux workspaces
 - **Traçabilité** : Terraform Cloud conserve un historique des exécutions
 
 ## Bonnes pratiques
