@@ -398,24 +398,111 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est 
 
 Cette erreur peut apparaître dans l'IDE lors de l'édition du workflow, mais elle n'affecte pas son exécution. C'est simplement un avertissement indiquant que l'IDE ne peut pas vérifier si le secret `GH_PAT` existe.
 
- # #   C o r r e c t i o n s   e t   A m � l i o r a t i o n s   R � c e n t e s 
+### Erreurs lors de la destruction de l'infrastructure
+
+Si vous rencontrez des erreurs lors de la destruction de l'infrastructure, notamment concernant le bucket S3, vérifiez que :
+
+1. Le bucket S3 est vide avant la destruction (le workflow inclut maintenant une étape pour vider automatiquement le bucket)
+2. Les profils IAM sont correctement nettoyés (le workflow inclut une étape pour nettoyer les profils IAM persistants)
+3. Toutes les ressources dépendantes ont été correctement supprimées
+
+## Corrections et Améliorations Récentes
+
+### Correction de la vulnérabilité MySQL Connector/J
+
+Le connecteur MySQL a été mis à jour pour corriger une vulnérabilité de sécurité critique :
+- Mise à jour de `mysql-connector-java:8.0.33` vers `mysql-connector-j:8.0.34`
+- Correction de la vulnérabilité CVE-2023-22095 qui permettait potentiellement la prise de contrôle des connecteurs MySQL
+- Maintien de la compatibilité avec l'infrastructure existante
+
+### Amélioration de la gestion du bucket S3
+
+La gestion du bucket S3 a été améliorée pour faciliter les opérations de destruction de l'infrastructure :
+- Ajout de l'option `force_destroy = true` pour permettre la suppression du bucket même s'il contient des objets
+- Implémentation d'une étape de vidage automatique du bucket avant la destruction dans le workflow GitHub Actions
+- Configuration de règles de cycle de vie pour nettoyer automatiquement les anciens fichiers (builds, WAR)
+
+### Monitoring complet de l'infrastructure AWS
+
+Le système de monitoring a été considérablement amélioré pour surveiller l'ensemble de l'infrastructure :
+- Ajout de CloudWatch Exporter pour surveiller les services AWS (S3, RDS, Amplify, EC2)
+- Ajout de MySQL Exporter pour surveiller spécifiquement la base de données RDS
+- Configuration automatique de Prometheus pour collecter les métriques de tous les composants
+- Optimisation des ressources des conteneurs pour rester dans les limites du Free Tier AWS
+
+### Configuration SSH automatisée avec les secrets GitHub
+
+La configuration SSH a été entièrement automatisée :
+- Utilisation directe des secrets GitHub `EC2_SSH_PUBLIC_KEY` et `EC2_SSH_PRIVATE_KEY` pour configurer l'accès SSH
+- Installation automatique des clés SSH via les scripts d'initialisation des instances EC2
+- Mise à jour des workflows GitHub Actions pour passer les clés SSH à Terraform
+
+### Harmonisation des instances EC2
+
+Les instances EC2 ont été harmonisées pour utiliser la même AMI Amazon Linux 2 (amzn2-ami-kernel-5.10-hvm-2.0) pour les raisons suivantes :
+- Cohérence entre les environnements de production et de monitoring
+- Meilleure compatibilité avec les outils de monitoring
+- Simplification de la maintenance et des mises à jour
+
+### Mise à jour du type d'instance RDS
+
+Le type d'instance RDS a été mis à jour de `db.t2.micro` à `db.t3.micro` pour les raisons suivantes :
+- Meilleure compatibilité avec MySQL 8.0.28
+- Performances améliorées tout en restant dans les limites du Free Tier AWS
+- Stabilité accrue pour les opérations de base de données
+
+### Mise à jour de la version MySQL
+
+La version de MySQL a été mise à jour de 8.0.35 à 8.0.28 pour assurer une compatibilité optimale avec le type d'instance `db.t3.micro`.
+
+### Harmonisation des instances EC2
+
+Les instances EC2 ont été harmonisées pour utiliser la même AMI Amazon Linux 2 (amzn2-ami-kernel-5.10-hvm-2.0) pour les raisons suivantes :
+- Cohérence entre les environnements de production et de monitoring
+- Meilleure compatibilité avec les outils de monitoring
+- Simplification de la maintenance et des mises à jour
+
+### Amélioration du monitoring
+
+Le système de monitoring a été amélioré pour inclure :
+- Installation automatique de Node Exporter sur toutes les instances EC2
+- Configuration automatique de Prometheus pour surveiller toutes les instances
+- Tableaux de bord Grafana préconfigurés pour visualiser les métriques système et applicatives
+- Surveillance des métriques JVM et Tomcat pour l'application backend
+
+### Simplification de la configuration SSH
+
+La configuration SSH a été simplifiée :
+- Installation automatique des clés SSH via les scripts d'initialisation des instances
+- Utilisation des secrets GitHub pour stocker et gérer les clés SSH
+- Utilisation de l'utilisateur ec2-user pour toutes les instances Amazon Linux 2
+
+### Nettoyage des fichiers temporaires
+
+Les fichiers temporaires suivants ont été supprimés pour maintenir la propreté du code source :
+- Fichiers `main.tf.new2` et `main.tf.new3` dans le module RDS MySQL
+
+Ces modifications améliorent la stabilité, la performance et la sécurité de l'infrastructure tout en maintenant la compatibilité avec le Free Tier AWS.
+
+ # #   C o r r e c t i o n s   e t   A m � l i o r a t i o n s   R � c e n t e s 
  
- # # #   M i s e   �   j o u r   d u   t y p e   d ' i n s t a n c e   R D S 
+ # # #   M i s e   �   j o u r   d u   t y p e   d ' i n s t a n c e   R D S 
  
- L e   t y p e   d ' i n s t a n c e   R D S   a   � t �   m i s   �   j o u r   d e   ` d b . t 2 . m i c r o `   �   ` d b . t 3 . m i c r o `   p o u r   l e s   r a i s o n s   s u i v a n t e s   : 
- -   M e i l l e u r e   c o m p a t i b i l i t �   a v e c   M y S Q L   8 . 0 . 2 8 
- -   P e r f o r m a n c e s   a m � l i o r � e s   t o u t   e n   r e s t a n t   d a n s   l e s   l i m i t e s   d u   F r e e   T i e r   A W S 
- -   S t a b i l i t �   a c c r u e   p o u r   l e s   o p � r a t i o n s   d e   b a s e   d e   d o n n � e s 
+ L e   t y p e   d ' i n s t a n c e   R D S   a   � t �   m i s   �   j o u r   d e   ` d b . t 2 . m i c r o `   �   ` d b . t 3 . m i c r o `   p o u r   l e s   r a i s o n s   s u i v a n t e s   : 
+ -   M e i l l e u r e   c o m p a t i b i l i t �   a v e c   M y S Q L   8 . 0 . 2 8 
+ -   P e r f o r m a n c e s   a m � l i o r � e s   t o u t   e n   r e s t a n t   d a n s   l e s   l i m i t e s   d u   F r e e   T i e r   A W S 
+ -   S t a b i l i t �   a c c r u e   p o u r   l e s   o p � r a t i o n s   d e   b a s e   d e   d o n n � e s 
  
- # # #   M i s e   �   j o u r   d e   l a   v e r s i o n   M y S Q L 
+ # # #   M i s e   �   j o u r   d e   l a   v e r s i o n   M y S Q L 
  
- L a   v e r s i o n   d e   M y S Q L   a   � t �   m i s e   �   j o u r   d e   8 . 0 . 3 5   �   8 . 0 . 2 8   p o u r   a s s u r e r   u n e   c o m p a t i b i l i t �   o p t i m a l e   a v e c   l e   t y p e   d ' i n s t a n c e   ` d b . t 3 . m i c r o ` . 
+ L a   v e r s i o n   d e   M y S Q L   a   � t �   m i s e   �   j o u r   d e   8 . 0 . 3 5   �   8 . 0 . 2 8   p o u r   a s s u r e r   u n e   c o m p a t i b i l i t �   o p t i m a l e   a v e c   l e   t y p e   d ' i n s t a n c e   ` d b . t 3 . m i c r o ` . 
  
  # # #   N e t t o y a g e   d e s   f i c h i e r s   t e m p o r a i r e s 
  
- L e s   f i c h i e r s   t e m p o r a i r e s   s u i v a n t s   o n t   � t �   s u p p r i m � s   p o u r   m a i n t e n i r   l a   p r o p r e t �   d u   c o d e   s o u r c e   : 
+ L e s   f i c h i e r s   t e m p o r a i r e s   s u i v a n t s   o n t   � t �   s u p p r i m � s   p o u r   m a i n t e n i r   l a   p r o p r e t �   d u   c o d e   s o u r c e   : 
  -   F i c h i e r s   ` m a i n . t f . n e w 2 `   e t   ` m a i n . t f . n e w 3 `   d a n s   l e   m o d u l e   R D S   M y S Q L 
  
- C e s   m o d i f i c a t i o n s   a m � l i o r e n t   l a   s t a b i l i t �   e t   l a   p e r f o r m a n c e   d e   l ' i n f r a s t r u c t u r e   t o u t   e n   m a i n t e n a n t   l a   c o m p a t i b i l i t �   a v e c   l e   F r e e   T i e r   A W S . 
-  
+ C e s   m o d i f i c a t i o n s   a m � l i o r e n t   l a   s t a b i l i t �   e t   l a   p e r f o r m a n c e   d e   l ' i n f r a s t r u c t u r e   t o u t   e n   m a i n t e n a n t   l a   c o m p a t i b i l i t �   a v e c   l e   F r e e   T i e r   A W S . 
+ 
+ 
  

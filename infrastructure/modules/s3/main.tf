@@ -13,6 +13,9 @@ resource "aws_s3_bucket" "media_storage" {
   # Nom du bucket doit être globalement unique
   bucket = "${var.project_name}-${var.environment}-media-${data.aws_caller_identity.current.account_id}-${random_string.bucket_suffix.result}"
 
+  # Permettre la suppression du bucket même s'il contient des objets
+  force_destroy = true
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-media-storage"
     Project     = var.project_name
@@ -45,6 +48,53 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media_storage_enc
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
+    }
+  }
+}
+
+# Configuration du cycle de vie pour nettoyer automatiquement les anciens objets
+resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
+  bucket = aws_s3_bucket.media_storage.id
+
+  # Règle pour les builds temporaires
+  rule {
+    id     = "cleanup-old-builds"
+    status = "Enabled"
+
+    # Préfixe pour les fichiers de build
+    filter {
+      prefix = "builds/"
+    }
+
+    # Expiration des objets après 30 jours
+    expiration {
+      days = 30
+    }
+
+    # Suppression des versions précédentes après 7 jours
+    noncurrent_version_expiration {
+      noncurrent_days = 7
+    }
+  }
+
+  # Règle pour les fichiers WAR déployés
+  rule {
+    id     = "cleanup-old-wars"
+    status = "Enabled"
+
+    # Préfixe pour les fichiers WAR
+    filter {
+      prefix = "deploy/"
+    }
+
+    # Expiration des objets après 60 jours
+    expiration {
+      days = 60
+    }
+
+    # Suppression des versions précédentes après 14 jours
+    noncurrent_version_expiration {
+      noncurrent_days = 14
     }
   }
 }

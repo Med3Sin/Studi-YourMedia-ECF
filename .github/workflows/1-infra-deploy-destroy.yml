@@ -210,6 +210,27 @@ jobs:
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si l'application échoue
 
+      # Étape 8.5: Vider le bucket S3 avant la destruction
+      - name: Empty S3 Bucket
+        id: empty_s3
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Vidage du bucket S3"
+          # Récupérer le nom du bucket S3 depuis les outputs Terraform
+          cd infrastructure
+          S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+
+          if [ ! -z "$S3_BUCKET_NAME" ]; then
+            echo "Vidage du bucket S3: $S3_BUCKET_NAME"
+            # Vider le bucket S3
+            aws s3 rm s3://$S3_BUCKET_NAME --recursive
+            echo "Bucket S3 vidé avec succès."
+          else
+            echo "Aucun bucket S3 à vider ou nom de bucket non disponible."
+          fi
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le vidage échoue
+
       # Étape 9: Destruction de l'infrastructure Terraform
       - name: Terraform Destroy
         id: destroy
