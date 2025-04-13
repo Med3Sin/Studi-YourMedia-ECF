@@ -80,3 +80,13 @@ variable "enable_provisioning" {
   type        = bool
   default     = false
 }
+
+variable "s3_config_bucket_name" {
+  description = "Nom du bucket S3 contenant les fichiers de configuration de monitoring."
+  type        = string
+}
+
+variable "s3_config_policy_arn" {
+  description = "ARN de la politique IAM pour accéder au bucket S3 de configuration de monitoring."
+  type        = string
+}

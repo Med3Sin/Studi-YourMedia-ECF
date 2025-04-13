@@ -141,6 +141,17 @@ module "ec2-java-tomcat" {
 }
 
 # -----------------------------------------------------------------------------
+# Module S3 pour les fichiers de configuration de monitoring
+# -----------------------------------------------------------------------------
+module "s3-monitoring-config" {
+  source = "./modules/s3-monitoring-config"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+}
+
+# -----------------------------------------------------------------------------
 # Module Monitoring Docker sur EC2 (Prometheus/Grafana)
 # -----------------------------------------------------------------------------
 module "ec2-monitoring" {
@@ -160,6 +171,8 @@ module "ec2-monitoring" {
   ssh_private_key_path         = var.ssh_private_key_path # Chemin vers la clé privée SSH
   ssh_private_key_content      = ""                       # Contenu de la clé privée SSH (vide par défaut)
   enable_provisioning          = false                    # Désactiver le provisionnement automatique
+  s3_config_bucket_name        = module.s3-monitoring-config.bucket_name
+  s3_config_policy_arn         = module.s3-monitoring-config.s3_access_policy_arn
 }
 
 # -----------------------------------------------------------------------------

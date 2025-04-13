@@ -42,6 +42,12 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# Attacher la politique d'accès au bucket S3 de configuration
+resource "aws_iam_role_policy_attachment" "s3_config_access" {
+  role       = aws_iam_role.monitoring_role.name
+  policy_arn = var.s3_config_policy_arn
+}
+
 # Profil d'instance pour attacher le rôle IAM à l'instance EC2
 resource "aws_iam_instance_profile" "monitoring_profile" {
   name = "${var.project_name}-${var.environment}-monitoring-profile"
@@ -66,7 +72,7 @@ resource "aws_instance" "monitoring_instance" {
   iam_instance_profile   = aws_iam_instance_profile.monitoring_profile.name
   key_name               = var.key_pair_name
 
-  # Script d'initialisation simplifié qui installe Docker et Docker Compose
+  # Script d'initialisation qui installe Docker, Docker Compose et configure le monitoring
   user_data = <<-EOF
     #!/bin/bash
     # Mise à jour du système et installation de Docker et Docker Compose
@@ -79,10 +85,28 @@ resource "aws_instance" "monitoring_instance" {
     sudo chmod +x /usr/local/bin/docker-compose
     sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
+    # Installation de l'AWS CLI
+    sudo yum install -y aws-cli
+
     # Création des répertoires pour les volumes
     sudo mkdir -p /opt/monitoring/prometheus-data
     sudo mkdir -p /opt/monitoring/grafana-data
     sudo chown -R ec2-user:ec2-user /opt/monitoring
+
+    # Téléchargement des fichiers de configuration depuis S3
+    aws s3 cp s3://${var.s3_config_bucket_name}/docker-compose.yml /opt/monitoring/
+    aws s3 cp s3://${var.s3_config_bucket_name}/prometheus.yml /opt/monitoring/
+    aws s3 cp s3://${var.s3_config_bucket_name}/deploy_containers.sh /opt/monitoring/
+    aws s3 cp s3://${var.s3_config_bucket_name}/fix_permissions.sh /opt/monitoring/
+
+    # Rendre les scripts exécutables
+    chmod +x /opt/monitoring/deploy_containers.sh
+    chmod +x /opt/monitoring/fix_permissions.sh
+
+    # Exécuter les scripts
+    cd /opt/monitoring
+    ./deploy_containers.sh
+    sudo ./fix_permissions.sh
   EOF
 
   tags = {
