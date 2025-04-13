@@ -274,17 +274,22 @@ Cette amélioration permet de garantir que les profils IAM sont correctement sup
 Pour résoudre le problème de la fonction `file()` qui échoue à lire la clé SSH privée dans les environnements CI/CD, nous avons mis en place un mécanisme de provisionnement conditionnel :
 
 1. **Provisionnement conditionnel** :
-   - Ajout d'une variable `enable_provisioning` (désactivée par défaut) pour contrôler le provisionnement SSH
+   - Ajout d'une variable `enable_provisioning` pour contrôler le provisionnement SSH
    - Utilisation de `count = var.enable_provisioning ? 1 : 0` pour créer conditionnellement la ressource de provisionnement
 
 2. **Options de clé SSH flexibles** :
    - Ajout d'une variable `ssh_private_key_content` pour fournir directement le contenu de la clé SSH
    - Utilisation de `private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)`
 
-3. **Instructions de configuration manuelle** :
+3. **Intégration avec les secrets GitHub** :
+   - Configuration du workflow pour utiliser automatiquement la clé SSH depuis le secret `EC2_SSH_PRIVATE_KEY`
+   - Activation automatique du provisionnement si la clé SSH est disponible (`enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}`)
+   - Création du fichier de clé SSH sur le runner GitHub Actions
+
+4. **Instructions de configuration manuelle** :
    - Ajout d'un output avec des instructions détaillées pour configurer manuellement l'instance si le provisionnement automatique est désactivé
 
-4. **Documentation détaillée** :
+5. **Documentation détaillée** :
    - Création d'un document `infrastructure/docs/SSH-PROVISIONING.md` expliquant la solution
 
 Cette amélioration permet de déployer l'infrastructure même sans accès SSH, tout en fournissant des instructions claires pour la configuration manuelle après le déploiement.

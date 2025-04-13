@@ -34,7 +34,7 @@ Le provisionnement SSH est maintenant conditionnel et désactivé par défaut da
 resource "null_resource" "provision_monitoring" {
   # Ne créer cette ressource que si le provisionnement est activé
   count = var.enable_provisioning ? 1 : 0
-  
+
   # ... reste du code ...
 }
 ```
@@ -76,7 +76,17 @@ EOT
 
 ### Dans les environnements CI/CD (GitHub Actions)
 
-Le provisionnement est désactivé par défaut (`enable_provisioning = false`), ce qui permet à Terraform de s'exécuter sans erreur même si aucune clé SSH n'est disponible.
+Le workflow GitHub Actions est configuré pour utiliser automatiquement la clé SSH si elle est disponible dans les secrets GitHub :
+
+1. **Configuration de la clé SSH** :
+   - Le secret `EC2_SSH_PRIVATE_KEY` est utilisé pour créer un fichier de clé SSH sur le runner
+   - Le provisionnement est activé automatiquement si la clé SSH est disponible (`enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}`)
+
+2. **Secrets GitHub requis** :
+   - `EC2_KEY_PAIR_NAME` : Nom de la paire de clés SSH sur AWS (par exemple, "ma-cle-ssh")
+   - `EC2_SSH_PRIVATE_KEY` : Contenu de la clé SSH privée
+
+Si ces secrets ne sont pas configurés, le provisionnement est désactivé automatiquement, ce qui permet à Terraform de s'exécuter sans erreur même si aucune clé SSH n'est disponible.
 
 ### En développement local
 

@@ -132,6 +132,14 @@ jobs:
         if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
         run: |
           echo "::group::Terraform Plan"
+          # Créer le fichier de clé SSH si le secret est disponible
+          if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "Clé SSH privée configurée."
+          fi
+
           terraform plan \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
@@ -141,8 +149,8 @@ jobs:
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
-            -var="ssh_private_key_content=''" \
-            -var="enable_provisioning=false" \
+            -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
+            -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
             -var="environment=${{ github.event.inputs.environment }}" \
             -no-color \
             -out=tfplan
@@ -207,6 +215,14 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         run: |
           echo "::group::Terraform Destroy"
+          # Créer le fichier de clé SSH si le secret est disponible
+          if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "Clé SSH privée configurée."
+          fi
+
           terraform destroy -auto-approve \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
@@ -216,8 +232,8 @@ jobs:
             -var="repo_owner=${{ github.repository_owner }}" \
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
-            -var="ssh_private_key_content=''" \
-            -var="enable_provisioning=false" \
+            -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
+            -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
             -var="environment=${{ github.event.inputs.environment }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
