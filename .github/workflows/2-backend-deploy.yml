@@ -190,8 +190,27 @@ jobs:
             echo "--- Configuration d'AWS CLI ---"
             # Vérifier si AWS CLI est installé
             if ! command -v aws &> /dev/null; then
+                echo "Installation d'AWS CLI v2..."
+                # Télécharger et installer AWS CLI v2 (méthode officielle pour Ubuntu 24.04)
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
                 sudo apt-get update -y
-                sudo apt-get install -y awscli
+                sudo apt-get install -y unzip
+                unzip -q awscliv2.zip
+                sudo ./aws/install
+                rm -rf aws awscliv2.zip
+                # Vérifier l'installation
+                aws --version
+
+                # Configurer les informations d'identification AWS
+                mkdir -p ~/.aws
+                echo "[default]" > ~/.aws/credentials
+                echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
+                echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
+                echo "region=${{ env.AWS_REGION }}" >> ~/.aws/credentials
+
+                echo "[default]" > ~/.aws/config
+                echo "region=${{ env.AWS_REGION }}" >> ~/.aws/config
+                echo "output=json" >> ~/.aws/config
             fi
 
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
