@@ -135,6 +135,7 @@ jobs:
           terraform plan \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \
@@ -207,6 +208,7 @@ jobs:
           terraform destroy -auto-approve \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
             -var="repo_owner=${{ github.repository_owner }}" \

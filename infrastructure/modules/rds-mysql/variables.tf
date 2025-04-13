@@ -45,3 +45,9 @@ variable "rds_security_group_id" {
   description = "ID du groupe de sécurité à attacher à l'instance RDS."
   type        = string
 }
+
+variable "db_name" {
+  description = "Nom de la base de données MySQL."
+  type        = string
+  default     = "yourmedia"
+}

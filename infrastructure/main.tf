@@ -116,6 +116,7 @@ module "rds-mysql" {
   environment           = var.environment
   db_username           = var.db_username
   db_password           = var.db_password
+  db_name               = var.db_name
   instance_type_rds     = var.instance_type_rds
   vpc_id                = aws_vpc.main.id
   subnet_ids            = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité

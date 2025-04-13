@@ -33,6 +33,12 @@ variable "db_password" {
   sensitive   = true # Marqué comme sensible, la valeur viendra des secrets GitHub
 }
 
+variable "db_name" {
+  description = "Nom de la base de données MySQL."
+  type        = string
+  default     = "yourmedia" # Valeur par défaut, peut être remplacée par le secret GitHub DB_NAME
+}
+
 variable "ec2_key_pair_name" {
   description = "Nom de la paire de clés EC2 à utiliser pour l'accès SSH."
   type        = string

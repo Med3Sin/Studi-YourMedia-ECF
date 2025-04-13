@@ -25,7 +25,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction du problème de dépendances](#correction-du-problème-de-dépendances)
 
 4. [Infrastructure](#infrastructure)
-   - [Correction du fichier main.tf du module RDS MySQL corrompu](#correction-du-fichier-maintf-du-module-rds-mysql-corrompu)
+   - [Correction du fichier main.tf du module RDS MySQL corrompu et utilisation du secret DB_NAME](#correction-du-fichier-maintf-du-module-rds-mysql-corrompu-et-utilisation-du-secret-db_name)
    - [Correction du script d'installation Docker pour le monitoring](#correction-du-script-dinstallation-docker-pour-le-monitoring)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
    - [Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2](#configuration-de-grafanaprometheus-dans-des-conteneurs-docker-sur-ec2)
@@ -225,7 +225,7 @@ Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est n
 
 ## Infrastructure
 
-### Correction du fichier main.tf du module RDS MySQL corrompu
+### Correction du fichier main.tf du module RDS MySQL corrompu et utilisation du secret DB_NAME
 
 #### Problème identifié
 Le fichier `infrastructure/modules/rds-mysql/main.tf` était corrompu avec des caractères non valides, ce qui empêchait Terraform de le traiter correctement. Lors de l'exécution de `terraform fmt -check -recursive`, de nombreuses erreurs étaient signalées :
@@ -236,17 +236,24 @@ All input files must be UTF-8 encoded. Ensure that UTF-8 encoding is selected in
 
 Même après une première tentative de correction, le problème persistait, indiquant que le fichier était toujours corrompu avec des caractères non valides.
 
+De plus, le nom de la base de données était codé en dur dans le fichier, ce qui ne permettait pas de le configurer via un secret GitHub.
+
 #### Solution mise en œuvre
 1. **Suppression complète du fichier corrompu**
 2. **Création d'un nouveau fichier** avec un encodage UTF-8 correct
 3. **Reconstruction complète du contenu** du module RDS MySQL
 4. **Vérification du formatage** avec `terraform fmt -check -recursive` pour confirmer la correction
+5. **Ajout d'une variable `db_name`** dans le module RDS MySQL pour permettre la configuration du nom de la base de données
+6. **Modification du fichier principal** pour passer la variable `db_name` au module
+7. **Mise à jour des workflows GitHub Actions** pour utiliser le secret `DB_NAME`
 
 #### Avantages de cette solution
 - **Encodage correct** : Le fichier est maintenant correctement encodé en UTF-8
 - **Conformité** : Le fichier respecte les conventions de formatage Terraform
 - **Lisibilité** : Le code est maintenant lisible et maintenable
 - **Compatibilité Free Tier** : Configuration optimisée pour rester dans les limites du Free Tier AWS
+- **Flexibilité** : Le nom de la base de données peut maintenant être configuré via un secret GitHub
+- **Sécurité** : Le nom de la base de données n'est plus codé en dur dans le code
 
 ### Correction du script d'installation Docker pour le monitoring
 
