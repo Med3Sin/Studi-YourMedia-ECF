@@ -138,12 +138,13 @@ jobs:
           ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
 
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh ec2-user@${{ env.EC2_IP }} << EOF
+          # Utiliser 'ubuntu' comme nom d'utilisateur pour les instances Ubuntu
+          ssh ubuntu@${{ env.EC2_IP }} << EOF
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
-                sudo yum update -y
-                sudo yum install -y awscli
+                sudo apt-get update -y
+                sudo apt-get install -y awscli
             fi
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
             sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/${{ env.DEPLOY_WAR_NAME }}
