@@ -216,7 +216,55 @@ jobs:
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
             -var="environment=${{ github.event.inputs.environment }}"
           echo "::endgroup::"
-        continue-on-error: false  # Arrête le workflow si la destruction échoue
+        continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
+
+      # Étape 9.1: Nettoyage des profils IAM persistants
+      - name: Cleanup IAM Profiles
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Nettoyage des profils IAM persistants"
+
+          # Définir les noms des ressources IAM à nettoyer
+          PROJECT_NAME="yourmedia"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          EC2_PROFILE="${PROJECT_NAME}-${ENVIRONMENT}-ec2-profile"
+          MONITORING_PROFILE="${PROJECT_NAME}-${ENVIRONMENT}-monitoring-profile"
+          EC2_ROLE="${PROJECT_NAME}-${ENVIRONMENT}-ec2-role-v2"
+          MONITORING_ROLE="${PROJECT_NAME}-${ENVIRONMENT}-monitoring-role-v2"
+
+          echo "Nettoyage des profils IAM pour le projet ${PROJECT_NAME} et l'environnement ${ENVIRONMENT}..."
+
+          # Fonction pour supprimer un profil IAM
+          delete_instance_profile() {
+            local profile_name=$1
+            echo "Suppression du profil IAM $profile_name..."
+
+            # Vérifier si le profil existe
+            if aws iam get-instance-profile --instance-profile-name $profile_name 2>/dev/null; then
+              # Récupérer les rôles attachés au profil
+              ROLES=$(aws iam get-instance-profile --instance-profile-name $profile_name --query "InstanceProfile.Roles[*].RoleName" --output text)
+
+              # Détacher les rôles du profil
+              for role in $ROLES; do
+                echo "Détachement du rôle $role du profil $profile_name..."
+                aws iam remove-role-from-instance-profile --instance-profile-name $profile_name --role-name $role
+              done
+
+              # Supprimer le profil
+              aws iam delete-instance-profile --instance-profile-name $profile_name
+              echo "Profil IAM $profile_name supprimé avec succès."
+            else
+              echo "Le profil IAM $profile_name n'existe pas."
+            fi
+          }
+
+          # Supprimer les profils IAM
+          delete_instance_profile $EC2_PROFILE
+          delete_instance_profile $MONITORING_PROFILE
+
+          echo "Nettoyage des profils IAM terminé."
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le nettoyage échoue
 
       # Étape 10: Création des secrets GitHub à partir des outputs Terraform
       - name: Create EC2 Public IP Secret

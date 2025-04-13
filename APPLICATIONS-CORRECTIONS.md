@@ -256,6 +256,19 @@ Error: creating IAM Instance Profile: EntityAlreadyExists: Instance Profile ***-
 - **Conformité AWS** : Utilisation de types d'instances recommandés (db.t2.micro est en fin de support depuis juin 2024)
 - **Déploiement réussi** : L'infrastructure peut maintenant être déployée sans erreurs
 
+#### Amélioration supplémentaire : Nettoyage automatique des profils IAM persistants
+
+Pour résoudre définitivement le problème des profils IAM qui persistent après la destruction de l'infrastructure, nous avons ajouté une étape de nettoyage automatique dans le workflow GitHub Actions :
+
+1. **Modification du workflow `1-infra-deploy-destroy.yml`** :
+   - Ajout d'une étape de nettoyage qui s'exécute après `terraform destroy`
+   - Utilisation de l'AWS CLI pour détacher les rôles des profils et supprimer les profils IAM persistants
+
+2. **Documentation détaillée** :
+   - Création d'un document `infrastructure/docs/IAM-PROFILES-MANAGEMENT.md` expliquant la solution
+
+Cette amélioration permet de garantir que les profils IAM sont correctement supprimés, même si `terraform destroy` échoue à les supprimer, évitant ainsi les erreurs lors des déploiements ultérieurs.
+
 ### Correction des erreurs de validation Terraform
 
 #### Problème identifié
