@@ -4,7 +4,7 @@
 
 # Rôle IAM pour l'instance EC2 de monitoring
 resource "aws_iam_role" "monitoring_role" {
-  name = "${var.project_name}-${var.environment}-monitoring-role"
+  name = "${var.project_name}-${var.environment}-monitoring-role-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

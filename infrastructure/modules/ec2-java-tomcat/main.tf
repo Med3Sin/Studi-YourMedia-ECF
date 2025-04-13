@@ -20,14 +20,14 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
 }
 
 resource "aws_iam_policy" "ec2_s3_access_policy" {
-  name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy"
+  name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy-v2"
   description = "Politique autorisant l'EC2 à accéder au bucket S3 du projet"
   policy      = data.aws_iam_policy_document.ec2_s3_access_policy_doc.json
 }
 
 # Rôle IAM que l'instance EC2 assumera
 resource "aws_iam_role" "ec2_role" {
-  name = "${var.project_name}-${var.environment}-ec2-role"
+  name = "${var.project_name}-${var.environment}-ec2-role-v2"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
