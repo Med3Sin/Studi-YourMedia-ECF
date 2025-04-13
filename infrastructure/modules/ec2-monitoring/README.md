@@ -6,13 +6,22 @@ Ce module déploie une instance EC2 exécutant Prometheus et Grafana dans des co
 
 Ce module s'appelait auparavant "ecs-monitoring" car il était initialement prévu d'utiliser ECS pour le déploiement. Il a été renommé en "ec2-monitoring" pour refléter son implémentation actuelle, qui utilise une instance EC2 avec Docker.
 
+## Architecture
+
+Le module déploie les composants suivants :
+
+- Une instance EC2 basée sur Amazon Linux 2
+- Docker et Docker Compose installés automatiquement
+- Conteneurs Docker pour Grafana et Prometheus
+- Configuration des groupes de sécurité pour permettre l'accès aux interfaces web
+
 ## Fonctionnalités
 
-- Déploiement d'une instance EC2 avec Amazon Linux 2
-- Installation automatique de Docker et Docker Compose
-- Configuration et déploiement de Prometheus pour la collecte de métriques
-- Configuration et déploiement de Grafana pour la visualisation des métriques
-- Intégration avec l'application backend via l'endpoint Actuator de Spring Boot
+- **Monitoring complet** : Collecte et visualisation des métriques de l'application
+- **Déploiement automatisé** : Installation et configuration automatiques de Docker, Grafana et Prometheus
+- **Correction des permissions** : Résolution automatique des problèmes de permissions courants
+- **Accès sécurisé** : Configuration des groupes de sécurité pour contrôler l'accès
+- **Intégration avec Spring Boot** : Collecte des métriques via l'endpoint Actuator
 
 ## Ressources créées
 
@@ -50,7 +59,36 @@ Ce module s'appelait auparavant "ecs-monitoring" car il était initialement pré
 | grafana_url | URL d'accès à Grafana |
 | prometheus_url | URL d'accès à Prometheus |
 
-## Accès à Grafana
+## Scripts
+
+Le module utilise deux scripts principaux pour le déploiement et la configuration :
+
+### 1. `deploy_containers.sh`
+
+Ce script est responsable de l'installation initiale et du déploiement des conteneurs :
+
+- Installation de Docker et Docker Compose si nécessaire
+- Création des répertoires pour les volumes Docker
+- Copie des fichiers de configuration
+- Démarrage des conteneurs
+
+### 2. `fix_permissions.sh`
+
+Ce script résout les problèmes de permissions courants avec Grafana et Prometheus :
+
+- Correction des permissions des répertoires de données
+- Configuration des utilisateurs Docker appropriés (65534 pour Prometheus, 472 pour Grafana)
+- Redémarrage des conteneurs avec les bonnes configurations
+
+## Ports utilisés
+
+- **22** : SSH pour l'accès à l'instance
+- **3000** : Interface web de Grafana
+- **9090** : Interface web de Prometheus
+
+## Accès aux interfaces web
+
+### Grafana
 
 L'accès à l'interface Grafana se fait via l'IP publique de l'instance EC2 sur le port 3000 :
 
@@ -60,7 +98,35 @@ http://<EC2_PUBLIC_IP>:3000
 
 Les identifiants par défaut sont :
 - Utilisateur : `admin`
-- Mot de passe : Celui configuré dans le secret GitHub `GF_SECURITY_ADMIN_PASSWORD`
+- Mot de passe : `admin` (ou celui configuré dans le secret GitHub `GF_SECURITY_ADMIN_PASSWORD`)
+
+### Prometheus
+
+L'accès à l'interface Prometheus se fait via l'IP publique de l'instance EC2 sur le port 9090 :
+
+```
+http://<EC2_PUBLIC_IP>:9090
+```
+
+## Dépannage
+
+### Problèmes de permissions
+
+Si vous rencontrez des problèmes de permissions, vous pouvez exécuter manuellement le script de correction :
+
+```bash
+ssh ec2-user@<IP_PUBLIQUE_DE_L_INSTANCE>
+sudo /opt/monitoring/fix_permissions.sh
+```
+
+### Vérification des logs
+
+Pour vérifier les logs des conteneurs :
+
+```bash
+docker logs prometheus
+docker logs grafana
+```
 
 ## Notes de maintenance
 
