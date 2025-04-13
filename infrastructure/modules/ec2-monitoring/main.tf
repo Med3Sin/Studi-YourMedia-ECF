@@ -49,10 +49,10 @@ resource "aws_iam_instance_profile" "monitoring_profile" {
 
 # Instance EC2 pour le monitoring
 resource "aws_instance" "monitoring_instance" {
-  ami                    = var.ecs_ami_id
+  ami                    = var.monitoring_ami_id
   instance_type          = "t2.micro"
   subnet_id              = var.subnet_ids[0]
-  vpc_security_group_ids = [var.ecs_security_group_id]
+  vpc_security_group_ids = [var.monitoring_security_group_id]
   iam_instance_profile   = aws_iam_instance_profile.monitoring_profile.name
   key_name               = var.key_pair_name
 
@@ -68,7 +68,7 @@ resource "aws_instance" "monitoring_instance" {
     sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
     sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-    
+
     # Création des répertoires pour les volumes
     sudo mkdir -p /opt/monitoring/prometheus-data
     sudo mkdir -p /opt/monitoring/grafana-data

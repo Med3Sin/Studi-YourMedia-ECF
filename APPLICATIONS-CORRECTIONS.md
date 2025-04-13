@@ -25,6 +25,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction du problème de dépendances](#correction-du-problème-de-dépendances)
 
 4. [Infrastructure](#infrastructure)
+   - [Correction des erreurs de validation Terraform](#correction-des-erreurs-de-validation-terraform)
    - [Correction du fichier main.tf du module RDS MySQL corrompu et utilisation du secret DB_NAME](#correction-du-fichier-maintf-du-module-rds-mysql-corrompu-et-utilisation-du-secret-db_name)
    - [Correction du script d'installation Docker pour le monitoring](#correction-du-script-dinstallation-docker-pour-le-monitoring)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
@@ -224,6 +225,38 @@ Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est n
 - **Intégration Amplify** : Assure que le déploiement sur AWS Amplify fonctionne correctement
 
 ## Infrastructure
+
+### Correction des erreurs de validation Terraform
+
+#### Problème identifié
+Lors de l'exécution de `terraform validate`, plusieurs erreurs ont été identifiées :
+
+1. Dans le module `ec2-monitoring`, des variables non déclarées étaient référencées :
+```
+Error: Reference to undeclared input variable
+  on modules/ec2-monitoring/main.tf line 52, in resource "aws_instance" "monitoring_instance":
+  52:   ami                    = var.ecs_ami_id
+```
+
+2. Dans le module `rds-mysql`, les outputs faisaient référence à une ressource inexistante :
+```
+Error: Reference to undeclared resource
+  on modules/rds-mysql/outputs.tf line 7, in output "db_instance_endpoint":
+   7:   value       = aws_db_instance.mysql_db.endpoint
+```
+
+#### Solution mise en œuvre
+1. **Correction des références de variables dans le module `ec2-monitoring`** :
+   - Remplacement de `var.ecs_ami_id` par `var.monitoring_ami_id`
+   - Remplacement de `var.ecs_security_group_id` par `var.monitoring_security_group_id`
+
+2. **Correction des références dans les outputs du module `rds-mysql`** :
+   - Remplacement de `aws_db_instance.mysql_db` par `aws_db_instance.mysql` dans tous les outputs
+
+#### Avantages de cette solution
+- **Cohérence** : Les références correspondent maintenant aux variables et ressources déclarées
+- **Validation réussie** : La configuration Terraform passe maintenant la validation
+- **Prévention des erreurs** : Évite les erreurs lors de l'exécution de `terraform apply`
 
 ### Correction du fichier main.tf du module RDS MySQL corrompu et utilisation du secret DB_NAME
 
