@@ -25,6 +25,8 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction du problème de dépendances](#correction-du-problème-de-dépendances)
 
 4. [Infrastructure](#infrastructure)
+   - [Correction du fichier main.tf du module RDS MySQL corrompu](#correction-du-fichier-maintf-du-module-rds-mysql-corrompu)
+   - [Correction du script d'installation Docker pour le monitoring](#correction-du-script-dinstallation-docker-pour-le-monitoring)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
    - [Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2](#configuration-de-grafanaprometheus-dans-des-conteneurs-docker-sur-ec2)
    - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
@@ -222,6 +224,26 @@ Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est n
 - **Intégration Amplify** : Assure que le déploiement sur AWS Amplify fonctionne correctement
 
 ## Infrastructure
+
+### Correction du fichier main.tf du module RDS MySQL corrompu
+
+#### Problème identifié
+Le fichier `infrastructure/modules/rds-mysql/main.tf` était corrompu avec des caractères non valides, ce qui empêchait Terraform de le traiter correctement. Lors de l'exécution de `terraform fmt -check -recursive`, de nombreuses erreurs étaient signalées :
+```
+Error: Invalid character encoding
+All input files must be UTF-8 encoded. Ensure that UTF-8 encoding is selected in your editor.
+```
+
+#### Solution mise en œuvre
+1. **Suppression du fichier corrompu**
+2. **Création d'un nouveau fichier** avec un encodage UTF-8 correct
+3. **Reconstruction complète du contenu** du module RDS MySQL
+
+#### Avantages de cette solution
+- **Encodage correct** : Le fichier est maintenant correctement encodé en UTF-8
+- **Conformité** : Le fichier respecte les conventions de formatage Terraform
+- **Lisibilité** : Le code est maintenant lisible et maintenable
+- **Compatibilité Free Tier** : Configuration optimisée pour rester dans les limites du Free Tier AWS
 
 ### Correction du script d'installation Docker pour le monitoring
 
