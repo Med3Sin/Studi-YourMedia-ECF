@@ -378,3 +378,26 @@ La documentation faisait encore r√©f√©rence √† ECS pour le monitoring, alors que
 - **Coh√©rence** : Documentation align√©e avec l'architecture r√©elle
 - **Pr√©cision** : √âvite la confusion sur la technologie utilis√©e
 - **Clart√©** : Instructions correctes pour acc√©der aux services
+# #   F r o n t e n d   ( R e a c t   N a t i v e   W e b ) 
+ 
+ # # #   C o r r e c t i o n   d u   p r o b l Ë m e   d e   d È p e n d a n c e s 
+ 
+ # # # #   P r o b l Ë m e   i d e n t i f i È 
+ L o r s   d e   l ' e x È c u t i o n   d u   w o r k f l o w   G i t H u b   A c t i o n s   p o u r   l e   f r o n t e n d ,   l ' e r r e u r   s u i v a n t e   È t a i t   r e n c o n t r È e   : 
+ \ \ \ 
+ E r r o r :   D e p e n d e n c i e s   l o c k   f i l e   i s   n o t   f o u n d   i n   / h o m e / r u n n e r / w o r k / S t u d i - Y o u r M e d i a - E C F / S t u d i - Y o u r M e d i a - E C F .   S u p p o r t e d   f i l e   p a t t e r n s :   p a c k a g e - l o c k . j s o n , n p m - s h r i n k w r a p . j s o n , y a r n . l o c k 
+ \ \ \ 
+ 
+ C e t t e   e r r e u r   i n d i q u e   q u e   l e   f i c h i e r   d e   v e r r o u i l l a g e   d e s   d È p e n d a n c e s   ( p a c k a g e - l o c k . j s o n   o u   y a r n . l o c k )   n ' a   p a s   È t È   t r o u v È   d a n s   l e   r È p e r t o i r e   d u   p r o j e t . 
+ 
+ # # # #   S o l u t i o n   m i s e   e n   Su v r e 
+ 1 .   * * G È n È r a t i o n   d u   f i c h i e r   p a c k a g e - l o c k . j s o n * *   e n   e x È c u t a n t   \ 
+ p m   i n s t a l l \   d a n s   l e   r È p e r t o i r e   a p p - r e a c t 
+ 2 .   * * C o m m i t   d u   f i c h i e r   p a c k a g e - l o c k . j s o n * *   d a n s   l e   d È p Ù t   G i t 
+ 3 .   * * M i s e   ‡   j o u r   d u   w o r k f l o w   G i t H u b   A c t i o n s * *   p o u r   u t i l i s e r   l e   f i c h i e r   p a c k a g e - l o c k . j s o n 
+ 
+ # # # #   A v a n t a g e s   d e   c e t t e   s o l u t i o n 
+ -   * * F i a b i l i t È * *   :   G a r a n t i t   q u e   l e s   m Í m e s   v e r s i o n s   d e   d È p e n d a n c e s   s o n t   u t i l i s È e s   d a n s   t o u s   l e s   e n v i r o n n e m e n t s 
+ -   * * R e p r o d u c t i b i l i t È * *   :   A s s u r e   q u e   l e s   b u i l d s   s o n t   r e p r o d u c t i b l e s 
+ -   * * S t a b i l i t È * *   :   … v i t e   l e s   p r o b l Ë m e s   l i È s   a u x   m i s e s   ‡   j o u r   a u t o m a t i q u e s   d e   d È p e n d a n c e s  
+ 
