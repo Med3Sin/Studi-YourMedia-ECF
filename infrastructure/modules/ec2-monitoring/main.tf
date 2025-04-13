@@ -41,6 +41,11 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_policy" {
 resource "aws_iam_instance_profile" "monitoring_profile" {
   name = "${var.project_name}-${var.environment}-monitoring-profile"
   role = aws_iam_role.monitoring_role.name
+
+  # Éviter les erreurs de conflit si le profil existe déjà
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # -----------------------------------------------------------------------------

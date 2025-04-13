@@ -20,7 +20,7 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
 resource "aws_db_instance" "mysql" {
   identifier             = "${var.project_name}-${var.environment}-mysql"
   engine                 = "mysql"
-  engine_version         = "8.0"
+  engine_version         = "8.0.35"
   instance_class         = var.instance_type_rds
   allocated_storage      = 20
   storage_type           = "gp2"

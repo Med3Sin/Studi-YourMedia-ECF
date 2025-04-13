@@ -64,6 +64,11 @@ resource "aws_iam_instance_profile" "ec2_profile" {
     Project     = var.project_name
     Environment = var.environment
   }
+
+  # Éviter les erreurs de conflit si le profil existe déjà
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 

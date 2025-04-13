@@ -25,6 +25,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction du problème de dépendances](#correction-du-problème-de-dépendances)
 
 4. [Infrastructure](#infrastructure)
+   - [Correction des erreurs de déploiement Terraform](#correction-des-erreurs-de-déploiement-terraform)
    - [Correction des erreurs de validation Terraform](#correction-des-erreurs-de-validation-terraform)
    - [Correction du fichier main.tf du module RDS MySQL corrompu et utilisation du secret DB_NAME](#correction-du-fichier-maintf-du-module-rds-mysql-corrompu-et-utilisation-du-secret-db_name)
    - [Correction du script d'installation Docker pour le monitoring](#correction-du-script-dinstallation-docker-pour-le-monitoring)
@@ -225,6 +226,35 @@ Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est n
 - **Intégration Amplify** : Assure que le déploiement sur AWS Amplify fonctionne correctement
 
 ## Infrastructure
+
+### Correction des erreurs de déploiement Terraform
+
+#### Problème identifié
+Lors de l'exécution de `terraform apply`, plusieurs erreurs ont été rencontrées :
+
+1. **Incompatibilité entre MySQL 8.0 et l'instance db.t2.micro** :
+```
+Error: creating RDS DB Instance: InvalidParameterCombination: RDS does not support creating a DB instance with the following combination: DBInstanceClass=db.t2.micro, Engine=mysql, EngineVersion=8.0.40, LicenseModel=general-public-license.
+```
+
+2. **Profils IAM déjà existants** :
+```
+Error: creating IAM Instance Profile: EntityAlreadyExists: Instance Profile ***-dev-ec2-profile already exists.
+```
+
+#### Solution mise en œuvre
+1. **Correction de l'incompatibilité RDS** :
+   - Spécification explicite de la version MySQL 8.0.35
+   - Mise à jour du type d'instance de `db.t2.micro` à `db.t3.micro` (compatible avec MySQL 8.0)
+
+2. **Gestion des profils IAM existants** :
+   - Ajout de blocs `lifecycle { create_before_destroy = true }` aux ressources `aws_iam_instance_profile` pour éviter les conflits
+
+#### Avantages de cette solution
+- **Compatibilité** : Utilisation d'une combinaison compatible entre la version MySQL et le type d'instance
+- **Robustesse** : Meilleure gestion des ressources existantes pour éviter les conflits
+- **Conformité AWS** : Utilisation de types d'instances recommandés (db.t2.micro est en fin de support depuis juin 2024)
+- **Déploiement réussi** : L'infrastructure peut maintenant être déployée sans erreurs
 
 ### Correction des erreurs de validation Terraform
 
