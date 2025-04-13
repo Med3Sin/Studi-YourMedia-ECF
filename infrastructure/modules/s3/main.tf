@@ -79,6 +79,55 @@ resource "aws_s3_bucket_policy" "amplify_read_policy" {
   policy = data.aws_iam_policy_document.amplify_read_policy_doc.json
 }
 
+# Téléchargement des fichiers de configuration de monitoring dans le bucket S3
+resource "aws_s3_object" "docker_compose_yml" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/docker-compose.yml"
+  source = "${path.module}/files/docker-compose.yml"
+  etag   = filemd5("${path.module}/files/docker-compose.yml")
+}
+
+resource "aws_s3_object" "prometheus_yml" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/prometheus.yml"
+  source = "${path.module}/files/prometheus.yml"
+  etag   = filemd5("${path.module}/files/prometheus.yml")
+}
+
+resource "aws_s3_object" "deploy_containers_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/deploy_containers.sh"
+  source = "${path.module}/files/deploy_containers.sh"
+  etag   = filemd5("${path.module}/files/deploy_containers.sh")
+}
+
+resource "aws_s3_object" "fix_permissions_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/fix_permissions.sh"
+  source = "${path.module}/files/fix_permissions.sh"
+  etag   = filemd5("${path.module}/files/fix_permissions.sh")
+}
+
+# Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration
+data "aws_iam_policy_document" "monitoring_s3_access" {
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.media_storage.arn,
+      "${aws_s3_bucket.media_storage.arn}/monitoring/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "monitoring_s3_access" {
+  name        = "${var.project_name}-${var.environment}-monitoring-s3-access"
+  description = "Permet à l'instance EC2 de monitoring d'accéder aux fichiers de configuration dans S3"
+  policy      = data.aws_iam_policy_document.monitoring_s3_access.json
+}
+
 # Note: La politique pour autoriser l'EC2 à écrire/lire les médias
 # sera attachée au rôle IAM de l'instance EC2 (créé dans le module ec2-java-tomcat)
 # plutôt que définie ici dans la politique de bucket, pour une meilleure gestion.

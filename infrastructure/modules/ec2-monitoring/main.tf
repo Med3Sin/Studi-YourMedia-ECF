@@ -94,10 +94,10 @@ resource "aws_instance" "monitoring_instance" {
     sudo chown -R ec2-user:ec2-user /opt/monitoring
 
     # Téléchargement des fichiers de configuration depuis S3
-    aws s3 cp s3://${var.s3_config_bucket_name}/docker-compose.yml /opt/monitoring/
-    aws s3 cp s3://${var.s3_config_bucket_name}/prometheus.yml /opt/monitoring/
-    aws s3 cp s3://${var.s3_config_bucket_name}/deploy_containers.sh /opt/monitoring/
-    aws s3 cp s3://${var.s3_config_bucket_name}/fix_permissions.sh /opt/monitoring/
+    aws s3 cp s3://${var.s3_bucket_name}/monitoring/docker-compose.yml /opt/monitoring/
+    aws s3 cp s3://${var.s3_bucket_name}/monitoring/prometheus.yml /opt/monitoring/
+    aws s3 cp s3://${var.s3_bucket_name}/monitoring/deploy_containers.sh /opt/monitoring/
+    aws s3 cp s3://${var.s3_bucket_name}/monitoring/fix_permissions.sh /opt/monitoring/
 
     # Rendre les scripts exécutables
     chmod +x /opt/monitoring/deploy_containers.sh

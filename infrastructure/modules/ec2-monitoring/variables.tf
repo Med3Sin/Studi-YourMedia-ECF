@@ -81,7 +81,7 @@ variable "enable_provisioning" {
   default     = false
 }
 
-variable "s3_config_bucket_name" {
+variable "s3_bucket_name" {
   description = "Nom du bucket S3 contenant les fichiers de configuration de monitoring."
   type        = string
 }
