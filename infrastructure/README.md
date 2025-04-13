@@ -13,7 +13,7 @@ Ce répertoire contient l'ensemble du code Terraform pour provisionner l'infrast
     *   `ec2-java-tomcat/`: Instance EC2, installation Java/Tomcat, rôle IAM.
     *   `rds-mysql/`: Instance de base de données RDS MySQL.
     *   `s3/`: Bucket S3 pour le stockage.
-    *   `ecs-monitoring/`: Cluster ECS avec instance EC2 (t2.micro) pour Prometheus et Grafana.
+    *   `ec2-monitoring/`: Instance EC2 avec Docker pour Prometheus et Grafana.
 
 ## Utilisation
 
@@ -24,8 +24,8 @@ L'infrastructure est gérée via le workflow GitHub Actions `1-infra-deploy-dest
 Plusieurs optimisations ont été réalisées pour rester dans les limites du Free Tier AWS :
 
 * Utilisation d'instances EC2 t2.micro pour l'application Java/Tomcat
-* Utilisation d'une instance RDS db.t2.micro pour MySQL
-* Utilisation d'ECS avec une instance EC2 t2.micro (au lieu de Fargate qui n'est pas inclus dans le Free Tier) pour le monitoring
+* Utilisation d'une instance RDS db.t3.micro pour MySQL
+* Utilisation d'une instance EC2 t2.micro avec Docker pour le monitoring (au lieu de Fargate qui n'est pas inclus dans le Free Tier)
 * Configuration minimale des ressources pour éviter les coûts supplémentaires
 
 **Prérequis pour le Workflow :**

@@ -32,11 +32,11 @@ Ce module s'appelait auparavant "ecs-monitoring" car il était initialement pré
 | aws_region | Région AWS où déployer les ressources | string | - | oui |
 | vpc_id | ID du VPC où déployer l'instance EC2 | string | - | oui |
 | subnet_ids | Liste des IDs des sous-réseaux | list(string) | - | oui |
-| ecs_security_group_id | ID du groupe de sécurité (sera renommé en ec2_security_group_id) | string | - | oui |
+| monitoring_security_group_id | ID du groupe de sécurité pour l'instance EC2 de monitoring | string | - | oui |
 | ec2_instance_private_ip | IP privée de l'instance EC2 backend | string | - | oui |
-| ecs_task_cpu | CPU alloué (maintenu pour compatibilité) | number | - | oui |
-| ecs_task_memory | Mémoire allouée (maintenu pour compatibilité) | number | - | oui |
-| ecs_ami_id | ID de l'AMI Amazon Linux 2 | string | ami-0f4982c2ea2a68de5 | non |
+| monitoring_task_cpu | CPU alloué (maintenu pour compatibilité) | number | - | oui |
+| monitoring_task_memory | Mémoire allouée (maintenu pour compatibilité) | number | - | oui |
+| monitoring_ami_id | ID de l'AMI Amazon Linux 2 | string | ami-0f4982c2ea2a68de5 | non |
 | key_pair_name | Nom de la paire de clés SSH | string | - | oui |
 | ssh_private_key_path | Chemin vers la clé privée SSH | string | ~/.ssh/id_rsa | non |
 
@@ -64,10 +64,10 @@ Les identifiants par défaut sont :
 
 ## Notes de maintenance
 
-Ce module contient plusieurs éléments qui seront renommés dans une future version pour plus de cohérence :
+Ce module contient plusieurs éléments qui seront renommés ou supprimés dans une future version pour plus de cohérence :
 
-1. La variable `ecs_security_group_id` sera renommée en `ec2_security_group_id`
-2. La variable `ecs_ami_id` sera renommée en `ec2_ami_id`
-3. Les variables `ecs_task_cpu` et `ecs_task_memory` seront supprimées car elles ne sont plus utilisées
+1. La variable `monitoring_security_group_id` pourrait être renommée en `ec2_security_group_id` pour plus de cohérence
+2. La variable `monitoring_ami_id` pourrait être renommée en `ec2_ami_id` pour plus de cohérence
+3. Les variables `monitoring_task_cpu` et `monitoring_task_memory` seront supprimées car elles ne sont plus utilisées (vestiges de l'ancienne version ECS)
 
-Ces changements n'ont pas été effectués immédiatement pour maintenir la compatibilité avec le code existant.
+Ces changements seront effectués dans une future version pour éviter de casser la compatibilité avec le code existant.
