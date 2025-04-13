@@ -47,7 +47,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: ${{ env.PACKAGE_MANAGER }}
+          # Désactivation du cache pour éviter les erreurs
+          # cache: ${{ env.PACKAGE_MANAGER }}
 
       # Étape 3: Installation des dépendances
       - name: Install dependencies

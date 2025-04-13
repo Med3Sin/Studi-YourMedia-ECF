@@ -2,6 +2,12 @@
 
 Ce document recense les corrections et améliorations apportées aux différentes applications et composants du projet YourMédia. Il sert de référence pour comprendre les modifications effectuées et les problèmes résolus.
 
+## Versions des outils utilisés
+
+- Node.js: v18.20.8
+- npm: 10.8.2
+- yarn: 1.22.22
+
 ## Table des matières
 
 1. [Workflows GitHub Actions](#workflows-github-actions)
@@ -10,11 +16,15 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction des paramètres d'entrée du workflow d'infrastructure](#correction-des-paramètres-dentrée-du-workflow-dinfrastructure)
    - [Mise à jour des instructions détaillées pour chaque workflow](#mise-à-jour-des-instructions-détaillées-pour-chaque-workflow)
    - [Automatisation du stockage des outputs Terraform dans les secrets GitHub](#automatisation-du-stockage-des-outputs-terraform-dans-les-secrets-github)
+   - [Correction du problème de cache des dépendances dans le workflow frontend](#correction-du-problème-de-cache-des-dépendances-dans-le-workflow-frontend)
 
 2. [Backend (Java)](#backend-java)
    - [Configuration de l'utilisateur SSH pour le déploiement](#configuration-de-lutilisateur-ssh-pour-le-déploiement)
 
-3. [Infrastructure](#infrastructure)
+3. [Frontend (React Native Web)](#frontend-react-native-web)
+   - [Correction du problème de dépendances](#correction-du-problème-de-dépendances)
+
+4. [Infrastructure](#infrastructure)
    - [Correction de la configuration du cycle de vie du bucket S3](#correction-de-la-configuration-du-cycle-de-vie-du-bucket-s3)
    - [Configuration de Grafana/Prometheus dans des conteneurs Docker sur EC2](#configuration-de-grafanaprometheus-dans-des-conteneurs-docker-sur-ec2)
    - [Correction de l'erreur de référence à ECS dans le module de monitoring](#correction-de-lerreur-de-référence-à-ecs-dans-le-module-de-monitoring)
@@ -22,7 +32,7 @@ Ce document recense les corrections et améliorations apportées aux différente
    - [Correction des variables manquantes dans le module de monitoring](#correction-des-variables-manquantes-dans-le-module-de-monitoring)
    - [Création d'un VPC et de sous-réseaux dédiés](#création-dun-vpc-et-de-sous-réseaux-dédiés)
 
-4. [Documentation](#documentation)
+5. [Documentation](#documentation)
    - [Mise à jour de la documentation du module de monitoring](#mise-à-jour-de-la-documentation-du-module-de-monitoring)
    - [Ajout de la documentation sur la configuration SSH](#ajout-de-la-documentation-sur-la-configuration-ssh)
    - [Mise à jour des références à ECS dans la documentation](#mise-à-jour-des-références-à-ecs-dans-la-documentation)
@@ -128,6 +138,24 @@ Les workflows de déploiement des applications nécessitaient la saisie manuelle
 - **Cohérence** : Utilisation des mêmes valeurs dans tous les workflows
 - **Flexibilité** : Possibilité de fournir manuellement les paramètres si nécessaire
 
+### Correction du problème de cache des dépendances dans le workflow frontend
+
+#### Problème identifié
+Le workflow GitHub Actions pour le frontend échouait avec l'erreur suivante :
+```
+Error: Dependencies lock file is not found in /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF. Supported file patterns: package-lock.json,npm-shrinkwrap.json,yarn.lock
+```
+
+Cette erreur se produisait car l'action setup-node tentait d'utiliser le cache des dépendances, mais ne trouvait pas de fichier de verrouillage à la racine du projet.
+
+#### Solution mise en œuvre
+Désactivation de la fonctionnalité de cache dans l'action setup-node en commentant la ligne `cache: ${{ env.PACKAGE_MANAGER }}` dans le workflow.
+
+#### Avantages de cette solution
+- **Fiabilité** : Évite les erreurs liées au cache des dépendances
+- **Simplicité** : Solution simple qui ne nécessite pas de modifier la structure du projet
+- **Compatibilité** : Fonctionne avec la configuration actuelle du projet
+
 ## Backend (Java)
 
 ### Configuration de l'utilisateur SSH pour le déploiement
@@ -145,6 +173,28 @@ ssh ec2-user@${{ github.event.inputs.ec2_public_ip }} << EOF
 - **Compatibilité** : Fonctionne correctement avec l'AMI Amazon Linux 2
 - **Fiabilité** : Évite les erreurs de connexion SSH
 - **Cohérence** : Alignement avec la configuration de l'instance EC2
+
+## Frontend (React Native Web)
+
+### Correction du problème de dépendances
+
+#### Problème identifié
+Lors de l'exécution du workflow GitHub Actions pour le frontend, l'erreur suivante était rencontrée :
+```
+Error: Dependencies lock file is not found in /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF. Supported file patterns: package-lock.json,npm-shrinkwrap.json,yarn.lock
+```
+
+Cette erreur indique que le fichier de verrouillage des dépendances (package-lock.json ou yarn.lock) n'a pas été trouvé dans le répertoire du projet.
+
+#### Solution mise en œuvre
+1. **Génération du fichier package-lock.json** en exécutant `npm install` dans le répertoire app-react
+2. **Commit du fichier package-lock.json** dans le dépôt Git
+3. **Désactivation du cache** dans le workflow GitHub Actions pour éviter les erreurs liées au chemin du fichier de verrouillage
+
+#### Avantages de cette solution
+- **Fiabilité** : Garantit que les mêmes versions de dépendances sont utilisées dans tous les environnements
+- **Reproductibilité** : Assure que les builds sont reproductibles
+- **Stabilité** : Évite les problèmes liés aux mises à jour automatiques de dépendances
 
 ## Infrastructure
 
@@ -378,26 +428,3 @@ La documentation faisait encore référence à ECS pour le monitoring, alors que
 - **Cohérence** : Documentation alignée avec l'architecture réelle
 - **Précision** : Évite la confusion sur la technologie utilisée
 - **Clarté** : Instructions correctes pour accéder aux services
-# #   F r o n t e n d   ( R e a c t   N a t i v e   W e b ) 
- 
- # # #   C o r r e c t i o n   d u   p r o b l � m e   d e   d � p e n d a n c e s 
- 
- # # # #   P r o b l � m e   i d e n t i f i � 
- L o r s   d e   l ' e x � c u t i o n   d u   w o r k f l o w   G i t H u b   A c t i o n s   p o u r   l e   f r o n t e n d ,   l ' e r r e u r   s u i v a n t e   � t a i t   r e n c o n t r � e   : 
- \ \ \ 
- E r r o r :   D e p e n d e n c i e s   l o c k   f i l e   i s   n o t   f o u n d   i n   / h o m e / r u n n e r / w o r k / S t u d i - Y o u r M e d i a - E C F / S t u d i - Y o u r M e d i a - E C F .   S u p p o r t e d   f i l e   p a t t e r n s :   p a c k a g e - l o c k . j s o n , n p m - s h r i n k w r a p . j s o n , y a r n . l o c k 
- \ \ \ 
- 
- C e t t e   e r r e u r   i n d i q u e   q u e   l e   f i c h i e r   d e   v e r r o u i l l a g e   d e s   d � p e n d a n c e s   ( p a c k a g e - l o c k . j s o n   o u   y a r n . l o c k )   n ' a   p a s   � t �   t r o u v �   d a n s   l e   r � p e r t o i r e   d u   p r o j e t . 
- 
- # # # #   S o l u t i o n   m i s e   e n   Su v r e 
- 1 .   * * G � n � r a t i o n   d u   f i c h i e r   p a c k a g e - l o c k . j s o n * *   e n   e x � c u t a n t   \ 
- p m   i n s t a l l \   d a n s   l e   r � p e r t o i r e   a p p - r e a c t 
- 2 .   * * C o m m i t   d u   f i c h i e r   p a c k a g e - l o c k . j s o n * *   d a n s   l e   d � p � t   G i t 
- 3 .   * * M i s e   �   j o u r   d u   w o r k f l o w   G i t H u b   A c t i o n s * *   p o u r   u t i l i s e r   l e   f i c h i e r   p a c k a g e - l o c k . j s o n 
- 
- # # # #   A v a n t a g e s   d e   c e t t e   s o l u t i o n 
- -   * * F i a b i l i t � * *   :   G a r a n t i t   q u e   l e s   m � m e s   v e r s i o n s   d e   d � p e n d a n c e s   s o n t   u t i l i s � e s   d a n s   t o u s   l e s   e n v i r o n n e m e n t s 
- -   * * R e p r o d u c t i b i l i t � * *   :   A s s u r e   q u e   l e s   b u i l d s   s o n t   r e p r o d u c t i b l e s 
- -   * * S t a b i l i t � * *   :   � v i t e   l e s   p r o b l � m e s   l i � s   a u x   m i s e s   �   j o u r   a u t o m a t i q u e s   d e   d � p e n d a n c e s  
- 
