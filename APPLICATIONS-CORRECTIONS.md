@@ -196,6 +196,28 @@ Cette erreur indique que le fichier de verrouillage des dépendances (package-lo
 - **Reproductibilité** : Assure que les builds sont reproductibles
 - **Stabilité** : Évite les problèmes liés aux mises à jour automatiques de dépendances
 
+### Ajout de la dépendance manquante pour la compilation web
+
+#### Problème identifié
+Lors de la compilation de l'application React pour le web, l'erreur suivante était rencontrée :
+```
+CommandError: It looks like you're trying to use web support but don't have the required dependencies installed.
+Please install @expo/metro-runtime@~4.0.1 by running:
+npx expo install @expo/metro-runtime
+```
+
+Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est nécessaire pour la compilation web de l'application Expo.
+
+#### Solution mise en œuvre
+1. **Installation de la dépendance manquante** en exécutant `npm install @expo/metro-runtime@~4.0.1` dans le répertoire app-react
+2. **Création du fichier App.js** pour fournir un composant React de base
+3. **Mise à jour du fichier package.json** pour inclure la nouvelle dépendance
+
+#### Avantages de cette solution
+- **Compatibilité** : Permet la compilation de l'application pour le web
+- **Conformité** : Utilise la version recommandée de la dépendance
+- **Complétude** : Fournit tous les fichiers nécessaires pour une application Expo fonctionnelle
+
 ## Infrastructure
 
 ### Correction du script d'installation Docker pour le monitoring
