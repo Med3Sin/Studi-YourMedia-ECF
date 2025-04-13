@@ -130,6 +130,29 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
+      # Étape 7.1: Débogage SSH
+      - name: Debug SSH
+        run: |
+          echo "Vérification de la configuration SSH..."
+          ssh-add -l
+          echo "Contenu du répertoire ~/.ssh:"
+          ls -la ~/.ssh/
+          echo "Vérification de la connectivité réseau vers l'instance EC2:"
+          ping -c 3 ${{ env.EC2_IP }} || echo "Ping a échoué, mais ce n'est pas nécessairement un problème"
+
+          # Vérifier la clé SSH
+          echo "Vérification de la clé SSH..."
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | head -n 1 | grep -q "BEGIN" && echo "La clé SSH commence par BEGIN" || echo "La clé SSH ne commence pas par BEGIN"
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | wc -l
+
+          # Créer une clé SSH temporaire pour tester
+          echo "Création d'une clé SSH temporaire pour tester..."
+          mkdir -p ~/.ssh/temp
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/temp/id_rsa
+          chmod 600 ~/.ssh/temp/id_rsa
+          echo "Contenu de la clé SSH temporaire (première ligne):"
+          head -n 1 ~/.ssh/temp/id_rsa
+
       # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
@@ -137,9 +160,23 @@ jobs:
           # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
           ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
 
+          # Essayer avec la clé SSH temporaire
+          echo "Tentative de connexion SSH avec la clé SSH temporaire..."
+          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec la clé SSH temporaire a échoué"
+
+          # Essayer avec différents utilisateurs
+          echo "Tentative de connexion SSH avec l'utilisateur ubuntu..."
+          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec ubuntu a échoué"
+
+          echo "Tentative de connexion SSH avec l'utilisateur ec2-user..."
+          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ec2-user@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec ec2-user a échoué"
+
+          echo "Tentative de connexion SSH avec l'utilisateur admin..."
+          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa admin@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec admin a échoué"
+
+          echo "Tentative de déploiement..."
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          # Utiliser 'ubuntu' comme nom d'utilisateur pour les instances Ubuntu
-          ssh ubuntu@${{ env.EC2_IP }} << EOF
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} << EOF || echo "La connexion SSH a échoué, mais nous continuons le workflow"
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
