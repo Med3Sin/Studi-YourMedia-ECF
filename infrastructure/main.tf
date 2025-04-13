@@ -183,17 +183,18 @@ resource "aws_amplify_app" "frontend_app" {
       phases:
         preBuild:
           commands:
-            - yarn install # Ou npm install
+            - cd app-react
+            - npm run amplify:install
         build:
           commands:
-            - yarn run build # Ou npm run build
+            - npm run build
       artifacts:
-        baseDirectory: build # Ou le dossier de sortie de votre build web
+        baseDirectory: app-react/dist
         files:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
+          - app-react/node_modules/**/*
   EOT
 
   # Variables d'environnement pour le build Amplify si nécessaire

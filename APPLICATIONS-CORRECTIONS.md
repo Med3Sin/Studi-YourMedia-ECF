@@ -211,12 +211,15 @@ Cette erreur indique qu'il manque la dépendance `@expo/metro-runtime` qui est n
 #### Solution mise en œuvre
 1. **Installation de la dépendance manquante** en exécutant `npm install @expo/metro-runtime@~4.0.1` dans le répertoire app-react
 2. **Création du fichier App.js** pour fournir un composant React de base
-3. **Mise à jour du fichier package.json** pour inclure la nouvelle dépendance
+3. **Création du fichier app.json** pour configurer correctement Expo pour le web
+4. **Mise à jour du fichier package.json** pour inclure un script d'installation spécifique pour Amplify
+5. **Mise à jour du build_spec d'Amplify** dans le fichier Terraform pour utiliser le script d'installation spécifique
 
 #### Avantages de cette solution
 - **Compatibilité** : Permet la compilation de l'application pour le web
 - **Conformité** : Utilise la version recommandée de la dépendance
 - **Complétude** : Fournit tous les fichiers nécessaires pour une application Expo fonctionnelle
+- **Intégration Amplify** : Assure que le déploiement sur AWS Amplify fonctionne correctement
 
 ## Infrastructure
 
