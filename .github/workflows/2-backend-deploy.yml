@@ -184,7 +184,14 @@ jobs:
                 sudo apt-get install -y awscli
             fi
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
-            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/${{ env.DEPLOY_WAR_NAME }}
+            # Télécharger le WAR depuis S3
+            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
+
+            # Déployer le WAR avec le nom correct pour correspondre au contexte dans application.properties
+            sudo cp /tmp/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/yourmedia-backend.war
+
+            # Supprimer le fichier temporaire
+            sudo rm /tmp/${{ env.DEPLOY_WAR_NAME }}
             echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
           EOF
           echo "::endgroup::"
@@ -197,6 +204,6 @@ jobs:
           echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          WAR_NAME_NO_EXT=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
-          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/$WAR_NAME_NO_EXT/" >> $GITHUB_STEP_SUMMARY
+          # Utiliser le contexte configuré dans application.properties
+          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/yourmedia-backend/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
