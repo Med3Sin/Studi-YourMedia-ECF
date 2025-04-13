@@ -198,6 +198,24 @@ Cette erreur indique que le fichier de verrouillage des dépendances (package-lo
 
 ## Infrastructure
 
+### Correction du script d'installation Docker pour le monitoring
+
+#### Problème identifié
+Le fichier `install_docker.sh` dans le module `ec2-monitoring` était corrompu et ne contenait que des caractères spéciaux et des espaces, ce qui empêchait son exécution correcte. De plus, le script d'initialisation était défini directement dans le fichier Terraform au lieu d'utiliser des scripts externes, ce qui rendait la maintenance difficile.
+
+#### Solution mise en œuvre
+1. **Création d'un nouveau script `install_docker.sh`** avec le contenu approprié pour installer Docker et Docker Compose sur Amazon Linux 2
+2. **Création d'un script `deploy_containers.sh`** pour déployer les conteneurs Prometheus et Grafana
+3. **Création d'un fichier `prometheus.yml`** pour configurer Prometheus
+4. **Modification du fichier `main.tf`** pour utiliser ces scripts externes au lieu d'un script inline
+5. **Simplification du script d'initialisation** dans le `user_data` de l'instance EC2
+
+#### Avantages de cette solution
+- **Modularité** : Séparation des préoccupations en scripts distincts pour une meilleure maintenabilité
+- **Fiabilité** : Scripts correctement formatés et testés
+- **Flexibilité** : Possibilité de modifier les scripts sans avoir à modifier le code Terraform
+- **Lisibilité** : Code Terraform plus propre et plus facile à comprendre
+
 ### Correction de la configuration du cycle de vie du bucket S3
 
 #### Problème identifié
