@@ -104,6 +104,7 @@ module "s3" {
   project_name = var.project_name
   environment  = var.environment
   aws_region   = var.aws_region # Nécessaire pour la politique de déploiement Amplify
+  monitoring_scripts_path = "${path.module}/modules/ec2-monitoring/scripts" # Chemin vers les scripts de monitoring pour éviter la duplication
 }
 
 # -----------------------------------------------------------------------------
@@ -142,6 +143,9 @@ module "ec2-java-tomcat" {
 }
 
 # Le module S3 existant est utilisé pour stocker les fichiers de configuration de monitoring
+# Les scripts sont définis dans le module ec2-monitoring/scripts et sont référencés par le module S3
+# pour éviter la duplication. Les scripts sont également utilisés directement dans le script d'initialisation
+# de l'instance EC2 de monitoring.
 
 # -----------------------------------------------------------------------------
 # Module Monitoring Docker sur EC2 (Prometheus/Grafana)

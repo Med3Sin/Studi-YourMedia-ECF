@@ -18,3 +18,9 @@ variable "aws_region" {
   description = "Région AWS (utilisée pour la politique Amplify)."
   type        = string
 }
+
+variable "monitoring_scripts_path" {
+  description = "Chemin vers les scripts de monitoring. Si fourni, les scripts seront chargés depuis ce chemin plutôt que depuis les fichiers locaux."
+  type        = string
+  default     = ""
+}

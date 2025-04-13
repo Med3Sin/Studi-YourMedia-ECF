@@ -130,32 +130,40 @@ resource "aws_s3_bucket_policy" "amplify_read_policy" {
 }
 
 # Téléchargement des fichiers de configuration de monitoring dans le bucket S3
+# Les fichiers sont référencés depuis le module ec2-monitoring pour éviter la duplication
 resource "aws_s3_object" "docker_compose_yml" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/docker-compose.yml"
-  source = "${path.module}/files/docker-compose.yml"
-  etag   = filemd5("${path.module}/files/docker-compose.yml")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/docker-compose.yml" : "${path.module}/files/docker-compose.yml"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/docker-compose.yml") : filemd5("${path.module}/files/docker-compose.yml")
 }
 
 resource "aws_s3_object" "prometheus_yml" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/prometheus.yml"
-  source = "${path.module}/files/prometheus.yml"
-  etag   = filemd5("${path.module}/files/prometheus.yml")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/prometheus.yml" : "${path.module}/files/prometheus.yml"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/prometheus.yml") : filemd5("${path.module}/files/prometheus.yml")
 }
 
 resource "aws_s3_object" "deploy_containers_sh" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/deploy_containers.sh"
-  source = "${path.module}/files/deploy_containers.sh"
-  etag   = filemd5("${path.module}/files/deploy_containers.sh")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/deploy_containers.sh" : "${path.module}/files/deploy_containers.sh"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/deploy_containers.sh") : filemd5("${path.module}/files/deploy_containers.sh")
 }
 
 resource "aws_s3_object" "fix_permissions_sh" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/fix_permissions.sh"
-  source = "${path.module}/files/fix_permissions.sh"
-  etag   = filemd5("${path.module}/files/fix_permissions.sh")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/fix_permissions.sh" : "${path.module}/files/fix_permissions.sh"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/fix_permissions.sh") : filemd5("${path.module}/files/fix_permissions.sh")
+}
+
+resource "aws_s3_object" "cloudwatch_config_yml" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/cloudwatch-config.yml"
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/cloudwatch-config.yml" : "${path.module}/files/cloudwatch-config.yml"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/cloudwatch-config.yml") : filemd5("${path.module}/files/cloudwatch-config.yml")
 }
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration

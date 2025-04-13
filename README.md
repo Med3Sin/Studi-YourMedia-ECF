@@ -163,6 +163,22 @@ Pour accéder à l'application déployée sur Amplify :
 
 Le système de monitoring est basé sur Prometheus et Grafana, exécutés dans des conteneurs Docker sur une instance EC2 dédiée. Cette approche permet de rester dans les limites du Free Tier AWS tout en offrant une solution de monitoring complète.
 
+### Structure des fichiers de configuration
+
+Les fichiers de configuration pour le monitoring sont définis dans le répertoire `infrastructure/modules/ec2-monitoring/scripts`. Ces fichiers sont :
+
+- `docker-compose.yml` : Configuration des conteneurs Docker pour Prometheus, Grafana, et les exportateurs
+- `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
+- `cloudwatch-config.yml` : Configuration de CloudWatch Exporter pour collecter les métriques AWS
+- `deploy_containers.sh` : Script pour déployer les conteneurs Docker
+- `fix_permissions.sh` : Script pour corriger les permissions des volumes
+
+Ces fichiers sont utilisés de deux façons :
+
+1. **Générés directement dans l'instance EC2** : Les fichiers sont générés directement dans l'instance EC2 lors de son initialisation via le script `user_data`. Les variables comme l'adresse IP de l'instance EC2 Java/Tomcat sont substituées automatiquement.
+
+2. **Disponibles dans le bucket S3** : Les mêmes fichiers sont également téléversés dans le bucket S3 pour permettre une récupération manuelle si nécessaire. Le module S3 référence les fichiers depuis le module ec2-monitoring pour éviter la duplication.
+
 **Composants :**
 
 * **Prometheus** : Collecte les métriques de l'application backend via l'endpoint `/actuator/prometheus` exposé par Spring Boot Actuator.
