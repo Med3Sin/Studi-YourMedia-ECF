@@ -46,3 +46,10 @@ variable "s3_bucket_arn" {
   type        = string
   default     = "" # Sera fourni par le module racine
 }
+
+# Variable pour la clé SSH publique
+variable "ssh_public_key" {
+  description = "Clé SSH publique à installer sur l'instance"
+  type        = string
+  default     = "" # Sera fourni par le module racine via les secrets GitHub
+}

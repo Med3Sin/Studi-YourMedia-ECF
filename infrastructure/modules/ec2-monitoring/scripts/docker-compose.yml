@@ -47,3 +47,38 @@ services:
         max-file: "3"
     mem_limit: 512m
     cpu_shares: 512
+
+  # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, Amplify)
+  cloudwatch-exporter:
+    image: prom/cloudwatch-exporter:latest
+    container_name: cloudwatch-exporter
+    ports:
+      - "9106:9106"
+    volumes:
+      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+    command: "--config.file=/config/cloudwatch-config.yml"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+
+  # Exportateur MySQL pour surveiller RDS
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=${db_username}:${db_password}@(${rds_endpoint}:3306)/
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256

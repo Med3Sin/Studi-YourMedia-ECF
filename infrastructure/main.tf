@@ -137,6 +137,7 @@ module "ec2-java-tomcat" {
   subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
+  ssh_public_key        = var.ssh_public_key # Clé SSH publique pour l'accès à l'instance
   # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
 }
 
@@ -160,10 +161,14 @@ module "ec2-monitoring" {
   monitoring_ami_id            = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
   key_pair_name                = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
   ssh_private_key_path         = var.ssh_private_key_path # Chemin vers la clé privée SSH
-  ssh_private_key_content      = ""                       # Contenu de la clé privée SSH (vide par défaut)
+  ssh_private_key_content      = var.ssh_private_key_content # Contenu de la clé privée SSH
+  ssh_public_key               = var.ssh_public_key      # Clé SSH publique pour l'accès à l'instance
   enable_provisioning          = false                    # Désactiver le provisionnement automatique
   s3_bucket_name               = module.s3.bucket_name
   s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
+  db_username                  = var.db_username         # Nom d'utilisateur RDS pour MySQL Exporter
+  db_password                  = var.db_password         # Mot de passe RDS pour MySQL Exporter
+  rds_endpoint                 = module.rds-mysql.rds_endpoint # Endpoint RDS pour MySQL Exporter
 }
 
 # -----------------------------------------------------------------------------

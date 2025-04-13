@@ -150,6 +150,7 @@ jobs:
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
             -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
+            -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
             -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
             -var="environment=${{ github.event.inputs.environment }}" \
             -no-color \
@@ -233,6 +234,7 @@ jobs:
             -var="repo_name=${{ github.repository }}" \
             -var="ssh_private_key_path=~/.ssh/id_rsa" \
             -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
+            -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
             -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
             -var="environment=${{ github.event.inputs.environment }}"
           echo "::endgroup::"

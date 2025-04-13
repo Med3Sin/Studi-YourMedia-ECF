@@ -87,6 +87,7 @@ data "template_file" "install_script" {
   template = file("${path.module}/scripts/install_java_tomcat.sh")
   vars = {
     TOMCAT_VERSION = "9.0.102" # Définir la version de Tomcat ici
+    ssh_public_key = var.ssh_public_key # Clé SSH publique depuis GitHub
   }
 }
 

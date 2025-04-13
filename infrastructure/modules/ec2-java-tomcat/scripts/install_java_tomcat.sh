@@ -9,19 +9,30 @@ echo "--- Mise à jour des paquets ---"
 sudo yum update -y
 
 echo "--- Configuration des clés SSH ---"
-# Créer le répertoire .ssh s'il n'existe pas
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
+# Créer le répertoire .ssh pour ec2-user
+mkdir -p /home/ec2-user/.ssh
+chmod 700 /home/ec2-user/.ssh
 
 # Créer le fichier authorized_keys s'il n'existe pas
-touch ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
+touch /home/ec2-user/.ssh/authorized_keys
+chmod 600 /home/ec2-user/.ssh/authorized_keys
 
-# Récupérer la clé publique depuis les métadonnées de l'instance
-PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key)
-if [ ! -z "$PUBLIC_KEY" ]; then
-  echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys
+# Ajouter la clé SSH publique fournie par Terraform
+SSH_PUBLIC_KEY="${ssh_public_key}"
+if [ ! -z "$SSH_PUBLIC_KEY" ]; then
+  echo "$SSH_PUBLIC_KEY" >> /home/ec2-user/.ssh/authorized_keys
+  echo "Clé SSH publique GitHub installée avec succès"
 fi
+
+# Récupérer également la clé publique depuis les métadonnées de l'instance (si disponible)
+PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
+if [ ! -z "$PUBLIC_KEY" ]; then
+  echo "$PUBLIC_KEY" >> /home/ec2-user/.ssh/authorized_keys
+  echo "Clé SSH publique AWS installée avec succès"
+fi
+
+# Ajuster les permissions
+chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 echo "--- Installation d'AWS CLI ---"
 if ! command -v aws &> /dev/null; then

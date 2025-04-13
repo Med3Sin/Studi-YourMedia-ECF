@@ -116,6 +116,13 @@ variable "ssh_private_key_content" {
   sensitive   = true
 }
 
+variable "ssh_public_key" {
+  description = "Contenu de la clé publique SSH à installer sur les instances EC2."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "enable_provisioning" {
   description = "Activer ou désactiver le provisionnement automatique des instances EC2."
   type        = bool

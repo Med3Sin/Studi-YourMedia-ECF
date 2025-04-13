@@ -43,11 +43,11 @@
             <version>${spring.boot.version}</version>
         </dependency>
 
-        <!-- MySQL Connector -->
+        <!-- MySQL Connector (mise à jour pour corriger la vulnérabilité CVE-2023-22095) -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.33</version>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.0.34</version>
         </dependency>
 
         <!-- Spring Boot Starter Test -->

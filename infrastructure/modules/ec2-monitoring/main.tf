@@ -77,6 +77,35 @@ resource "aws_instance" "monitoring_instance" {
     #!/bin/bash
     # Mise à jour du système et installation de Docker et Docker Compose
     sudo yum update -y
+
+    # Configuration des clés SSH
+    echo "--- Configuration des clés SSH ---"
+    # Créer le répertoire .ssh pour ec2-user
+    mkdir -p /home/ec2-user/.ssh
+    chmod 700 /home/ec2-user/.ssh
+
+    # Créer le fichier authorized_keys s'il n'existe pas
+    touch /home/ec2-user/.ssh/authorized_keys
+    chmod 600 /home/ec2-user/.ssh/authorized_keys
+
+    # Ajouter la clé SSH publique fournie par Terraform
+    SSH_PUBLIC_KEY="${var.ssh_public_key}"
+    if [ ! -z "$SSH_PUBLIC_KEY" ]; then
+      echo "$SSH_PUBLIC_KEY" >> /home/ec2-user/.ssh/authorized_keys
+      echo "Clé SSH publique GitHub installée avec succès"
+    fi
+
+    # Récupérer également la clé publique depuis les métadonnées de l'instance (si disponible)
+    PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
+    if [ ! -z "$PUBLIC_KEY" ]; then
+      echo "$PUBLIC_KEY" >> /home/ec2-user/.ssh/authorized_keys
+      echo "Clé SSH publique AWS installée avec succès"
+    fi
+
+    # Ajuster les permissions
+    chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+
+    # Installation de Docker
     sudo amazon-linux-extras install docker -y
     sudo systemctl start docker
     sudo systemctl enable docker
@@ -101,8 +130,13 @@ INNEREOF
     sed "s/\${ec2_java_tomcat_ip}/${var.ec2_instance_private_ip}/g")
 EOL
 
-    cat > /opt/monitoring/docker-compose.yml << 'EOL'
+    cat > /opt/monitoring/docker-compose.yml << EOL
+$(cat <<'INNEREOF'
 ${file("${path.module}/scripts/docker-compose.yml")}
+INNEREOF
+    sed -e "s/\${db_username}/${var.db_username}/g" \
+        -e "s/\${db_password}/${var.db_password}/g" \
+        -e "s/\${rds_endpoint}/${var.rds_endpoint}/g")
 EOL
 
     cat > /opt/monitoring/deploy_containers.sh << 'EOL'
@@ -111,6 +145,16 @@ EOL
 
     cat > /opt/monitoring/fix_permissions.sh << 'EOL'
 ${file("${path.module}/scripts/fix_permissions.sh")}
+EOL
+
+    # Création du fichier de configuration CloudWatch avec substitution de variables
+    cat > /opt/monitoring/cloudwatch-config.yml << EOL
+$(cat <<'INNEREOF'
+${file("${path.module}/scripts/cloudwatch-config.yml")}
+INNEREOF
+    sed -e "s/\${aws_region}/${var.aws_region}/g" \
+        -e "s/\${s3_bucket_name}/${var.s3_bucket_name}/g" \
+        -e "s/\${rds_endpoint}/${var.rds_endpoint}/g")
 EOL
 
     # Rendre les scripts exécutables

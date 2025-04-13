@@ -75,6 +75,13 @@ variable "ssh_private_key_content" {
   sensitive   = true
 }
 
+variable "ssh_public_key" {
+  description = "Contenu de la clé publique SSH à installer sur l'instance EC2 de monitoring."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "enable_provisioning" {
   description = "Activer ou désactiver le provisionnement automatique de l'instance EC2 de monitoring."
   type        = bool
@@ -89,4 +96,24 @@ variable "s3_bucket_name" {
 variable "s3_config_policy_arn" {
   description = "ARN de la politique IAM pour accéder au bucket S3 de configuration de monitoring."
   type        = string
+}
+
+variable "db_username" {
+  description = "Nom d'utilisateur pour la base de données RDS."
+  type        = string
+  default     = "admin"
+  sensitive   = true
+}
+
+variable "db_password" {
+  description = "Mot de passe pour la base de données RDS."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "rds_endpoint" {
+  description = "Endpoint de la base de données RDS."
+  type        = string
+  default     = ""
 }

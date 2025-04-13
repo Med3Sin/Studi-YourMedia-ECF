@@ -1,0 +1,59 @@
+region: ${aws_region}
+metrics:
+  # S3 Metrics
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName]
+    aws_statistics: [Average]
+    aws_dimension_select:
+      BucketName: ["${s3_bucket_name}"]
+
+  - aws_namespace: AWS/S3
+    aws_metric_name: NumberOfObjects
+    aws_dimensions: [BucketName]
+    aws_statistics: [Average]
+    aws_dimension_select:
+      BucketName: ["${s3_bucket_name}"]
+
+  # RDS Metrics
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  # Amplify Metrics
+  - aws_namespace: AWS/AmplifyHosting
+    aws_metric_name: Requests
+    aws_dimensions: [App]
+    aws_statistics: [Sum]
+
+  - aws_namespace: AWS/AmplifyHosting
+    aws_metric_name: BytesDownloaded
+    aws_dimensions: [App]
+    aws_statistics: [Sum]
+
+  # EC2 Metrics
+  - aws_namespace: AWS/EC2
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: NetworkIn
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/EC2
+    aws_metric_name: NetworkOut
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average]
