@@ -65,13 +65,13 @@ variable "instance_type_rds" {
   default     = "db.t2.micro"
 }
 
-variable "ecs_task_cpu" {
+variable "monitoring_task_cpu" {
   description = "CPU alloué aux tâches ECS Fargate (unités)."
   type        = number
   default     = 256 # Minimum pour Fargate (équivalent à 0.25 vCPU)
 }
 
-variable "ecs_task_memory" {
+variable "monitoring_task_memory" {
   description = "Mémoire allouée aux tâches ECS Fargate (MiB)."
   type        = number
   default     = 512 # Minimum pour Fargate

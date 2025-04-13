@@ -12,9 +12,9 @@ output "rds_security_group_id" {
   value       = aws_security_group.rds_sg.id
 }
 
-output "ecs_security_group_id" {
+output "monitoring_security_group_id" {
   description = "ID du groupe de sécurité pour les tâches ECS (ecs-monitoring)"
-  value       = aws_security_group.ecs_sg.id
+  value       = aws_security_group.monitoring_sg.id
 }
 
 output "vpc_id" {

@@ -145,18 +145,18 @@ module "ec2-java-tomcat" {
 module "ec2-monitoring" {
   source = "./modules/ec2-monitoring"
 
-  project_name            = var.project_name
-  environment             = var.environment
-  aws_region              = var.aws_region
-  vpc_id                  = aws_vpc.main.id
-  subnet_ids              = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
-  ecs_security_group_id   = module.network.ecs_security_group_id
-  ec2_instance_private_ip = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
-  ecs_task_cpu            = var.ecs_task_cpu
-  ecs_task_memory         = var.ecs_task_memory
-  ecs_ami_id              = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
-  key_pair_name           = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
-  ssh_private_key_path    = var.ssh_private_key_path # Chemin vers la clé privée SSH
+  project_name                 = var.project_name
+  environment                  = var.environment
+  aws_region                   = var.aws_region
+  vpc_id                       = aws_vpc.main.id
+  subnet_ids                   = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
+  monitoring_security_group_id = module.network.monitoring_security_group_id
+  ec2_instance_private_ip      = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
+  monitoring_task_cpu          = var.monitoring_task_cpu
+  monitoring_task_memory       = var.monitoring_task_memory
+  monitoring_ami_id            = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
+  key_pair_name                = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
+  ssh_private_key_path         = var.ssh_private_key_path # Chemin vers la clé privée SSH
 }
 
 # -----------------------------------------------------------------------------
@@ -171,7 +171,7 @@ resource "aws_amplify_app" "frontend_app" {
   count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
   name         = "${var.project_name}-frontend"
   repository   = "https://github.com/${var.repo_owner}/Studi-YourMedia-ECF" # URL du repo GitHub
-  access_token = var.github_token                                        # Token PAT GitHub
+  access_token = var.github_token                                           # Token PAT GitHub
 
   # Configuration du build (simple copie depuis S3 dans ce cas)
   # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.

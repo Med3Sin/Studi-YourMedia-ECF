@@ -52,7 +52,7 @@ resource "aws_security_group_rule" "ec2_ingress_prometheus_actuator" {
   from_port                = 8080 # Le port de l'API Spring Boot
   to_port                  = 8080
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.ecs_sg.id # Autorise depuis le SG ECS
+  source_security_group_id = aws_security_group.monitoring_sg.id # Autorise depuis le SG ECS
   security_group_id        = aws_security_group.ec2_sg.id
   description              = "Allow Prometheus scrape from ECS SG"
 }
@@ -110,37 +110,37 @@ resource "aws_security_group_rule" "rds_egress_all" {
 # -----------------------------------------------------------------------------
 # Security Group pour les tâches ECS Fargate (ecs-monitoring)
 # -----------------------------------------------------------------------------
-resource "aws_security_group" "ecs_sg" {
-  name        = "${var.project_name}-${var.environment}-ecs-sg"
+resource "aws_security_group" "monitoring_sg" {
+  name        = "${var.project_name}-${var.environment}-monitoring-sg"
   description = "Allows inbound traffic for Grafana and outbound for Prometheus"
   vpc_id      = var.vpc_id
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-ecs-sg"
+    Name        = "${var.project_name}-${var.environment}-monitoring-sg"
     Project     = var.project_name
     Environment = var.environment
   }
 }
 
 # Règle entrante: Grafana (depuis l'IP de l'opérateur)
-resource "aws_security_group_rule" "ecs_ingress_grafana" {
+resource "aws_security_group_rule" "monitoring_ingress_grafana" {
   type              = "ingress"
   from_port         = 3000 # Port Grafana par défaut
   to_port           = 3000
   protocol          = "tcp"
   cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
-  security_group_id = aws_security_group.ecs_sg.id
+  security_group_id = aws_security_group.monitoring_sg.id
   description       = "Allow Grafana access from operator IP"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
 # Nécessaire pour que Prometheus puisse scraper l'EC2 et que Grafana/Prometheus puissent télécharger des images/plugins.
-resource "aws_security_group_rule" "ecs_egress_all" {
+resource "aws_security_group_rule" "monitoring_egress_all" {
   type              = "egress"
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
   cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.ecs_sg.id
+  security_group_id = aws_security_group.monitoring_sg.id
   description       = "Allow all outbound traffic"
 }
