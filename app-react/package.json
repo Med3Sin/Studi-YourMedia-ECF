@@ -7,9 +7,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "expo export --platform web"
+    "build": "expo export --platform web",
+    "amplify:install": "npm install && npm install @expo/metro-runtime@~4.0.1"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~4.0.1",
     "expo": "^52.0.44",
     "expo-status-bar": "~1.11.1",
     "react": "18.2.0",
