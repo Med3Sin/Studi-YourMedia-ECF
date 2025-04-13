@@ -15,8 +15,9 @@ variable "environment" {
 }
 
 variable "ami_id" {
-  description = "ID de l'AMI Ubuntu à utiliser pour l'EC2."
+  description = "ID de l'AMI Amazon Linux 2 à utiliser pour l'EC2."
   type        = string
+  default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 dans eu-west-3 (Paris)
 }
 
 variable "instance_type_ec2" {

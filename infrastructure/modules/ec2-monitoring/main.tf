@@ -93,11 +93,25 @@ resource "aws_instance" "monitoring_instance" {
     sudo mkdir -p /opt/monitoring/grafana-data
     sudo chown -R ec2-user:ec2-user /opt/monitoring
 
-    # Téléchargement des fichiers de configuration depuis S3
-    aws s3 cp s3://${var.s3_bucket_name}/monitoring/docker-compose.yml /opt/monitoring/
-    aws s3 cp s3://${var.s3_bucket_name}/monitoring/prometheus.yml /opt/monitoring/
-    aws s3 cp s3://${var.s3_bucket_name}/monitoring/deploy_containers.sh /opt/monitoring/
-    aws s3 cp s3://${var.s3_bucket_name}/monitoring/fix_permissions.sh /opt/monitoring/
+    # Création des fichiers de configuration avec substitution de variables
+    cat > /opt/monitoring/prometheus.yml << EOL
+$(cat <<'INNEREOF'
+${file("${path.module}/scripts/prometheus.yml")}
+INNEREOF
+    sed "s/\${ec2_java_tomcat_ip}/${var.ec2_instance_private_ip}/g")
+EOL
+
+    cat > /opt/monitoring/docker-compose.yml << 'EOL'
+${file("${path.module}/scripts/docker-compose.yml")}
+EOL
+
+    cat > /opt/monitoring/deploy_containers.sh << 'EOL'
+${file("${path.module}/scripts/deploy_containers.sh")}
+EOL
+
+    cat > /opt/monitoring/fix_permissions.sh << 'EOL'
+${file("${path.module}/scripts/fix_permissions.sh")}
+EOL
 
     # Rendre les scripts exécutables
     chmod +x /opt/monitoring/deploy_containers.sh

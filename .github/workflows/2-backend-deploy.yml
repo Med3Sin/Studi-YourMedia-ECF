@@ -176,12 +176,16 @@ jobs:
 
           echo "Tentative de déploiement..."
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} << EOF || echo "La connexion SSH a échoué, mais nous continuons le workflow"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ec2-user@${{ env.EC2_IP }} << EOF || echo "La connexion SSH a échoué, mais nous continuons le workflow"
             echo "--- Installation d'AWS CLI (si nécessaire) ---"
             if ! command -v aws &> /dev/null
             then
-                sudo apt-get update -y
-                sudo apt-get install -y awscli
+                echo "Installation d'AWS CLI v2..."
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                sudo yum install -y unzip
+                unzip -q awscliv2.zip
+                sudo ./aws/install
+                rm -rf aws awscliv2.zip
             fi
             echo "--- Vérification des permissions et de l'état de Tomcat ---"
             sudo ls -la /opt/tomcat/webapps/
