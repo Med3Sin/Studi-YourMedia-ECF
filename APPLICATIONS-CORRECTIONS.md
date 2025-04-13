@@ -234,10 +234,13 @@ Error: Invalid character encoding
 All input files must be UTF-8 encoded. Ensure that UTF-8 encoding is selected in your editor.
 ```
 
+Même après une première tentative de correction, le problème persistait, indiquant que le fichier était toujours corrompu avec des caractères non valides.
+
 #### Solution mise en œuvre
-1. **Suppression du fichier corrompu**
+1. **Suppression complète du fichier corrompu**
 2. **Création d'un nouveau fichier** avec un encodage UTF-8 correct
 3. **Reconstruction complète du contenu** du module RDS MySQL
+4. **Vérification du formatage** avec `terraform fmt -check -recursive` pour confirmer la correction
 
 #### Avantages de cette solution
 - **Encodage correct** : Le fichier est maintenant correctement encodé en UTF-8
