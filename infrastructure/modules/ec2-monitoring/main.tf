@@ -147,11 +147,26 @@ resource "null_resource" "provision_monitoring" {
     }
   }
 
-  # Exécution du script de déploiement
+  # Copie du script de correction des permissions
+  provisioner "file" {
+    source      = "${path.module}/scripts/fix_permissions.sh"
+    destination = "/tmp/fix_permissions.sh"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      host        = aws_instance.monitoring_instance.public_ip
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
+    }
+  }
+
+  # Exécution des scripts
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/deploy_containers.sh",
-      "/tmp/deploy_containers.sh"
+      "chmod +x /tmp/fix_permissions.sh",
+      "/tmp/deploy_containers.sh",
+      "sudo /tmp/fix_permissions.sh"
     ]
 
     connection {
@@ -188,10 +203,12 @@ Le provisionnement automatique est désactivé. Pour configurer manuellement l'i
    - scp ${path.module}/scripts/docker-compose.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
    - scp ${path.module}/scripts/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
    - scp ${path.module}/scripts/deploy_containers.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/scripts/fix_permissions.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
 
 4. Démarrez les conteneurs :
    - cd /opt/monitoring
-   - chmod +x deploy_containers.sh
+   - chmod +x deploy_containers.sh fix_permissions.sh
    - ./deploy_containers.sh
+   - sudo ./fix_permissions.sh
 EOT
 }

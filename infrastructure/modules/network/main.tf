@@ -122,15 +122,37 @@ resource "aws_security_group" "monitoring_sg" {
   }
 }
 
-# Règle entrante: Grafana (depuis l'IP de l'opérateur)
+# Règle entrante: SSH (depuis n'importe où)
+resource "aws_security_group_rule" "monitoring_ingress_ssh" {
+  type              = "ingress"
+  from_port         = 22 # Port SSH
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
+  security_group_id = aws_security_group.monitoring_sg.id
+  description       = "Allow SSH access from anywhere"
+}
+
+# Règle entrante: Grafana (depuis n'importe où)
 resource "aws_security_group_rule" "monitoring_ingress_grafana" {
   type              = "ingress"
   from_port         = 3000 # Port Grafana par défaut
   to_port           = 3000
   protocol          = "tcp"
-  cidr_blocks       = [var.operator_ip] # Restreint à l'IP fournie
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
   security_group_id = aws_security_group.monitoring_sg.id
-  description       = "Allow Grafana access from operator IP"
+  description       = "Allow Grafana access from anywhere"
+}
+
+# Règle entrante: Prometheus (depuis n'importe où)
+resource "aws_security_group_rule" "monitoring_ingress_prometheus" {
+  type              = "ingress"
+  from_port         = 9090 # Port Prometheus par défaut
+  to_port           = 9090
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
+  security_group_id = aws_security_group.monitoring_sg.id
+  description       = "Allow Prometheus access from anywhere"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
