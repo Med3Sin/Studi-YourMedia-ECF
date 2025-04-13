@@ -4,9 +4,8 @@
 
 # Rôle IAM pour l'instance EC2 de monitoring
 resource "aws_iam_role" "monitoring_role" {
-  name = "${var.project_name}-${var.environment}-monitoring-role-v2"
+  name                  = "${var.project_name}-${var.environment}-monitoring-role-v2"
   force_detach_policies = true
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
