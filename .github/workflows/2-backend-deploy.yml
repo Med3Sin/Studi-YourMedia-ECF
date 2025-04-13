@@ -102,25 +102,26 @@ jobs:
           echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
           echo "RDS_ENDPOINT=${{ secrets.TF_RDS_ENDPOINT || '' }}" >> $GITHUB_ENV
 
-          # Mettre à jour le nom du WAR pour inclure l'environnement
+          # Définir le nom du WAR pour le déploiement (avec environnement)
           WAR_BASE_NAME=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
-          echo "WAR_NAME=${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
-          echo "Nom du WAR mis à jour: ${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war"
+          echo "DEPLOY_WAR_NAME=${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
+          echo "Nom du WAR pour le déploiement: ${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war"
 
       # Étape 6: Téléchargement du WAR sur S3
       - name: Upload WAR to S3
         run: |
           echo "::group::Upload to S3"
           # Vérifier que le fichier WAR existe
-          if [ ! -f "${{ env.APP_DIR }}/target/${{ env.WAR_NAME }}" ]; then
-            echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/${{ env.WAR_NAME }}"
+          if [ ! -f "${{ env.APP_DIR }}/target/yourmedia-backend.war" ]; then
+            echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/yourmedia-backend.war"
             echo "Contenu du répertoire target:"
             ls -la ${{ env.APP_DIR }}/target/
             exit 1
           fi
 
-          aws s3 cp ${{ env.APP_DIR }}/target/${{ env.WAR_NAME }} s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }}
-          echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }}"
+          # Copier le WAR vers S3 avec le nom de déploiement (incluant l'environnement)
+          aws s3 cp ${{ env.APP_DIR }}/target/yourmedia-backend.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
+          echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
           echo "::endgroup::"
 
       # Étape 7: Configuration de SSH
@@ -145,7 +146,7 @@ jobs:
                 sudo yum install -y awscli
             fi
             echo "--- Copie du WAR depuis S3 vers Tomcat ---"
-            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.WAR_NAME }} /opt/tomcat/webapps/${{ env.WAR_NAME }}
+            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/${{ env.DEPLOY_WAR_NAME }}
             echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
           EOF
           echo "::endgroup::"
@@ -158,6 +159,6 @@ jobs:
           echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          WAR_NAME_NO_EXT=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
+          WAR_NAME_NO_EXT=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
           echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/$WAR_NAME_NO_EXT/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
