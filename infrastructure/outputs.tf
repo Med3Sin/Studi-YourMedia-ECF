@@ -24,8 +24,10 @@ output "s3_bucket_name" {
   value       = module.s3.bucket_name
 }
 
-# Output supprimé pour éviter les problèmes de sensibilité
-# L'URL Amplify peut être récupérée directement depuis la console AWS
+output "amplify_app_url" {
+  description = "URL de l'application déployée sur AWS Amplify."
+  value       = local.create_amplify_app ? "https://${aws_amplify_branch.main[0].branch_name}.${aws_amplify_app.frontend_app[0].default_domain}" : ""
+}
 
 output "monitoring_ec2_public_ip" {
   description = "Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus."
