@@ -397,3 +397,25 @@ Cela signifie que le secret `GH_PAT` n'est pas correctement configur√© ou n'est 
 ### Erreur "Context access might be invalid: GH_PAT"
 
 Cette erreur peut appara√Ætre dans l'IDE lors de l'√©dition du workflow, mais elle n'affecte pas son ex√©cution. C'est simplement un avertissement indiquant que l'IDE ne peut pas v√©rifier si le secret `GH_PAT` existe.
+
+ # #   C o r r e c t i o n s   e t   A m È l i o r a t i o n s   R È c e n t e s 
+ 
+ # # #   M i s e   ‡   j o u r   d u   t y p e   d ' i n s t a n c e   R D S 
+ 
+ L e   t y p e   d ' i n s t a n c e   R D S   a   È t È   m i s   ‡   j o u r   d e   ` d b . t 2 . m i c r o `   ‡   ` d b . t 3 . m i c r o `   p o u r   l e s   r a i s o n s   s u i v a n t e s   : 
+ -   M e i l l e u r e   c o m p a t i b i l i t È   a v e c   M y S Q L   8 . 0 . 2 8 
+ -   P e r f o r m a n c e s   a m È l i o r È e s   t o u t   e n   r e s t a n t   d a n s   l e s   l i m i t e s   d u   F r e e   T i e r   A W S 
+ -   S t a b i l i t È   a c c r u e   p o u r   l e s   o p È r a t i o n s   d e   b a s e   d e   d o n n È e s 
+ 
+ # # #   M i s e   ‡   j o u r   d e   l a   v e r s i o n   M y S Q L 
+ 
+ L a   v e r s i o n   d e   M y S Q L   a   È t È   m i s e   ‡   j o u r   d e   8 . 0 . 3 5   ‡   8 . 0 . 2 8   p o u r   a s s u r e r   u n e   c o m p a t i b i l i t È   o p t i m a l e   a v e c   l e   t y p e   d ' i n s t a n c e   ` d b . t 3 . m i c r o ` . 
+ 
+ # # #   N e t t o y a g e   d e s   f i c h i e r s   t e m p o r a i r e s 
+ 
+ L e s   f i c h i e r s   t e m p o r a i r e s   s u i v a n t s   o n t   È t È   s u p p r i m È s   p o u r   m a i n t e n i r   l a   p r o p r e t È   d u   c o d e   s o u r c e   : 
+ -   F i c h i e r s   ` m a i n . t f . n e w 2 `   e t   ` m a i n . t f . n e w 3 `   d a n s   l e   m o d u l e   R D S   M y S Q L 
+ 
+ C e s   m o d i f i c a t i o n s   a m È l i o r e n t   l a   s t a b i l i t È   e t   l a   p e r f o r m a n c e   d e   l ' i n f r a s t r u c t u r e   t o u t   e n   m a i n t e n a n t   l a   c o m p a t i b i l i t È   a v e c   l e   F r e e   T i e r   A W S . 
+  
+ 
