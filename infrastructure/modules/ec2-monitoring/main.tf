@@ -97,7 +97,12 @@ resource "aws_instance" "monitoring_instance" {
 # -----------------------------------------------------------------------------
 
 # Copie des fichiers de configuration sur l'instance EC2
+# Note: Le provisionnement est désactivé par défaut pour éviter les erreurs dans les environnements CI/CD
+# Pour activer le provisionnement, définissez la variable enable_provisioning à true et fournissez une clé SSH valide
 resource "null_resource" "provision_monitoring" {
+  # Ne créer cette ressource que si le provisionnement est activé
+  count = var.enable_provisioning ? 1 : 0
+
   # Déclencher uniquement lorsque l'instance est créée ou modifiée
   triggers = {
     instance_id = aws_instance.monitoring_instance.id
@@ -112,7 +117,7 @@ resource "null_resource" "provision_monitoring" {
       type        = "ssh"
       user        = "ec2-user"
       host        = aws_instance.monitoring_instance.public_ip
-      private_key = file(var.ssh_private_key_path)
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
     }
   }
 
@@ -125,7 +130,7 @@ resource "null_resource" "provision_monitoring" {
       type        = "ssh"
       user        = "ec2-user"
       host        = aws_instance.monitoring_instance.public_ip
-      private_key = file(var.ssh_private_key_path)
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
     }
   }
 
@@ -138,7 +143,7 @@ resource "null_resource" "provision_monitoring" {
       type        = "ssh"
       user        = "ec2-user"
       host        = aws_instance.monitoring_instance.public_ip
-      private_key = file(var.ssh_private_key_path)
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
     }
   }
 
@@ -153,9 +158,40 @@ resource "null_resource" "provision_monitoring" {
       type        = "ssh"
       user        = "ec2-user"
       host        = aws_instance.monitoring_instance.public_ip
-      private_key = file(var.ssh_private_key_path)
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
     }
   }
 
   depends_on = [aws_instance.monitoring_instance]
+}
+
+# Ajouter un message dans les outputs pour indiquer comment configurer manuellement l'instance
+output "manual_setup_instructions" {
+  description = "Instructions pour configurer manuellement l'instance EC2 de monitoring si le provisionnement automatique est désactivé"
+  value       = var.enable_provisioning ? "Le provisionnement automatique est activé. Aucune action manuelle n'est requise." : <<-EOT
+Le provisionnement automatique est désactivé. Pour configurer manuellement l'instance EC2 de monitoring :
+
+1. Connectez-vous à l'instance EC2 via SSH : ssh ec2-user@${aws_instance.monitoring_instance.public_ip}
+2. Exécutez les commandes suivantes :
+   - sudo yum update -y
+   - sudo amazon-linux-extras install docker -y
+   - sudo systemctl start docker
+   - sudo systemctl enable docker
+   - sudo usermod -a -G docker ec2-user
+   - sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   - sudo chmod +x /usr/local/bin/docker-compose
+   - sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+   - sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data
+   - sudo chown -R ec2-user:ec2-user /opt/monitoring
+
+3. Copiez les fichiers de configuration depuis votre machine locale :
+   - scp ${path.module}/scripts/docker-compose.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/scripts/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/scripts/deploy_containers.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+
+4. Démarrez les conteneurs :
+   - cd /opt/monitoring
+   - chmod +x deploy_containers.sh
+   - ./deploy_containers.sh
+EOT
 }

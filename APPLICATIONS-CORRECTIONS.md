@@ -256,7 +256,7 @@ Error: creating IAM Instance Profile: EntityAlreadyExists: Instance Profile ***-
 - **Conformité AWS** : Utilisation de types d'instances recommandés (db.t2.micro est en fin de support depuis juin 2024)
 - **Déploiement réussi** : L'infrastructure peut maintenant être déployée sans erreurs
 
-#### Amélioration supplémentaire : Nettoyage automatique des profils IAM persistants
+#### Amélioration supplémentaire 1 : Nettoyage automatique des profils IAM persistants
 
 Pour résoudre définitivement le problème des profils IAM qui persistent après la destruction de l'infrastructure, nous avons ajouté une étape de nettoyage automatique dans le workflow GitHub Actions :
 
@@ -268,6 +268,26 @@ Pour résoudre définitivement le problème des profils IAM qui persistent aprè
    - Création d'un document `infrastructure/docs/IAM-PROFILES-MANAGEMENT.md` expliquant la solution
 
 Cette amélioration permet de garantir que les profils IAM sont correctement supprimés, même si `terraform destroy` échoue à les supprimer, évitant ainsi les erreurs lors des déploiements ultérieurs.
+
+#### Amélioration supplémentaire 2 : Gestion du provisionnement SSH dans les environnements CI/CD
+
+Pour résoudre le problème de la fonction `file()` qui échoue à lire la clé SSH privée dans les environnements CI/CD, nous avons mis en place un mécanisme de provisionnement conditionnel :
+
+1. **Provisionnement conditionnel** :
+   - Ajout d'une variable `enable_provisioning` (désactivée par défaut) pour contrôler le provisionnement SSH
+   - Utilisation de `count = var.enable_provisioning ? 1 : 0` pour créer conditionnellement la ressource de provisionnement
+
+2. **Options de clé SSH flexibles** :
+   - Ajout d'une variable `ssh_private_key_content` pour fournir directement le contenu de la clé SSH
+   - Utilisation de `private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)`
+
+3. **Instructions de configuration manuelle** :
+   - Ajout d'un output avec des instructions détaillées pour configurer manuellement l'instance si le provisionnement automatique est désactivé
+
+4. **Documentation détaillée** :
+   - Création d'un document `infrastructure/docs/SSH-PROVISIONING.md` expliquant la solution
+
+Cette amélioration permet de déployer l'infrastructure même sans accès SSH, tout en fournissant des instructions claires pour la configuration manuelle après le déploiement.
 
 ### Correction des erreurs de validation Terraform
 

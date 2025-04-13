@@ -67,3 +67,16 @@ variable "ssh_private_key_path" {
   type        = string
   default     = "~/.ssh/id_rsa"
 }
+
+variable "ssh_private_key_content" {
+  description = "Contenu de la clé privée SSH pour se connecter à l'instance EC2 de monitoring. Si fourni, remplace ssh_private_key_path."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "enable_provisioning" {
+  description = "Activer ou désactiver le provisionnement automatique de l'instance EC2 de monitoring."
+  type        = bool
+  default     = false
+}

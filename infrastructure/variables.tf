@@ -109,6 +109,19 @@ variable "ssh_private_key_path" {
   # Cette valeur par défaut sera remplacée par le chemin réel dans le workflow GitHub Actions.
 }
 
+variable "ssh_private_key_content" {
+  description = "Contenu de la clé privée SSH pour se connecter aux instances EC2. Si fourni, remplace ssh_private_key_path."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "enable_provisioning" {
+  description = "Activer ou désactiver le provisionnement automatique des instances EC2."
+  type        = bool
+  default     = false
+}
+
 variable "aws_access_key" {
   description = "Clé d'accès AWS pour l'authentification."
   type        = string
