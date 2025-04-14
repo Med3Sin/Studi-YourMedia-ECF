@@ -26,6 +26,7 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
 11. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
+12. [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md)
 
 ## Architecture Globale
 
@@ -463,6 +464,19 @@ Pour optimiser les coûts de transfert de données dans notre projet YourMedia :
 3. **Règles de cycle de vie S3** : Configuration de règles pour nettoyer automatiquement les anciens fichiers
 4. **Limitation des transferts entre régions** : Toute l'infrastructure est déployée dans une seule région AWS
 5. **Compression des données** : Les fichiers WAR sont compressés avant d'être transférés vers S3
+
+## Plan d'amélioration de l'architecture
+
+Un plan détaillé d'amélioration de l'architecture a été élaboré pour optimiser l'infrastructure tout en restant dans les limites du Free Tier AWS. Ce plan couvre plusieurs aspects :
+
+- **Optimisation de l'infrastructure AWS** : Amélioration de la résilience avec Auto Scaling, ALB, optimisation du stockage S3 et de RDS
+- **Sécurisation de l'architecture** : Renforcement de la sécurité réseau, mise en place de WAF, Secrets Manager et Certificate Manager
+- **Amélioration des applications** : Optimisation du backend Java et du frontend React
+- **Amélioration du monitoring** : Extension de Prometheus/Grafana et implémentation de la traçabilité
+- **Optimisation des coûts** : Mise en place d'une gouvernance des coûts et optimisation de l'infrastructure as code
+- **Amélioration du CI/CD** : Optimisation des workflows GitHub Actions et amélioration de la gestion des environnements
+
+Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md).
 
 ## Corrections et Améliorations Récentes
 
