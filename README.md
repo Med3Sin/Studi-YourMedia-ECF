@@ -24,9 +24,10 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Configuration des Secrets](#configuration-des-secrets)
 9.  [Utilisation des Secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md)
 10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
-11. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+11. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
+12. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-12. [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md)
+13. [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md)
 
 ## Architecture Globale
 
@@ -424,6 +425,16 @@ Si vous rencontrez des erreurs lors de la destruction de l'infrastructure, notam
 1. Le bucket S3 est vide avant la destruction (le workflow inclut maintenant une étape pour vider automatiquement le bucket)
 2. Les profils IAM sont correctement nettoyés (le workflow inclut une étape pour nettoyer les profils IAM persistants)
 3. Toutes les ressources dépendantes ont été correctement supprimées
+
+## Configuration des sous-réseaux
+
+L'architecture utilise une configuration spécifique de sous-réseaux pour optimiser les performances tout en respectant les contraintes AWS :
+
+- **Sous-réseaux principaux dans eu-west-3a** : Les ressources principales (EC2, monitoring) sont placées dans la même zone de disponibilité (eu-west-3a) pour minimiser les coûts de transfert de données entre zones.
+
+- **Sous-réseau RDS secondaire dans eu-west-3b** : Un sous-réseau supplémentaire est créé dans une seconde zone de disponibilité uniquement pour satisfaire l'exigence d'AWS RDS qui nécessite des sous-réseaux dans au moins deux zones de disponibilité différentes, même pour une instance mono-AZ.
+
+Cette configuration permet de maintenir toutes les ressources actives dans la même zone de disponibilité tout en respectant les contraintes techniques d'AWS.
 
 ## Considérations sur les coûts AWS
 

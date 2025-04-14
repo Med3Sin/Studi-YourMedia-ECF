@@ -15,7 +15,7 @@ resource "aws_vpc" "main" {
   }
 }
 
-# Création d'un sous-réseau dans la zone de disponibilité eu-west-3a
+# Création d'un sous-réseau principal dans la zone de disponibilité eu-west-3a
 resource "aws_subnet" "main_az1" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
@@ -23,22 +23,36 @@ resource "aws_subnet" "main_az1" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-subnet-az1"
+    Name        = "${var.project_name}-${var.environment}-subnet-primary"
     Project     = var.project_name
     Environment = var.environment
   }
 }
 
-# Création d'un sous-réseau dans une deuxième zone de disponibilité pour RDS
-# (RDS nécessite des sous-réseaux dans au moins deux zones de disponibilité)
-resource "aws_subnet" "main_az2" {
+# Création d'un deuxième sous-réseau dans la même zone de disponibilité (eu-west-3a)
+resource "aws_subnet" "main_az1_secondary" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-subnet-secondary"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+# Création d'un sous-réseau dans une deuxième zone de disponibilité uniquement pour RDS
+# (RDS nécessite des sous-réseaux dans au moins deux zones de disponibilité)
+resource "aws_subnet" "rds_az2" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.3.0/24"
   availability_zone       = "${var.aws_region}b"
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-subnet-az2"
+    Name        = "${var.project_name}-${var.environment}-subnet-rds-az2"
     Project     = var.project_name
     Environment = var.environment
   }
@@ -77,9 +91,15 @@ resource "aws_route_table_association" "main_az1" {
   route_table_id = aws_route_table.main.id
 }
 
-# Association de la table de routage au deuxième sous-réseau
-resource "aws_route_table_association" "main_az2" {
-  subnet_id      = aws_subnet.main_az2.id
+# Association de la table de routage au deuxième sous-réseau (dans la même AZ)
+resource "aws_route_table_association" "main_az1_secondary" {
+  subnet_id      = aws_subnet.main_az1_secondary.id
+  route_table_id = aws_route_table.main.id
+}
+
+# Association de la table de routage au sous-réseau RDS dans la deuxième AZ
+resource "aws_route_table_association" "rds_az2" {
+  subnet_id      = aws_subnet.rds_az2.id
   route_table_id = aws_route_table.main.id
 }
 
@@ -120,7 +140,7 @@ module "rds-mysql" {
   db_name               = var.db_name
   instance_type_rds     = var.instance_type_rds
   vpc_id                = aws_vpc.main.id
-  subnet_ids            = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
+  subnet_ids            = [aws_subnet.main_az1.id, aws_subnet.rds_az2.id] # Utilise un sous-réseau dans chaque zone de disponibilité (requis par RDS)
   rds_security_group_id = module.network.rds_security_group_id
 }
 
@@ -157,7 +177,7 @@ module "ec2-monitoring" {
   environment                  = var.environment
   aws_region                   = var.aws_region
   vpc_id                       = aws_vpc.main.id
-  subnet_ids                   = [aws_subnet.main_az1.id, aws_subnet.main_az2.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
+  subnet_ids                   = [aws_subnet.main_az1.id, aws_subnet.main_az1_secondary.id] # Utilise deux sous-réseaux dans la même zone de disponibilité
   monitoring_security_group_id = module.network.monitoring_security_group_id
   ec2_instance_private_ip      = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   monitoring_task_cpu          = var.monitoring_task_cpu
