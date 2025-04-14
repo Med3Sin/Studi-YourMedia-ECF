@@ -24,6 +24,8 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
     *   [Configuration des Secrets](#configuration-des-secrets)
 9.  [Utilisation des Secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md)
 10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
+11. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+    * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
 
 ## Architecture Globale
 
@@ -421,6 +423,46 @@ Si vous rencontrez des erreurs lors de la destruction de l'infrastructure, notam
 1. Le bucket S3 est vide avant la destruction (le workflow inclut maintenant une étape pour vider automatiquement le bucket)
 2. Les profils IAM sont correctement nettoyés (le workflow inclut une étape pour nettoyer les profils IAM persistants)
 3. Toutes les ressources dépendantes ont été correctement supprimées
+
+## Considérations sur les coûts AWS
+
+### Coûts de transfert de données AWS
+
+Les frais de transfert de données sont un aspect important de la facturation AWS à prendre en compte :
+
+#### Principaux types de transferts de données facturés
+
+- **Transfert sortant (Outbound)** : Données sortant d'AWS vers Internet
+  - C'est généralement le transfert le plus coûteux
+  - Les tarifs varient selon les régions et le volume
+
+- **Transfert entrant (Inbound)** : Données entrantes dans AWS depuis Internet
+  - Généralement gratuit dans la plupart des services
+
+- **Transfert entre régions AWS** : Données transférées entre différentes régions AWS
+  - Facturé dans les deux régions (source et destination)
+
+- **Transfert entre zones de disponibilité** : Données transférées entre AZ d'une même région
+  - Moins coûteux que le transfert entre régions, mais toujours facturé
+
+- **Transfert entre services AWS** : Dans certains cas, le transfert entre services AWS peut être facturé
+
+#### Points à considérer pour le Free Tier
+
+Dans le cadre du Free Tier AWS :
+- 100 Go de transfert de données sortant est généralement gratuit par mois
+- Le transfert entrant est généralement gratuit
+- Le transfert entre instances EC2 dans la même zone de disponibilité via adresse IP privée est gratuit
+
+#### Optimisations dans notre architecture
+
+Pour optimiser les coûts de transfert de données dans notre projet YourMedia :
+
+1. **Placement des ressources** : Toutes les ressources qui communiquent fréquemment (EC2, RDS) sont placées dans la même zone de disponibilité
+2. **Utilisation de S3** : Le bucket S3 est utilisé principalement pour le stockage des fichiers de configuration et des artefacts de build
+3. **Règles de cycle de vie S3** : Configuration de règles pour nettoyer automatiquement les anciens fichiers
+4. **Limitation des transferts entre régions** : Toute l'infrastructure est déployée dans une seule région AWS
+5. **Compression des données** : Les fichiers WAR sont compressés avant d'être transférés vers S3
 
 ## Corrections et Améliorations Récentes
 
