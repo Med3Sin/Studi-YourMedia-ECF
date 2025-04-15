@@ -63,6 +63,7 @@ Avant de commencer, assurez-vous d'avoir :
 
 ## Structure du Projet
 
+```
 .
 ├── .github/
 │   └── workflows/              # Workflows GitHub Actions
@@ -87,16 +88,25 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── network/             # Gestion des Security Groups
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
 │       ├── ec2-java-tomcat/     # Instance EC2 + Java/Tomcat
-│       │   └── ... (main.tf, variables.tf, outputs.tf, scripts/, README.md)
+│       │   ├── scripts/          # Scripts d'initialisation et de configuration
+│       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
 │       ├── rds-mysql/           # Base de données RDS MySQL
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
 │       ├── s3/                  # Bucket S3
+│       │   ├── files/            # Fichiers à stocker dans le bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
-│       └── ecs-monitoring/      # Monitoring ECS avec EC2
-│           └── ... (main.tf, variables.tf, outputs.tf, task-definitions/, config/, README.md)
-├── scripts/                     # Scripts utilitaires
-│   └── deploy_backend.sh        # Script pour déployer le .war sur Tomcat
-└── README.md                    # Ce fichier - Documentation principale
+│       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
+│           ├── scripts/          # Scripts pour Prometheus et Grafana
+│           └── ... (main.tf, variables.tf, outputs.tf, README.md)
+
+├── .gitignore                    # Fichier d'exclusion Git
+├── APPLICATIONS-CORRECTIONS.md    # Corrections apportées aux applications
+├── ARCHITECTURE-IMPROVEMENT-PLAN.md  # Plan d'amélioration de l'architecture
+├── aws-architecture-project-yourmedia.html  # Schéma d'architecture AWS
+├── MONITORING-SETUP-GUIDE.md      # Guide de configuration du monitoring
+├── README.md                    # Ce fichier - Documentation principale
+└── TERRAFORM-SECRETS-GUIDE.md     # Guide d'utilisation des secrets GitHub avec Terraform
+```
 
 ## Infrastructure (Terraform)
 
@@ -355,10 +365,9 @@ Avant de commencer, assurez-vous d'avoir :
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
 │       ├── s3/                  # Bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
-│       └── ecs-monitoring/      # Monitoring ECS avec EC2
-│           └── ... (main.tf, variables.tf, outputs.tf, task-definitions/, config/, README.md)
-├── scripts/                     # Scripts utilitaires
-│   └── deploy_backend.sh        # Script pour déployer le .war sur Tomcat
+│       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
+│           └── ... (main.tf, variables.tf, outputs.tf, scripts/, README.md)
+
 └── README.md                    # Ce fichier - Documentation principale
 
 
