@@ -32,6 +32,8 @@ resource "aws_db_instance" "mysql" {
   vpc_security_group_ids = [var.rds_security_group_id]
   publicly_accessible    = true
   skip_final_snapshot    = true
+  # Spécifier explicitement la zone de disponibilité eu-west-3a pour placer RDS dans la même zone que les EC2
+  availability_zone       = "${var.aws_region}a"
   # Pour rester dans le Free Tier AWS
   backup_retention_period = 0
   multi_az                = false
@@ -42,27 +44,4 @@ resource "aws_db_instance" "mysql" {
     Project     = var.project_name
     Environment = var.environment
   }
-}
-
-# -----------------------------------------------------------------------------
-# Outputs
-# -----------------------------------------------------------------------------
-output "rds_endpoint" {
-  description = "L'endpoint de connexion à l'instance RDS MySQL"
-  value       = aws_db_instance.mysql.endpoint
-}
-
-output "rds_port" {
-  description = "Le port de connexion à l'instance RDS MySQL"
-  value       = aws_db_instance.mysql.port
-}
-
-output "rds_username" {
-  description = "Le nom d'utilisateur pour se connecter à l'instance RDS MySQL"
-  value       = aws_db_instance.mysql.username
-}
-
-output "rds_database_name" {
-  description = "Le nom de la base de données MySQL"
-  value       = aws_db_instance.mysql.db_name
 }

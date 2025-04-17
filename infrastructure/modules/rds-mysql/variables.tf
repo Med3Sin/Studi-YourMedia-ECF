@@ -51,3 +51,9 @@ variable "db_name" {
   type        = string
   default     = "yourmedia"
 }
+
+variable "aws_region" {
+  description = "Région AWS où déployer l'instance RDS."
+  type        = string
+  default     = "eu-west-3"
+}

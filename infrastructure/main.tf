@@ -135,6 +135,7 @@ module "rds-mysql" {
 
   project_name          = var.project_name
   environment           = var.environment
+  aws_region            = var.aws_region
   db_username           = var.db_username
   db_password           = var.db_password
   db_name               = var.db_name

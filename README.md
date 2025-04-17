@@ -4,6 +4,24 @@ Bienvenue dans la documentation du projet de migration vers le cloud AWS pour l'
 Ce document a pour but de vous guider à travers l'architecture mise en place, les choix technologiques, et les procédures de déploiement et de gestion de l'infrastructure et des applications.
 Ce projet a été conçu pour être simple, utiliser les services gratuits (Free Tier) d'AWS autant que possible, et être entièrement automatisé via Terraform et GitHub Actions.
 
+## Documentation Centralisée
+
+La documentation complète du projet est maintenant centralisée dans le dossier `documentation/`. Consultez les fichiers suivants pour plus d'informations :
+
+- [README-MAIN.md](documentation/README-MAIN.md) : Documentation principale du projet
+- [README-EC2-JAVA-TOMCAT.md](documentation/README-EC2-JAVA-TOMCAT.md) : Documentation du module EC2 Java/Tomcat
+- [README-EC2-MONITORING.md](documentation/README-EC2-MONITORING.md) : Documentation du module EC2 Monitoring
+- [README-NETWORK.md](documentation/README-NETWORK.md) : Documentation du module Network
+- [README-RDS-MYSQL.md](documentation/README-RDS-MYSQL.md) : Documentation du module RDS MySQL
+- [README-S3.md](documentation/README-S3.md) : Documentation du module S3
+
+Les autres fichiers de documentation spécifiques restent à la racine du projet :
+
+- [TERRAFORM-SECRETS-GUIDE.md](TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
+- [ARCHITECTURE-IMPROVEMENT-PLAN.md](ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
+- [MONITORING-SETUP-GUIDE.md](MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
+- [APPLICATIONS-CORRECTIONS.md](APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
+
 ## Table des Matières
 
 1.  [Architecture Globale](#architecture-globale)
