@@ -72,6 +72,53 @@ Cette configuration permet de maintenir toutes les ressources actives dans la m�
 
 ## Compute (EC2)
 
+### Provisionnement SSH des instances EC2
+
+Le provisionnement SSH des instances EC2 est géré de manière flexible pour fonctionner dans différents environnements :
+
+#### Provisionnement conditionnel
+
+Le provisionnement SSH est conditionnel et peut être activé ou désactivé selon le contexte :
+
+```hcl
+resource "null_resource" "provision_instance" {
+  # Ne créer cette ressource que si le provisionnement est activé
+  count = var.enable_provisioning ? 1 : 0
+
+  # ... reste du code ...
+}
+```
+
+#### Options de clé SSH flexibles
+
+Deux options sont disponibles pour fournir la clé SSH :
+
+1. **Chemin du fichier** : Utilisation traditionnelle via `ssh_private_key_path`
+2. **Contenu de la clé** : Fourniture directe du contenu de la clé via `ssh_private_key_content`
+
+```hcl
+connection {
+  type        = "ssh"
+  user        = "ec2-user"
+  host        = aws_instance.instance.public_ip
+  private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
+}
+```
+
+#### Configuration dans GitHub Actions
+
+Le workflow GitHub Actions est configuré pour utiliser automatiquement la clé SSH si elle est disponible dans les secrets GitHub :
+
+1. **Configuration de la clé SSH** :
+   - Le secret `EC2_SSH_PRIVATE_KEY` est utilisé pour créer un fichier de clé SSH sur le runner
+   - Le provisionnement est activé automatiquement si la clé SSH est disponible (`enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}`)
+
+2. **Secrets GitHub requis** :
+   - `EC2_KEY_PAIR_NAME` : Nom de la paire de clés SSH sur AWS (par exemple, "ma-cle-ssh")
+   - `EC2_SSH_PRIVATE_KEY` : Contenu de la clé SSH privée
+
+Si ces secrets ne sont pas configurés, le provisionnement est désactivé automatiquement, ce qui permet à Terraform de s'exécuter sans erreur même si aucune clé SSH n'est disponible.
+
 ### EC2 Java/Tomcat
 
 Cette instance EC2 héberge l'application backend Java sur un serveur Tomcat.

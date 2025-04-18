@@ -65,34 +65,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-      
+
       - name: Terraform Init
         run: |
           cd infrastructure
           terraform init
-      
+
       - name: Terraform Plan
         run: |
           cd infrastructure
           terraform plan -var="db_username=${{ secrets.DB_USERNAME }}" -var="db_password=${{ secrets.DB_PASSWORD }}" -var="ssh_public_key=${{ secrets.EC2_SSH_PUBLIC_KEY }}" -var="key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}"
-      
+
       - name: Terraform Apply
         if: github.event.inputs.action == 'deploy'
         run: |
           cd infrastructure
           terraform apply -auto-approve -var="db_username=${{ secrets.DB_USERNAME }}" -var="db_password=${{ secrets.DB_PASSWORD }}" -var="ssh_public_key=${{ secrets.EC2_SSH_PUBLIC_KEY }}" -var="key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}"
-      
+
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
         run: |
           cd infrastructure
           terraform destroy -auto-approve -var="db_username=${{ secrets.DB_USERNAME }}" -var="db_password=${{ secrets.DB_PASSWORD }}" -var="ssh_public_key=${{ secrets.EC2_SSH_PUBLIC_KEY }}" -var="key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}"
-      
+
       - name: Save Terraform Outputs as GitHub Secrets
         if: github.event.inputs.action == 'deploy'
         uses: gliech/create-github-secret-action@v1
@@ -123,29 +123,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
           java-version: '11'
           distribution: 'adopt'
-      
+
       - name: Build with Maven
         run: |
           cd app-java
           mvn clean package
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-3
-      
+
       - name: Upload WAR to S3
         run: |
           aws s3 cp app-java/target/yourmedia.war s3://${{ secrets.S3_BUCKET_NAME }}/builds/backend/yourmedia.war
-      
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -178,29 +178,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
-      
+
       - name: Install dependencies
         run: |
           cd app-react
           npm install
-      
+
       - name: Build
         run: |
           cd app-react
           npm run build
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-3
-      
+
       - name: Upload build to S3
         run: |
           aws s3 sync app-react/build s3://${{ secrets.S3_BUCKET_NAME }}/builds/frontend/
@@ -265,16 +265,16 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-  
+
   - job_name: 'ec2-java'
     static_configs:
       - targets: ['ec2-java-tomcat:8080']
     metrics_path: '/actuator/prometheus'
-  
+
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['ec2-java-tomcat:9100']
-  
+
   - job_name: 'cloudwatch-exporter'
     static_configs:
       - targets: ['localhost:9106']
@@ -300,6 +300,33 @@ Grafana est accessible à l'adresse suivante : `http://<MONITORING_EC2_PUBLIC_IP
 
 * **Utilisateur** : admin
 * **Mot de passe** : admin (à changer après la première connexion)
+
+#### Gestion des permissions
+
+Les conteneurs Docker pour Grafana et Prometheus peuvent rencontrer des problèmes de permissions lorsqu'ils tentent d'écrire dans les volumes montés. Ces problèmes se manifestent par :
+
+1. **Pour Prometheus** : Erreur `open /prometheus/queries.active: permission denied`
+2. **Pour Grafana** : Erreur `GF_PATHS_DATA='/var/lib/grafana' is not writable`
+
+Un script de correction des permissions (`fix_permissions.sh`) est automatiquement exécuté lors du provisionnement de l'instance EC2 de monitoring. Ce script :
+
+1. Arrête les conteneurs existants s'ils sont en cours d'exécution
+2. Nettoie les répertoires de données
+3. Corrige les permissions des répertoires :
+   - `/opt/monitoring/prometheus-data` : propriétaire 65534:65534 (utilisateur Prometheus)
+   - `/opt/monitoring/grafana-data` : propriétaire 472:472 (utilisateur Grafana)
+4. Crée un fichier `docker-compose.yml` avec les utilisateurs spécifiés
+5. Redémarre les conteneurs
+
+Si vous rencontrez toujours des problèmes, vous pouvez exécuter manuellement le script de correction des permissions :
+
+```bash
+# Se connecter à l'instance EC2
+ssh ec2-user@<IP_PUBLIQUE_DE_L_INSTANCE>
+
+# Exécuter le script de correction des permissions
+sudo /opt/monitoring/fix_permissions.sh
+```
 
 ### CloudWatch
 
@@ -434,6 +461,32 @@ Le chiffrement est désactivé sur l'instance RDS pour rester dans le Free Tier 
 2. Vérifier que les secrets GitHub sont correctement configurés
 3. Vérifier que le token Terraform Cloud est valide
 4. Vérifier que les identifiants AWS sont valides et ont les permissions nécessaires
+
+#### 5. Problèmes avec les profils IAM persistants
+
+**Symptômes** : Lors de l'exécution de `terraform destroy`, certaines ressources IAM, notamment les profils d'instance IAM, peuvent ne pas être correctement supprimées. Cela provoque des erreurs lors des déploiements ultérieurs :
+
+```
+Error: creating IAM Instance Profile (yourmedia-dev-ec2-profile): operation error IAM: CreateInstanceProfile, https response error StatusCode: 409, RequestID: 29837bb2-e2df-4606-9580-375b7711a933, EntityAlreadyExists: Instance Profile yourmedia-dev-ec2-profile already exists.
+```
+
+**Solutions** :
+
+1. **Configuration des ressources IAM dans Terraform** :
+   - Ajout de `force_detach_policies = true` aux rôles IAM pour forcer le détachement des politiques lors de la suppression
+   - Ajout de `lifecycle { create_before_destroy = true }` aux rôles et profils IAM pour créer de nouvelles ressources avant de supprimer les anciennes
+
+2. **Nettoyage automatique dans le workflow GitHub Actions** :
+   - Le workflow GitHub Actions `1-infra-deploy-destroy.yml` inclut une étape de nettoyage qui s'exécute après `terraform destroy` pour supprimer manuellement les profils IAM persistants
+
+3. **Nettoyage manuel** :
+   ```bash
+   # Détacher le rôle du profil
+   aws iam remove-role-from-instance-profile --instance-profile-name yourmedia-dev-ec2-profile --role-name yourmedia-dev-ec2-role-v2
+
+   # Supprimer le profil
+   aws iam delete-instance-profile --instance-profile-name yourmedia-dev-ec2-profile
+   ```
 
 #### 2. Échec du déploiement du backend
 
