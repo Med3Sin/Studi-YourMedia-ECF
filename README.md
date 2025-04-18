@@ -95,34 +95,36 @@ Avant de commencer, assurez-vous d'avoir :
 │   ├── src/
 │   ├── package.json
 │   └── README.md
+├── docs/                        # Documentation centralisée
+│   ├── APPLICATIONS.md          # Documentation des applications
+│   ├── APPLICATIONS-CORRECTIONS.md # Corrections apportées aux applications
+│   ├── ARCHITECTURE-IMPROVEMENT-PLAN.md # Plan d'amélioration
+│   ├── INFRASTRUCTURE.md        # Documentation de l'infrastructure
+│   ├── MONITORING-SETUP-GUIDE.md # Guide de monitoring
+│   ├── OPERATIONS.md            # Documentation des opérations
+│   └── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets
 ├── infrastructure/              # Code Terraform pour l'infrastructure AWS
 │   ├── main.tf                  # Point d'entrée principal (inclut Amplify)
 │   ├── variables.tf             # Variables Terraform
 │   ├── outputs.tf               # Sorties Terraform (IPs, Endpoints, etc.)
 │   ├── providers.tf             # Configuration du provider AWS
-│   ├── README.md                # Documentation Terraform
 │   └── modules/                 # Modules Terraform réutilisables
 │       ├── network/             # Gestion des Security Groups
-│       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
+│       │   └── ... (main.tf, variables.tf, outputs.tf)
 │       ├── ec2-java-tomcat/     # Instance EC2 + Java/Tomcat
 │       │   ├── scripts/          # Scripts d'initialisation et de configuration
-│       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
+│       │   └── ... (main.tf, variables.tf, outputs.tf)
 │       ├── rds-mysql/           # Base de données RDS MySQL
-│       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
+│       │   └── ... (main.tf, variables.tf, outputs.tf)
 │       ├── s3/                  # Bucket S3
 │       │   ├── files/            # Fichiers à stocker dans le bucket S3
-│       │   └── ... (main.tf, variables.tf, outputs.tf, README.md)
+│       │   └── ... (main.tf, variables.tf, outputs.tf)
 │       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
 │           ├── scripts/          # Scripts pour Prometheus et Grafana
-│           └── ... (main.tf, variables.tf, outputs.tf, README.md)
-
+│           └── ... (main.tf, variables.tf, outputs.tf)
 ├── .gitignore                    # Fichier d'exclusion Git
-├── APPLICATIONS-CORRECTIONS.md    # Corrections apportées aux applications
-├── ARCHITECTURE-IMPROVEMENT-PLAN.md  # Plan d'amélioration de l'architecture
 ├── aws-architecture-project-yourmedia.html  # Schéma d'architecture AWS
-├── MONITORING-SETUP-GUIDE.md      # Guide de configuration du monitoring
-├── README.md                    # Ce fichier - Documentation principale
-└── TERRAFORM-SECRETS-GUIDE.md     # Guide d'utilisation des secrets GitHub avec Terraform
+└── README.md                    # Ce fichier - Documentation principale
 ```
 
 ## Infrastructure (Terraform)
