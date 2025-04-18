@@ -6,18 +6,20 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 
 ## Documentation Centralisée
 
-La documentation complète du projet est maintenant centralisée en trois fichiers principaux classés par thème :
+Toute la documentation du projet est maintenant centralisée dans le dossier `docs/` :
 
-- [INFRASTRUCTURE.md](INFRASTRUCTURE.md) : Documentation complète de l'infrastructure AWS (VPC, EC2, RDS, S3, etc.)
-- [APPLICATIONS.md](APPLICATIONS.md) : Documentation des applications backend (Java) et frontend (React)
-- [OPERATIONS.md](OPERATIONS.md) : Documentation sur le déploiement, le monitoring et la maintenance
+### Documentation principale
 
-Les autres fichiers de documentation spécifiques restent à la racine du projet pour référence :
+- [Infrastructure AWS](docs/INFRASTRUCTURE.md) : Documentation complète de l'infrastructure AWS (VPC, EC2, RDS, S3, etc.)
+- [Applications](docs/APPLICATIONS.md) : Documentation des applications backend (Java) et frontend (React)
+- [Opérations](docs/OPERATIONS.md) : Documentation sur le déploiement, le monitoring et la maintenance
 
-- [TERRAFORM-SECRETS-GUIDE.md](TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
-- [ARCHITECTURE-IMPROVEMENT-PLAN.md](ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
-- [MONITORING-SETUP-GUIDE.md](MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
-- [APPLICATIONS-CORRECTIONS.md](APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
+### Documentation spécifique
+
+- [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
+- [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
+- [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
+- [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
 
 ## Table des Matières
 
@@ -37,12 +39,12 @@ Les autres fichiers de documentation spécifiques restent à la racine du projet
     * [Workflows Disponibles](#workflows-disponibles)
     * [Configuration SSH](#configuration-ssh)
     * [Configuration des Secrets](#configuration-des-secrets)
-9.  [Utilisation des Secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md)
+9.  [Utilisation des Secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md)
 10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
 11. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
 12. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-13. [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md)
+13. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
 14. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
@@ -346,7 +348,7 @@ Les secrets suivants sont créés automatiquement lors de l'exécution du workfl
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 
-Pour plus de détails sur la configuration et l'utilisation des secrets GitHub avec Terraform, consultez le [Guide d'utilisation des secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md).
+Pour plus de détails sur la configuration et l'utilisation des secrets GitHub avec Terraform, consultez le [Guide d'utilisation des secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md).
 
 #### Instructions détaillées pour créer un GH_PAT
 
@@ -388,7 +390,7 @@ Pour plus de détails sur la configuration et l'utilisation des secrets GitHub a
 
 ### Erreurs liées aux variables Terraform
 
-Si vous rencontrez des erreurs du type "Error: No value for required variable" lors de l'exécution de Terraform, cela signifie qu'une variable requise n'a pas été fournie. Consultez le [Guide d'utilisation des secrets GitHub avec Terraform](TERRAFORM-SECRETS-GUIDE.md) pour plus d'informations sur la configuration des variables sensibles.
+Si vous rencontrez des erreurs du type "Error: No value for required variable" lors de l'exécution de Terraform, cela signifie qu'une variable requise n'a pas été fournie. Consultez le [Guide d'utilisation des secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) pour plus d'informations sur la configuration des variables sensibles.
 
 ### Erreurs de déploiement du backend
 
@@ -507,7 +509,7 @@ Un plan détaillé d'amélioration de l'architecture a été élaboré pour opti
 - **Optimisation des coûts** : Mise en place d'une gouvernance des coûts et optimisation de l'infrastructure as code
 - **Amélioration du CI/CD** : Optimisation des workflows GitHub Actions et amélioration de la gestion des environnements
 
-Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](ARCHITECTURE-IMPROVEMENT-PLAN.md).
+Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md).
 
 ## Corrections et Améliorations Récentes
 
