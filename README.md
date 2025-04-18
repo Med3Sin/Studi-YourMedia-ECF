@@ -6,16 +6,13 @@ Ce projet a été conçu pour être simple, utiliser les services gratuits (Free
 
 ## Documentation Centralisée
 
-La documentation complète du projet est maintenant centralisée dans le dossier `documentation/`. Consultez les fichiers suivants pour plus d'informations :
+La documentation complète du projet est maintenant centralisée en trois fichiers principaux classés par thème :
 
-- [README-MAIN.md](documentation/README-MAIN.md) : Documentation principale du projet
-- [README-EC2-JAVA-TOMCAT.md](documentation/README-EC2-JAVA-TOMCAT.md) : Documentation du module EC2 Java/Tomcat
-- [README-EC2-MONITORING.md](documentation/README-EC2-MONITORING.md) : Documentation du module EC2 Monitoring
-- [README-NETWORK.md](documentation/README-NETWORK.md) : Documentation du module Network
-- [README-RDS-MYSQL.md](documentation/README-RDS-MYSQL.md) : Documentation du module RDS MySQL
-- [README-S3.md](documentation/README-S3.md) : Documentation du module S3
+- [INFRASTRUCTURE.md](INFRASTRUCTURE.md) : Documentation complète de l'infrastructure AWS (VPC, EC2, RDS, S3, etc.)
+- [APPLICATIONS.md](APPLICATIONS.md) : Documentation des applications backend (Java) et frontend (React)
+- [OPERATIONS.md](OPERATIONS.md) : Documentation sur le déploiement, le monitoring et la maintenance
 
-Les autres fichiers de documentation spécifiques restent à la racine du projet :
+Les autres fichiers de documentation spécifiques restent à la racine du projet pour référence :
 
 - [TERRAFORM-SECRETS-GUIDE.md](TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
 - [ARCHITECTURE-IMPROVEMENT-PLAN.md](ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
