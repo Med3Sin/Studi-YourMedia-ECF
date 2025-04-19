@@ -488,7 +488,32 @@ La configuration du cycle de vie du bucket S3 a été optimisée pour éviter de
 3. Vérifier que le token Terraform Cloud est valide
 4. Vérifier que les identifiants AWS sont valides et ont les permissions nécessaires
 
-#### 5. Problèmes avec les profils IAM persistants
+#### 5. Problèmes avec les variables dans les templates Terraform
+
+**Symptômes** : Erreur lors de la validation Terraform indiquant qu'une variable référencée dans un template n'existe pas dans la map de variables.
+
+```
+Error: Invalid function argument
+
+Invalid value for "vars" parameter: vars map does not contain key "ec2_java_tomcat_ip", referenced at modules/s3/../ec2-monitoring/scripts/setup.sh.tpl:27,14-32.
+```
+
+**Solutions** :
+
+1. **Ajouter la variable manquante** :
+   - Identifier la variable manquante dans le template
+   - Ajouter cette variable à la map de variables passée à la fonction `templatefile()`
+   - S'assurer que toutes les variables utilisées dans le template sont définies
+
+2. **Utiliser des placeholders** :
+   - Pour les variables qui ne sont pas disponibles dans le module courant, utiliser des placeholders
+   - Remplacer ces placeholders par les valeurs réelles dans le script `user_data`
+
+3. **Utiliser des guillemets simples** :
+   - Dans les commandes `sed`, utiliser des guillemets simples pour éviter l'interprétation des variables shell
+   - Exemple : `sed -i 's/\${variable}/${valeur}/g' fichier.txt`
+
+#### 6. Problèmes avec les profils IAM persistants
 
 **Symptômes** : Lors de l'exécution de `terraform destroy`, certaines ressources IAM, notamment les profils d'instance IAM, peuvent ne pas être correctement supprimées. Cela provoque des erreurs lors des déploiements ultérieurs :
 

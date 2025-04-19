@@ -166,7 +166,7 @@ L'instance est configurée via une approche bootstrap optimisée pour rester sou
    * Met à jour le système et installe l'AWS CLI
    * Configure les clés SSH
    * Télécharge le script principal depuis S3
-   * Remplace les variables dans le script principal
+   * Remplace les variables dans le script principal (placeholders)
    * Exécute le script principal
 
 2. **Script principal `setup.sh`** (stocké dans S3) :
@@ -175,6 +175,11 @@ L'instance est configurée via une approche bootstrap optimisée pour rester sou
    * Télécharge les fichiers de configuration depuis le bucket S3
    * Remplace les variables dans les fichiers de configuration
    * Démarre les conteneurs Docker pour Prometheus et Grafana
+
+3. **Gestion des variables entre modules** :
+   * Utilisation de placeholders (ex: `PLACEHOLDER_IP`) dans les templates
+   * Remplacement des placeholders par les valeurs réelles dans le script `user_data`
+   * Utilisation de guillemets simples dans les commandes `sed` pour éviter l'interprétation des variables shell
 
 #### Rôle IAM
 

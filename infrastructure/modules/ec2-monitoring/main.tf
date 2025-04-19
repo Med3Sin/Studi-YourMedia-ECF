@@ -111,7 +111,10 @@ resource "aws_instance" "monitoring_instance" {
 
     # Remplacer les variables dans le script
     # Utiliser des guillemets simples pour éviter l'interprétation des variables shell
+    # Remplacer les placeholders par les valeurs réelles
     sed -i 's/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g' /opt/monitoring/setup.sh
+    # Remplacer également la variable ec2_java_tomcat_ip pour prometheus.yml
+    sed -i 's/ec2_java_tomcat_ip = "PLACEHOLDER_IP"/ec2_java_tomcat_ip = "${var.ec2_instance_private_ip}"/g' /opt/monitoring/setup.sh
     sed -i 's/PLACEHOLDER_USERNAME/${var.db_username}/g' /opt/monitoring/setup.sh
     sed -i 's/PLACEHOLDER_PASSWORD/${var.db_password}/g' /opt/monitoring/setup.sh
     sed -i 's/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g' /opt/monitoring/setup.sh

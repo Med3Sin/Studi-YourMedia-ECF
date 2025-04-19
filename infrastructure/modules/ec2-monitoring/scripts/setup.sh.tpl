@@ -24,6 +24,7 @@ aws s3 cp s3://${s3_bucket_name}/monitoring/cloudwatch-config.yml /opt/monitorin
 
 # Remplacer les variables dans les fichiers de configuration
 # Utiliser des guillemets simples pour éviter l'interprétation des variables shell
+# Remplacer ec2_java_tomcat_ip par ec2_instance_private_ip dans le fichier prometheus.yml
 sed -i 's/\${ec2_java_tomcat_ip}/${ec2_instance_private_ip}/g' /opt/monitoring/prometheus.yml
 sed -i -e 's/\${db_username}/${db_username}/g' \
        -e 's/\${db_password}/${db_password}/g' \

@@ -177,6 +177,7 @@ resource "aws_s3_object" "setup_sh" {
     # Utiliser des variables qui seront remplacées par le script user_data
     # Les valeurs réelles sont substituées par le script user_data de l'instance EC2
     ec2_instance_private_ip = "PLACEHOLDER_IP",
+    ec2_java_tomcat_ip      = "PLACEHOLDER_IP", # Ajouter cette variable pour prometheus.yml
     db_username             = "PLACEHOLDER_USERNAME",
     db_password             = "PLACEHOLDER_PASSWORD",
     rds_endpoint            = "PLACEHOLDER_ENDPOINT",
