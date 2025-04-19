@@ -127,16 +127,16 @@ resource "aws_instance" "monitoring_instance" {
 $(cat <<'INNEREOF'
 ${file("${path.module}/scripts/prometheus.yml")}
 INNEREOF
-    sed "s/\${ec2_java_tomcat_ip}/${var.ec2_instance_private_ip}/g")
+    sed "s/\$${ec2_java_tomcat_ip}/${var.ec2_instance_private_ip}/g")
 EOL
 
     cat > /opt/monitoring/docker-compose.yml << EOL
 $(cat <<'INNEREOF'
 ${file("${path.module}/scripts/docker-compose.yml")}
 INNEREOF
-    sed -e "s/\${db_username}/${var.db_username}/g" \
-        -e "s/\${db_password}/${var.db_password}/g" \
-        -e "s/\${rds_endpoint}/${var.rds_endpoint}/g")
+    sed -e "s/\$${db_username}/${var.db_username}/g" \
+        -e "s/\$${db_password}/${var.db_password}/g" \
+        -e "s/\$${rds_endpoint}/${var.rds_endpoint}/g")
 EOL
 
     cat > /opt/monitoring/deploy_containers.sh << 'EOL'
@@ -152,9 +152,9 @@ EOL
 $(cat <<'INNEREOF'
 ${file("${path.module}/scripts/cloudwatch-config.yml")}
 INNEREOF
-    sed -e "s/\${aws_region}/${var.aws_region}/g" \
-        -e "s/\${s3_bucket_name}/${var.s3_bucket_name}/g" \
-        -e "s/\${rds_endpoint}/${var.rds_endpoint}/g")
+    sed -e "s/\$${aws_region}/${var.aws_region}/g" \
+        -e "s/\$${s3_bucket_name}/${var.s3_bucket_name}/g" \
+        -e "s/\$${rds_endpoint}/${var.rds_endpoint}/g")
 EOL
 
     # Rendre les scripts exécutables

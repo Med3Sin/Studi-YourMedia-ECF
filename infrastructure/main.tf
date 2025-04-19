@@ -121,9 +121,9 @@ module "network" {
 module "s3" {
   source = "./modules/s3"
 
-  project_name = var.project_name
-  environment  = var.environment
-  aws_region   = var.aws_region # Nécessaire pour la politique de déploiement Amplify
+  project_name            = var.project_name
+  environment             = var.environment
+  aws_region              = var.aws_region                                  # Nécessaire pour la politique de déploiement Amplify
   monitoring_scripts_path = "${path.module}/modules/ec2-monitoring/scripts" # Chemin vers les scripts de monitoring pour éviter la duplication
 }
 
@@ -159,7 +159,7 @@ module "ec2-java-tomcat" {
   subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
-  ssh_public_key        = var.ssh_public_key # Clé SSH publique pour l'accès à l'instance
+  ssh_public_key        = var.ssh_public_key   # Clé SSH publique pour l'accès à l'instance
   # On pourrait passer l'endpoint RDS ici si l'application en a besoin au démarrage
 }
 
@@ -183,16 +183,16 @@ module "ec2-monitoring" {
   ec2_instance_private_ip      = module.ec2-java-tomcat.private_ip # IP privée de l'EC2 pour Prometheus
   monitoring_task_cpu          = var.monitoring_task_cpu
   monitoring_task_memory       = var.monitoring_task_memory
-  monitoring_ami_id            = "ami-0925eac45db11fef2"  # Utilisation de l'AMI Amazon Linux 2 demandée
-  key_pair_name                = var.ec2_key_pair_name    # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
-  ssh_private_key_path         = var.ssh_private_key_path # Chemin vers la clé privée SSH
+  monitoring_ami_id            = "ami-0925eac45db11fef2"     # Utilisation de l'AMI Amazon Linux 2 demandée
+  key_pair_name                = var.ec2_key_pair_name       # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
+  ssh_private_key_path         = var.ssh_private_key_path    # Chemin vers la clé privée SSH
   ssh_private_key_content      = var.ssh_private_key_content # Contenu de la clé privée SSH
-  ssh_public_key               = var.ssh_public_key      # Clé SSH publique pour l'accès à l'instance
-  enable_provisioning          = false                    # Désactiver le provisionnement automatique
+  ssh_public_key               = var.ssh_public_key          # Clé SSH publique pour l'accès à l'instance
+  enable_provisioning          = false                       # Désactiver le provisionnement automatique
   s3_bucket_name               = module.s3.bucket_name
   s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
-  db_username                  = var.db_username         # Nom d'utilisateur RDS pour MySQL Exporter
-  db_password                  = var.db_password         # Mot de passe RDS pour MySQL Exporter
+  db_username                  = var.db_username               # Nom d'utilisateur RDS pour MySQL Exporter
+  db_password                  = var.db_password               # Mot de passe RDS pour MySQL Exporter
   rds_endpoint                 = module.rds-mysql.rds_endpoint # Endpoint RDS pour MySQL Exporter
 }
 

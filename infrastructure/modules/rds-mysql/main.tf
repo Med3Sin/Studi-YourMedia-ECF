@@ -33,7 +33,7 @@ resource "aws_db_instance" "mysql" {
   publicly_accessible    = true
   skip_final_snapshot    = true
   # Spécifier explicitement la zone de disponibilité eu-west-3a pour placer RDS dans la même zone que les EC2
-  availability_zone       = "${var.aws_region}a"
+  availability_zone = "${var.aws_region}a"
   # Pour rester dans le Free Tier AWS
   backup_retention_period = 0
   multi_az                = false
