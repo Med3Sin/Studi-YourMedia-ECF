@@ -23,13 +23,14 @@ aws s3 cp s3://${s3_bucket_name}/monitoring/fix_permissions.sh /opt/monitoring/
 aws s3 cp s3://${s3_bucket_name}/monitoring/cloudwatch-config.yml /opt/monitoring/
 
 # Remplacer les variables dans les fichiers de configuration
-sed -i "s/\${ec2_java_tomcat_ip}/${ec2_instance_private_ip}/g" /opt/monitoring/prometheus.yml
-sed -i -e "s/\${db_username}/${db_username}/g" \
-       -e "s/\${db_password}/${db_password}/g" \
-       -e "s/\${rds_endpoint}/${rds_endpoint}/g" /opt/monitoring/docker-compose.yml
-sed -i -e "s/\${aws_region}/${aws_region}/g" \
-       -e "s/\${s3_bucket_name}/${s3_bucket_name}/g" \
-       -e "s/\${rds_endpoint}/${rds_endpoint}/g" /opt/monitoring/cloudwatch-config.yml
+# Utiliser des guillemets simples pour éviter l'interprétation des variables shell
+sed -i 's/\${ec2_java_tomcat_ip}/${ec2_instance_private_ip}/g' /opt/monitoring/prometheus.yml
+sed -i -e 's/\${db_username}/${db_username}/g' \
+       -e 's/\${db_password}/${db_password}/g' \
+       -e 's/\${rds_endpoint}/${rds_endpoint}/g' /opt/monitoring/docker-compose.yml
+sed -i -e 's/\${aws_region}/${aws_region}/g' \
+       -e 's/\${s3_bucket_name}/${s3_bucket_name}/g' \
+       -e 's/\${rds_endpoint}/${rds_endpoint}/g' /opt/monitoring/cloudwatch-config.yml
 
 # Rendre les scripts exécutables
 chmod +x /opt/monitoring/deploy_containers.sh

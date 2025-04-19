@@ -174,10 +174,13 @@ resource "aws_s3_object" "setup_sh" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "monitoring/setup.sh"
   content = templatefile("${path.module}/../ec2-monitoring/scripts/setup.sh.tpl", {
+    # Utiliser des variables qui seront remplacées par le script user_data
+    # Les valeurs réelles sont substituées par le script user_data de l'instance EC2
     ec2_instance_private_ip = "PLACEHOLDER_IP",
     db_username             = "PLACEHOLDER_USERNAME",
     db_password             = "PLACEHOLDER_PASSWORD",
     rds_endpoint            = "PLACEHOLDER_ENDPOINT",
+    # Ces variables sont disponibles dans le module S3
     aws_region              = var.aws_region,
     s3_bucket_name          = aws_s3_bucket.media_storage.id
   })

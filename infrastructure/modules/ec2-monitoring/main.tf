@@ -110,10 +110,11 @@ resource "aws_instance" "monitoring_instance" {
     aws s3 cp s3://${var.s3_bucket_name}/monitoring/setup.sh /opt/monitoring/setup.sh
 
     # Remplacer les variables dans le script
-    sed -i "s/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g" /opt/monitoring/setup.sh
-    sed -i "s/PLACEHOLDER_USERNAME/${var.db_username}/g" /opt/monitoring/setup.sh
-    sed -i "s/PLACEHOLDER_PASSWORD/${var.db_password}/g" /opt/monitoring/setup.sh
-    sed -i "s/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g" /opt/monitoring/setup.sh
+    # Utiliser des guillemets simples pour éviter l'interprétation des variables shell
+    sed -i 's/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g' /opt/monitoring/setup.sh
+    sed -i 's/PLACEHOLDER_USERNAME/${var.db_username}/g' /opt/monitoring/setup.sh
+    sed -i 's/PLACEHOLDER_PASSWORD/${var.db_password}/g' /opt/monitoring/setup.sh
+    sed -i 's/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g' /opt/monitoring/setup.sh
 
     # Rendre le script exécutable et l'exécuter
     chmod +x /opt/monitoring/setup.sh
