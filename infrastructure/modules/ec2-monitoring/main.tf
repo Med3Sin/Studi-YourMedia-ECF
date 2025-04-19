@@ -72,19 +72,17 @@ resource "aws_instance" "monitoring_instance" {
   iam_instance_profile   = aws_iam_instance_profile.monitoring_profile.name
   key_name               = var.key_pair_name
 
-  # Script d'initialisation qui installe Docker, Docker Compose et configure le monitoring
+  # Script d'initialisation minimal qui télécharge et exécute le script principal depuis S3
   user_data = <<-EOF
     #!/bin/bash
-    # Mise à jour du système et installation de Docker et Docker Compose
+    # Mise à jour du système et installation de l'AWS CLI
     sudo yum update -y
+    sudo yum install -y aws-cli
 
     # Configuration des clés SSH
     echo "--- Configuration des clés SSH ---"
-    # Créer le répertoire .ssh pour ec2-user
     mkdir -p /home/ec2-user/.ssh
     chmod 700 /home/ec2-user/.ssh
-
-    # Créer le fichier authorized_keys s'il n'existe pas
     touch /home/ec2-user/.ssh/authorized_keys
     chmod 600 /home/ec2-user/.ssh/authorized_keys
 
@@ -105,66 +103,21 @@ resource "aws_instance" "monitoring_instance" {
     # Ajuster les permissions
     chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
-    # Installation de Docker
-    sudo amazon-linux-extras install docker -y
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    sudo usermod -a -G docker ec2-user
-    sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    # Créer le répertoire de monitoring
+    mkdir -p /opt/monitoring
 
-    # Installation de l'AWS CLI
-    sudo yum install -y aws-cli
+    # Télécharger le script principal depuis S3
+    aws s3 cp s3://${var.s3_bucket_name}/monitoring/setup.sh /opt/monitoring/setup.sh
 
-    # Création des répertoires pour les volumes
-    sudo mkdir -p /opt/monitoring/prometheus-data
-    sudo mkdir -p /opt/monitoring/grafana-data
-    sudo chown -R ec2-user:ec2-user /opt/monitoring
+    # Remplacer les variables dans le script
+    sed -i "s/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g" /opt/monitoring/setup.sh
+    sed -i "s/PLACEHOLDER_USERNAME/${var.db_username}/g" /opt/monitoring/setup.sh
+    sed -i "s/PLACEHOLDER_PASSWORD/${var.db_password}/g" /opt/monitoring/setup.sh
+    sed -i "s/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g" /opt/monitoring/setup.sh
 
-    # Création des fichiers de configuration avec substitution de variables
-    cat > /opt/monitoring/prometheus.yml << EOL
-$(cat <<'INNEREOF'
-${file("${path.module}/scripts/prometheus.yml")}
-INNEREOF
-    sed "s/\$${ec2_java_tomcat_ip}/${var.ec2_instance_private_ip}/g")
-EOL
-
-    cat > /opt/monitoring/docker-compose.yml << EOL
-$(cat <<'INNEREOF'
-${file("${path.module}/scripts/docker-compose.yml")}
-INNEREOF
-    sed -e "s/\$${db_username}/${var.db_username}/g" \
-        -e "s/\$${db_password}/${var.db_password}/g" \
-        -e "s/\$${rds_endpoint}/${var.rds_endpoint}/g")
-EOL
-
-    cat > /opt/monitoring/deploy_containers.sh << 'EOL'
-${file("${path.module}/scripts/deploy_containers.sh")}
-EOL
-
-    cat > /opt/monitoring/fix_permissions.sh << 'EOL'
-${file("${path.module}/scripts/fix_permissions.sh")}
-EOL
-
-    # Création du fichier de configuration CloudWatch avec substitution de variables
-    cat > /opt/monitoring/cloudwatch-config.yml << EOL
-$(cat <<'INNEREOF'
-${file("${path.module}/scripts/cloudwatch-config.yml")}
-INNEREOF
-    sed -e "s/\$${aws_region}/${var.aws_region}/g" \
-        -e "s/\$${s3_bucket_name}/${var.s3_bucket_name}/g" \
-        -e "s/\$${rds_endpoint}/${var.rds_endpoint}/g")
-EOL
-
-    # Rendre les scripts exécutables
-    chmod +x /opt/monitoring/deploy_containers.sh
-    chmod +x /opt/monitoring/fix_permissions.sh
-
-    # Exécuter les scripts
-    cd /opt/monitoring
-    ./deploy_containers.sh
-    sudo ./fix_permissions.sh
+    # Rendre le script exécutable et l'exécuter
+    chmod +x /opt/monitoring/setup.sh
+    /opt/monitoring/setup.sh
   EOF
 
   tags = {

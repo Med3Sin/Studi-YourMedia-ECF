@@ -450,6 +450,32 @@ Le chiffrement est désactivé sur l'instance RDS pour rester dans le Free Tier 
 
 ## Troubleshooting
 
+### Optimisations pour le Free Tier AWS
+
+Plusieurs optimisations ont été mises en place pour rester dans les limites du Free Tier AWS :
+
+#### 1. Optimisation des scripts user_data
+
+Les scripts d'initialisation des instances EC2 ont été optimisés pour rester sous la limite de 16 Ko imposée par AWS :
+
+- **Approche bootstrap** : Un script minimal est utilisé dans le user_data qui télécharge et exécute un script plus complet depuis S3
+- **Stockage des fichiers de configuration dans S3** : Les fichiers de configuration volumineux sont stockés dans S3 et téléchargés lors de l'initialisation
+- **Substitution de variables** : Les variables sont substituées dans les scripts après leur téléchargement depuis S3
+
+#### 2. Configuration du cycle de vie S3
+
+La configuration du cycle de vie du bucket S3 a été optimisée pour éviter des coûts inutiles :
+
+- **Dépendances explicites** : Des dépendances explicites ont été ajoutées pour s'assurer que le bucket est créé avant la configuration du cycle de vie
+- **Règles de nettoyage automatique** : Des règles de cycle de vie sont configurées pour nettoyer automatiquement les anciens objets
+
+#### 3. Autres optimisations Free Tier
+
+- **Instances t2.micro/t3.micro** : Utilisation d'instances éligibles au Free Tier
+- **RDS Single-AZ** : Configuration mono-AZ pour RDS
+- **Placement des ressources** : Toutes les ressources qui communiquent fréquemment sont placées dans la même zone de disponibilité
+- **Conteneurs Docker sur EC2** : Alternative économique à ECS Fargate
+
 ### Problèmes courants
 
 #### 1. Échec du déploiement de l'infrastructure

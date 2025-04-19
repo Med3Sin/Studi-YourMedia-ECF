@@ -56,6 +56,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media_storage_enc
 resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   bucket = aws_s3_bucket.media_storage.id
 
+  # Ajouter une dépendance explicite pour s'assurer que le bucket est créé avant la configuration du cycle de vie
+  depends_on = [aws_s3_bucket.media_storage, aws_s3_bucket_versioning.media_storage_versioning]
+
   # Règle pour les builds temporaires
   rule {
     id     = "cleanup-old-builds"
@@ -164,6 +167,20 @@ resource "aws_s3_object" "cloudwatch_config_yml" {
   key    = "monitoring/cloudwatch-config.yml"
   source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/cloudwatch-config.yml" : "${path.module}/files/cloudwatch-config.yml"
   etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/cloudwatch-config.yml") : filemd5("${path.module}/files/cloudwatch-config.yml")
+}
+
+# Téléchargement du script d'installation principal
+resource "aws_s3_object" "setup_sh" {
+  bucket  = aws_s3_bucket.media_storage.id
+  key     = "monitoring/setup.sh"
+  content = templatefile("${path.module}/../ec2-monitoring/scripts/setup.sh.tpl", {
+    ec2_instance_private_ip = "PLACEHOLDER_IP",
+    db_username             = "PLACEHOLDER_USERNAME",
+    db_password             = "PLACEHOLDER_PASSWORD",
+    rds_endpoint            = "PLACEHOLDER_ENDPOINT",
+    aws_region              = var.aws_region,
+    s3_bucket_name          = aws_s3_bucket.media_storage.id
+  })
 }
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration

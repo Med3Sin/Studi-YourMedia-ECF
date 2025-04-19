@@ -160,12 +160,21 @@ Cette instance EC2 héberge Prometheus et Grafana dans des conteneurs Docker pou
 
 #### Configuration
 
-L'instance est configurée via un script `user_data` qui :
-1. Met à jour le système
-2. Installe Docker et Docker Compose
-3. Crée les répertoires pour les données Prometheus et Grafana
-4. Télécharge les fichiers de configuration depuis le bucket S3
-5. Démarre les conteneurs Docker pour Prometheus et Grafana
+L'instance est configurée via une approche bootstrap optimisée pour rester sous la limite de 16 Ko du script `user_data` :
+
+1. **Script minimal `user_data`** :
+   * Met à jour le système et installe l'AWS CLI
+   * Configure les clés SSH
+   * Télécharge le script principal depuis S3
+   * Remplace les variables dans le script principal
+   * Exécute le script principal
+
+2. **Script principal `setup.sh`** (stocké dans S3) :
+   * Installe Docker et Docker Compose
+   * Crée les répertoires pour les données Prometheus et Grafana
+   * Télécharge les fichiers de configuration depuis le bucket S3
+   * Remplace les variables dans les fichiers de configuration
+   * Démarre les conteneurs Docker pour Prometheus et Grafana
 
 #### Rôle IAM
 
@@ -204,6 +213,9 @@ L'instance dispose d'un rôle IAM avec les permissions suivantes :
 * **Chiffrement** : SSE-S3 (AES-256)
 * **Accès public** : Bloqué
 * **Règles de cycle de vie** : Configurées pour nettoyer automatiquement les anciens fichiers
+  * **Dépendances explicites** : Configuration optimisée avec `depends_on` pour éviter les erreurs de déploiement
+  * **Règle pour les builds** : Expiration après 30 jours, versions précédentes après 7 jours
+  * **Règle pour les WAR** : Expiration après 60 jours, versions précédentes après 14 jours
 
 ### Utilisation
 
