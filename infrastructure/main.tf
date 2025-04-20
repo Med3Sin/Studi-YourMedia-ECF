@@ -217,12 +217,12 @@ module "ec2-monitoring" {
   db_username                  = var.db_username                                # Nom d'utilisateur RDS pour MySQL Exporter
   db_password                  = var.db_password                                # Mot de passe RDS pour MySQL Exporter
   rds_endpoint                 = module.rds-mysql.rds_endpoint                  # Endpoint RDS pour MySQL Exporter
-  sonar_jdbc_username     = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"     # Nom d'utilisateur pour la base de données SonarQube
-  sonar_jdbc_password     = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"    # Mot de passe pour la base de données SonarQube
-  sonar_jdbc_url          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar" # URL de connexion à la base de données SonarQube
-  grafana_admin_password  = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password # Mot de passe administrateur Grafana
-  tf_api_token            = var.tf_api_token                                                                                # Token d'API Terraform Cloud
-  tf_workspace_id         = var.tf_workspace_id                                                                             # ID de l'espace de travail Terraform Cloud
+  sonar_jdbc_username    = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
+  sonar_jdbc_password    = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
+  sonar_jdbc_url         = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
+  grafana_admin_password = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
+  tf_api_token           = var.tf_api_token
+  tf_workspace_id        = var.tf_workspace_id
 }
 
 # -----------------------------------------------------------------------------
