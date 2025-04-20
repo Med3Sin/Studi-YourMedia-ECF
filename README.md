@@ -267,12 +267,7 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Paramètres: Dépôt Docker Hub, motif de tag, mode simulation
     -   Processus: Suppression des images Docker Hub selon le motif spécifié
     -   Paramètres requis: Identifiants Docker Hub (récupérés des secrets GitHub)
--   **`6-retrieve-secrets.yml`:** Récupère les secrets depuis Terraform Cloud.
-    -   Déclenchement: Manuel (`workflow_dispatch`)
-    -   Paramètres: Nom du secret, afficher la valeur
-    -   Processus: Récupération des secrets depuis Terraform Cloud
-    -   Paramètres requis: Token d'API Terraform Cloud, ID de l'espace de travail (récupérés des secrets GitHub)
-    -   Sécurité: Limité aux administrateurs du projet
+
 
 ### Configuration SSH
 

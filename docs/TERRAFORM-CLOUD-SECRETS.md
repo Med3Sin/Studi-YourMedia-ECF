@@ -28,51 +28,21 @@ Les secrets suivants sont générés automatiquement et stockés dans Terraform 
 
 ## Comment accéder aux secrets
 
-### Option 1 : Interface web Terraform Cloud
+### Interface web Terraform Cloud (Accès sécurisé)
+
+Pour des raisons de sécurité, les secrets ne sont accessibles que via l'interface web de Terraform Cloud :
 
 1. Connectez-vous à [Terraform Cloud](https://app.terraform.io/)
 2. Accédez à votre organisation et à l'espace de travail du projet
 3. Allez dans l'onglet "Variables"
 4. Les variables sensibles seront masquées, mais vous pouvez cliquer sur "Reveal" pour voir leur valeur
 
-### Option 2 : Workflow GitHub Actions
+### Sécurité renforcée
 
-Un workflow GitHub Actions a été créé pour récupérer les secrets depuis Terraform Cloud :
-
-1. Accédez à l'onglet "Actions" de votre dépôt GitHub
-2. Sélectionnez le workflow "6 - Retrieve Secrets from Terraform Cloud"
-3. Cliquez sur "Run workflow"
-4. Entrez le nom du secret à récupérer (ex: `sonar_jdbc_password`)
-5. Choisissez si vous souhaitez afficher la valeur du secret (attention : la valeur sera visible dans les logs)
-6. Cliquez sur "Run workflow"
-
-### Option 3 : Script en ligne de commande
-
-Un script a été créé pour récupérer les secrets depuis Terraform Cloud en ligne de commande :
-
-```bash
-./scripts/retrieve-terraform-secrets.sh <TF_API_TOKEN> <TF_WORKSPACE_ID> <SECRET_NAME> [SHOW_VALUE]
-```
-
-Exemple :
-```bash
-./scripts/retrieve-terraform-secrets.sh "your_api_token" "ws-xxxxxxxx" "sonar_jdbc_password" true
-```
-
-## Workflow de récupération des secrets
-
-Le workflow "6 - Retrieve Secrets from Terraform Cloud" permet de récupérer les secrets stockés dans Terraform Cloud. Ce workflow est réservé aux administrateurs du projet.
-
-### Paramètres du workflow
-
-- **Secret Name** : Nom du secret à récupérer
-- **Show Value** : Afficher la valeur du secret (attention : la valeur sera visible dans les logs)
-
-### Sécurité du workflow
-
-- Le workflow est limité aux administrateurs du projet (utilisateur GitHub : `Med3Sin`)
-- Les valeurs sensibles sont masquées par défaut
-- Un avertissement est affiché si la valeur du secret est affichée
+- L'accès aux secrets est limité aux utilisateurs ayant accès à Terraform Cloud
+- Les secrets ne sont jamais exposés dans les logs ou les sorties de workflow
+- L'authentification multi-facteurs (MFA) de Terraform Cloud ajoute une couche de sécurité supplémentaire
+- Toutes les consultations de secrets sont journalisées dans les logs d'audit de Terraform Cloud
 
 ## Bonnes pratiques
 

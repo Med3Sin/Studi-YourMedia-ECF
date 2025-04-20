@@ -128,3 +128,19 @@ export SECRET_VALUE=${{ secrets.SECRET_VALUE }}
 6. **Vérifier régulièrement les logs** pour s'assurer qu'aucun secret n'est exposé
 7. **Utiliser des variables d'environnement** pour passer les secrets aux applications
 8. **Éviter de passer des secrets en ligne de commande** car ils pourraient apparaître dans l'historique des commandes
+9. **Consulter les secrets uniquement via Terraform Cloud** pour une sécurité renforcée
+10. **Utiliser l'authentification multi-facteurs (MFA)** pour accéder à Terraform Cloud
+
+## Sécurisation de la base de données
+
+Pour sécuriser la base de données MySQL, un script a été créé pour révoquer les privilèges de l'utilisateur root et créer un utilisateur dédié pour l'application :
+
+```bash
+./scripts/secure-database.sh [DB_HOST] [DB_PORT] [DB_ROOT_USER] [DB_ROOT_PASSWORD] [NEW_DB_USER] [NEW_DB_PASSWORD]
+```
+
+Ce script :
+1. Révoque les privilèges de l'utilisateur root sur la base de données yourmedia
+2. Crée un utilisateur dédié avec des privilèges limités
+3. Génère un mot de passe fort si aucun n'est fourni
+4. Met à jour les secrets dans GitHub Actions et Terraform Cloud (si les variables d'environnement nécessaires sont définies)
