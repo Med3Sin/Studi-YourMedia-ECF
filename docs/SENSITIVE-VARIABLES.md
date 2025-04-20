@@ -143,4 +143,5 @@ Ce script :
 1. Révoque les privilèges de l'utilisateur root sur la base de données yourmedia
 2. Crée un utilisateur dédié avec des privilèges limités
 3. Génère un mot de passe fort si aucun n'est fourni
-4. Met à jour les secrets dans GitHub Actions et Terraform Cloud (si les variables d'environnement nécessaires sont définies)
+4. Met à jour les secrets dans Terraform Cloud (si les variables d'environnement nécessaires sont définies)
+5. Affiche des instructions pour mettre à jour manuellement les secrets dans GitHub Actions
