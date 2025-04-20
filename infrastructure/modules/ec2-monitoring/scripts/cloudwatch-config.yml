@@ -31,16 +31,6 @@ metrics:
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
 
-  # Amplify Metrics
-  - aws_namespace: AWS/AmplifyHosting
-    aws_metric_name: Requests
-    aws_dimensions: [App]
-    aws_statistics: [Sum]
-
-  - aws_namespace: AWS/AmplifyHosting
-    aws_metric_name: BytesDownloaded
-    aws_dimensions: [App]
-    aws_statistics: [Sum]
 
   # EC2 Metrics
   - aws_namespace: AWS/EC2

@@ -457,7 +457,7 @@ resource "null_resource" "provision_monitoring" {
 
   # Copie du fichier prometheus.yml
   provisioner "file" {
-    source      = "${path.module}/scripts/prometheus.yml"
+    source      = "${path.module}/docker/prometheus/prometheus.yml"
     destination = "/tmp/prometheus.yml"
 
     connection {

@@ -117,8 +117,8 @@ resource "aws_s3_object" "docker_compose_yml" {
 resource "aws_s3_object" "prometheus_yml" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/prometheus.yml"
-  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/prometheus.yml" : "${path.module}/files/prometheus.yml"
-  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/prometheus.yml") : filemd5("${path.module}/files/prometheus.yml")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/../docker/prometheus/prometheus.yml" : "${path.module}/../ec2-monitoring/docker/prometheus/prometheus.yml"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/../docker/prometheus/prometheus.yml") : filemd5("${path.module}/../ec2-monitoring/docker/prometheus/prometheus.yml")
 }
 
 resource "aws_s3_object" "docker_manager_sh" {

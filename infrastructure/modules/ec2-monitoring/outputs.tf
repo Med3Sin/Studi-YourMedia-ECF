@@ -44,14 +44,14 @@ Le provisionnement automatique est désactivé. Pour configurer manuellement l'i
 
 3. Copiez les fichiers de configuration depuis votre machine locale :
    - scp ${path.module}/scripts/docker-compose.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
-   - scp ${path.module}/scripts/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
-   - scp ${path.module}/scripts/deploy_containers.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/docker/prometheus/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/../../scripts/docker-manager.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
    - scp ${path.module}/scripts/fix_permissions.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
 
 4. Démarrez les conteneurs :
    - cd /opt/monitoring
-   - chmod +x deploy_containers.sh fix_permissions.sh
-   - ./deploy_containers.sh
+   - chmod +x docker-manager.sh fix_permissions.sh
+   - ./docker-manager.sh deploy monitoring
    - sudo ./fix_permissions.sh
 EOT
 }
