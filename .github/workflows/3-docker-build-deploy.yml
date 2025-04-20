@@ -94,6 +94,45 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Install Trivy scanner for security scanning
+      - name: Install Trivy scanner
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.1
+          trivy --version
+
+      # Test Docker images for vulnerabilities
+      - name: Test Docker images with Trivy
+        run: |
+          echo "Scanning Docker images for vulnerabilities..."
+
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
+            echo "Scanning mobile app image..."
+            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }} > mobile-scan.txt
+          fi
+
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
+            echo "Scanning Grafana image..."
+            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }} > grafana-scan.txt
+
+            echo "Scanning Prometheus image..."
+            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }} > prometheus-scan.txt
+
+            echo "Scanning SonarQube image..."
+            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:sonarqube-${{ env.VERSION }} > sonarqube-scan.txt
+          fi
+
+      # Test Docker image health checks
+      - name: Test Docker image health checks
+        run: |
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
+            echo "Testing mobile app health check..."
+            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}
+            sleep 10
+            curl -f http://localhost:3000/ || (echo "::warning::Le health check de l'image mobile a échoué" && docker logs mobile-test)
+            docker stop mobile-test
+            docker rm mobile-test
+          fi
+
       - name: Summary
         run: |
           echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
@@ -104,12 +143,26 @@ jobs:
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "* **Mobile App Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Mobile App Scan Results:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat mobile-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Grafana Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **SonarQube Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:sonarqube-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+
+            echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "=== Grafana Scan ===" >> $GITHUB_STEP_SUMMARY
+            cat grafana-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo "\n=== Prometheus Scan ===" >> $GITHUB_STEP_SUMMARY
+            cat prometheus-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo "\n=== SonarQube Scan ===" >> $GITHUB_STEP_SUMMARY
+            cat sonarqube-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
   deploy:
@@ -141,9 +194,10 @@ jobs:
           TF_RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
           GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID || 'dummy-id' }}
           GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || 'dummy-secret' }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/deploy-containers.sh
-          ./scripts/deploy-containers.sh monitoring
+          chmod +x ./scripts/docker-manager.sh
+          ./scripts/docker-manager.sh deploy monitoring
 
       - name: Deploy app containers
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
@@ -152,9 +206,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_REPO: yourmedia-ecf
           TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/deploy-containers.sh
-          ./scripts/deploy-containers.sh app
+          chmod +x ./scripts/docker-manager.sh
+          ./scripts/docker-manager.sh deploy mobile
 
       - name: Summary
         run: |

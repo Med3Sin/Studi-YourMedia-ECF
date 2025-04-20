@@ -66,3 +66,4 @@ logs/
 # Other
 *.local
 Errors.txt
+diagrams/

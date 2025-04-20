@@ -189,14 +189,20 @@ sed -i "s/SONAR_DB_USER/${sonar_jdbc_username}/g" /opt/monitoring/docker-compose
 sed -i "s/SONAR_DB_PASSWORD/${sonar_jdbc_password}/g" /opt/monitoring/docker-compose.yml
 sed -i "s|SONAR_JDBC_URL|${sonar_jdbc_url}|g" /opt/monitoring/docker-compose.yml
 
-# Démarrage des conteneurs
-log "Démarrage des conteneurs..."
-cd /opt/monitoring
-docker-compose up -d
+# Démarrage des conteneurs avec docker-manager.sh
+log "Démarrage des conteneurs avec docker-manager.sh..."
+if [ -f "/tmp/docker-manager.sh" ]; then
+    chmod +x /tmp/docker-manager.sh
+    /tmp/docker-manager.sh deploy monitoring
+else
+    log "Le script docker-manager.sh n'est pas disponible. Utilisation de docker-compose..."
+    cd /opt/monitoring
+    docker-compose up -d
+fi
 
 # Vérification du statut des conteneurs
 log "Vérification du statut des conteneurs..."
-docker-compose ps
+docker ps
 
 log "Installation et configuration terminées avec succès."
 log "Grafana est accessible à l'adresse http://localhost:3001"

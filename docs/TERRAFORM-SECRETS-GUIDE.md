@@ -2,6 +2,8 @@
 
 Ce document explique comment configurer et utiliser les secrets GitHub et Terraform Cloud pour les variables sensibles dans le projet YourMédia.
 
+> **Note** : Ce document remplace les anciens documents `TERRAFORM-CLOUD-SECRETS.md` et `TERRAFORM-SECRETS-GUIDE.md` qui ont été fusionnés pour centraliser toutes les informations sur la gestion des secrets dans Terraform Cloud.
+
 ## Problématique
 
 Lors de l'exécution de Terraform via GitHub Actions, certaines variables sensibles (comme les identifiants de base de données, les tokens API, etc.) ne doivent pas être stockées en clair dans le code. Ces variables doivent être fournies de manière sécurisée via les secrets GitHub.
@@ -63,15 +65,29 @@ Le workflow d'infrastructure a été mis à jour pour utiliser automatiquement l
 
 Certains secrets sont créés automatiquement par le workflow d'infrastructure lors de l'exécution de `terraform apply` :
 
+### Secrets GitHub
+
 | Nom du secret | Description | Date d'expiration | Environnement |
 |---------------|-------------|------------------|---------------|
 | `TF_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 hébergeant le backend | 12 avril 2025 | dev, pre-prod, prod |
+| `TF_MONITORING_EC2_PUBLIC_IP` | Adresse IP publique de l'instance EC2 de monitoring | 12 avril 2025 | dev, pre-prod, prod |
 | `TF_S3_BUCKET_NAME` | Nom du bucket S3 pour le stockage des médias et des builds | 12 avril 2025 | dev, pre-prod, prod |
 | `TF_GRAFANA_URL` | URL d'accès à l'interface Grafana | 12 avril 2025 | dev, pre-prod, prod |
 | `TF_RDS_ENDPOINT` | Point de terminaison de la base de données RDS | 12 avril 2025 | dev, pre-prod, prod |
-| `TF_AMPLIFY_APP_URL` | URL de l'application déployée sur AWS Amplify | 12 avril 2025 | dev, pre-prod, prod |
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
+
+### Secrets Terraform Cloud
+
+Les secrets suivants sont générés automatiquement et stockés dans Terraform Cloud :
+
+| Nom du secret | Description | Généré par |
+|--------------|-------------|------------|
+| `sonar_jdbc_username` | Nom d'utilisateur pour la base de données SonarQube | Module `secrets_management` |
+| `sonar_jdbc_password` | Mot de passe pour la base de données SonarQube | Module `secrets_management` |
+| `sonar_jdbc_url` | URL de connexion à la base de données SonarQube | Module `secrets_management` |
+| `grafana_admin_password` | Mot de passe administrateur Grafana | Module `secrets_management` |
+| `sonar_token` | Token d'accès à l'API SonarQube | Script `generate_sonar_token.sh` |
 
 ## Résolution des problèmes courants
 
@@ -165,6 +181,24 @@ Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particular
 - **Flexibilité** : Possibilité de déployer plusieurs environnements sans créer de nouveaux workspaces
 - **Traçabilité** : Terraform Cloud conserve un historique des exécutions
 
+## Comment accéder aux secrets
+
+### Interface web Terraform Cloud (Accès sécurisé)
+
+Pour des raisons de sécurité, les secrets ne sont accessibles que via l'interface web de Terraform Cloud :
+
+1. Connectez-vous à [Terraform Cloud](https://app.terraform.io/)
+2. Accédez à votre organisation et à l'espace de travail du projet
+3. Allez dans l'onglet "Variables"
+4. Les variables sensibles seront masquées, mais vous pouvez cliquer sur "Reveal" pour voir leur valeur
+
+### Sécurité renforcée
+
+- L'accès aux secrets est limité aux utilisateurs ayant accès à Terraform Cloud
+- Les secrets ne sont jamais exposés dans les logs ou les sorties de workflow
+- L'authentification multi-facteurs (MFA) de Terraform Cloud ajoute une couche de sécurité supplémentaire
+- Toutes les consultations de secrets sont journalisées dans les logs d'audit de Terraform Cloud
+
 ## Bonnes pratiques
 
 1. **Rotation régulière des secrets** : Changez régulièrement vos secrets, en particulier les clés d'accès AWS et les mots de passe.
@@ -172,3 +206,10 @@ Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particular
 3. **Ne jamais exposer les secrets** : Ne jamais afficher les secrets dans les logs ou les outputs des workflows.
 4. **Vérification des workflows** : Avant de fusionner des modifications dans les workflows, vérifiez qu'elles ne compromettent pas la sécurité des secrets.
 5. **Utilisation des préfixes standardisés** : Tous les secrets générés par Terraform sont préfixés par `TF_` pour une meilleure organisation.
+6. **Ne jamais stocker de secrets en clair** dans le code source, les fichiers de configuration ou les logs
+7. **Utiliser des secrets spécifiques** pour chaque service ou application
+8. **Limiter l'accès aux secrets** aux personnes qui en ont besoin
+9. **Utiliser des secrets temporaires** lorsque c'est possible
+10. **Vérifier régulièrement les logs** pour s'assurer qu'aucun secret n'est exposé
+11. **Utiliser des variables d'environnement** pour passer les secrets aux applications
+12. **Éviter de passer des secrets en ligne de commande** car ils pourraient apparaître dans l'historique des commandes

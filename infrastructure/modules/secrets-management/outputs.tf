@@ -17,6 +17,27 @@ output "sensitive_values_message" {
   description = "Message d'information sur les valeurs sensibles"
 }
 
+# Informations sur la rotation des secrets
+output "secret_rotation_info" {
+  value = {
+    rotation_enabled = true
+    rotation_days    = var.secret_rotation_days
+    next_rotation    = timeadd(time_rotating.secret_rotation.id, "${var.secret_rotation_days * 24}h")
+    last_rotation    = time_rotating.secret_rotation.id
+  }
+  description = "Informations sur la rotation automatique des secrets"
+}
+
+# Informations sur les notifications
+output "notification_info" {
+  value = {
+    notifications_enabled = var.enable_rotation_notifications
+    notification_email   = var.notification_email != "" ? var.notification_email : "Non configuré"
+    sns_topic_arn        = var.enable_rotation_notifications ? try(aws_sns_topic.secret_rotation_notification[0].arn, "Non créé") : "Désactivé"
+  }
+  description = "Informations sur les notifications de rotation des secrets"
+}
+
 # Exporter les valeurs sensibles masquées pour référence
 output "sonar_jdbc_password" {
   value       = sensitive(random_password.sonar_jdbc_password.result)

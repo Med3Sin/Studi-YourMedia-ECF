@@ -16,17 +16,16 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 
 ### Documentation spécifique
 
-- [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
+- [Architecture détaillée](docs/ARCHITECTURE.md) : Description détaillée de l'architecture technique
+- [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
-- [Guide des secrets Terraform Cloud](docs/TERRAFORM-CLOUD-SECRETS.md) : Guide de gestion des secrets dans Terraform Cloud
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
-- [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
 - [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
-- [Guide des conteneurs Docker](docs/DOCKER-CONTAINERS.md) : Guide d'utilisation des conteneurs Docker
+- [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
 - [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
-- [Migration Amplify vers Docker](docs/MIGRATION-AMPLIFY-TO-DOCKER.md) : Migration du frontend vers des conteneurs Docker
 - [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
+- [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
 
 ## Table des Matières
 
@@ -106,18 +105,16 @@ Avant de commencer, assurez-vous d'avoir :
 │   └── README.md
 ├── docs/                        # Documentation centralisée
 │   ├── APPLICATIONS.md          # Documentation des applications
-│   ├── APPLICATIONS-CORRECTIONS.md # Corrections apportées aux applications
 │   ├── ARCHITECTURE-IMPROVEMENT-PLAN.md # Plan d'amélioration
 │   ├── CLEANUP-GUIDE.md         # Guide de nettoyage complet
-│   ├── DOCKER-CONTAINERS.md     # Guide d'utilisation des conteneurs Docker
+│   ├── DOCKER-MANAGEMENT.md     # Guide d'utilisation des conteneurs Docker
 │   ├── INFRASTRUCTURE.md        # Documentation de l'infrastructure
-│   ├── MIGRATION-AMPLIFY-TO-DOCKER.md # Migration du frontend vers Docker
 │   ├── MONITORING-SETUP-GUIDE.md # Guide de monitoring
 │   ├── OPERATIONS.md            # Documentation des opérations
 │   ├── SENSITIVE-VARIABLES.md   # Guide de gestion des variables sensibles
 │   ├── SONARQUBE-SETUP.md       # Guide de configuration de SonarQube
-│   ├── TERRAFORM-CLOUD-SECRETS.md # Guide de gestion des secrets dans Terraform Cloud
-│   ├── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets GitHub avec Terraform
+│   ├── SSH-KEYS-MANAGEMENT.md   # Guide de gestion des clés SSH
+│   ├── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets GitHub avec Terraform Cloud
 │   └── TROUBLESHOOTING.md       # Solutions aux problèmes courants
 ├── infrastructure/              # Code Terraform pour l'infrastructure AWS
 │   ├── main.tf                  # Point d'entrée principal
@@ -141,7 +138,9 @@ Avant de commencer, assurez-vous d'avoir :
 │           ├── scripts/          # Scripts pour Prometheus, Grafana, SonarQube et React Native
 │           └── ... (main.tf, variables.tf, outputs.tf)
 ├── scripts/                     # Scripts utilitaires
-│   ├── deploy-containers.sh     # Script de déploiement des conteneurs Docker
+│   ├── docker-manager.sh        # Script de gestion des conteneurs Docker (construction, publication, déploiement)
+│   ├── cleanup-containers.sh    # Script de nettoyage des conteneurs Docker
+│   ├── backup-restore-containers.sh # Script de sauvegarde et restauration des conteneurs Docker
 │   ├── secure-database.sh       # Script de sécurisation de la base de données
 │   └── secure-database.sql      # Script SQL pour sécuriser la base de données
 ├── .gitignore                   # Fichier d'exclusion Git
@@ -227,7 +226,7 @@ Les fichiers de configuration pour le monitoring sont définis dans le répertoi
 -   `docker-compose.yml` : Configuration des conteneurs Docker pour Prometheus, Grafana, et les exportateurs
 -   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
 -   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter pour collecter les métriques AWS
--   `deploy_containers.sh` : Script pour déployer les conteneurs Docker
+-   `docker-manager.sh` : Script pour gérer les conteneurs Docker (construction, publication, déploiement)
 -   `fix_permissions.sh` : Script pour corriger les permissions des volumes
 
 Ces fichiers sont utilisés de deux façons :

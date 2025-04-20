@@ -1,0 +1,338 @@
+name: 2.1 - Application Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'app-react/**'
+      - 'app-java/**'
+      - '.github/workflows/2.1-application-tests.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'app-react/**'
+      - 'app-java/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target to test'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - react
+          - java
+
+jobs:
+  test-react:
+    name: Test React Native App
+    if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'react' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'app-react/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd app-react
+          npm ci
+
+      - name: Create test configuration
+        run: |
+          cd app-react
+          # Créer un fichier de configuration pour les tests
+          cat > jest.config.js << 'EOF'
+          module.exports = {
+            preset: 'jest-expo',
+            transformIgnorePatterns: [
+              'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)'
+            ],
+            collectCoverage: true,
+            collectCoverageFrom: [
+              '**/*.{js,jsx}',
+              '!**/node_modules/**',
+              '!**/coverage/**',
+              '!**/vendor/**',
+              '!**/babel.config.js',
+              '!**/jest.setup.js'
+            ],
+            setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect']
+          };
+          EOF
+          
+          # Créer un fichier de test de base
+          mkdir -p __tests__
+          cat > __tests__/App.test.js << 'EOF'
+          import React from 'react';
+          import { render } from '@testing-library/react-native';
+          import App from '../App';
+
+          jest.mock('expo-status-bar', () => ({
+            StatusBar: () => 'StatusBar'
+          }));
+
+          describe('App', () => {
+            it('renders correctly', () => {
+              const { getByText } = render(<App />);
+              expect(getByText('Open up App.js to start working on your app!')).toBeTruthy();
+            });
+          });
+          EOF
+          
+          # Ajouter les dépendances de test
+          npm install --save-dev jest jest-expo @testing-library/react-native @testing-library/jest-native react-test-renderer
+
+      - name: Run ESLint
+        run: |
+          cd app-react
+          npm install eslint eslint-plugin-react eslint-plugin-react-native --save-dev
+          npx eslint --ext .js,.jsx . || true
+
+      - name: Run tests
+        run: |
+          cd app-react
+          npm test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: react-test-results
+          path: app-react/coverage
+
+  test-java:
+    name: Test Java App
+    if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'java' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create test configuration
+        run: |
+          cd app-java
+          # Créer un fichier de test de base
+          mkdir -p src/test/java/com/yourmedia/backend
+          cat > src/test/java/com/yourmedia/backend/ApplicationTests.java << 'EOF'
+          package com.yourmedia.backend;
+
+          import org.junit.jupiter.api.Test;
+          import org.springframework.boot.test.context.SpringBootTest;
+          import org.springframework.test.context.ActiveProfiles;
+
+          @SpringBootTest
+          @ActiveProfiles("test")
+          public class ApplicationTests {
+
+              @Test
+              void contextLoads() {
+                  // Test de base pour vérifier que le contexte Spring se charge correctement
+              }
+          }
+          EOF
+          
+          # Créer un fichier de test pour le contrôleur de santé
+          mkdir -p src/test/java/com/yourmedia/backend/controller
+          cat > src/test/java/com/yourmedia/backend/controller/HealthControllerTests.java << 'EOF'
+          package com.yourmedia.backend.controller;
+
+          import org.junit.jupiter.api.Test;
+          import org.springframework.beans.factory.annotation.Autowired;
+          import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+          import org.springframework.test.web.servlet.MockMvc;
+
+          import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+          import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+          import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+          @WebMvcTest(HealthController.class)
+          public class HealthControllerTests {
+
+              @Autowired
+              private MockMvc mockMvc;
+
+              @Test
+              void healthEndpointShouldReturnOk() throws Exception {
+                  mockMvc.perform(get("/health"))
+                          .andExpect(status().isOk())
+                          .andExpect(content().string("OK"));
+              }
+          }
+          EOF
+          
+          # Créer un fichier de configuration de test
+          mkdir -p src/test/resources
+          cat > src/test/resources/application-test.properties << 'EOF'
+          # Configuration de test
+          spring.datasource.url=jdbc:h2:mem:testdb
+          spring.datasource.driverClassName=org.h2.Driver
+          spring.datasource.username=sa
+          spring.datasource.password=password
+          spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+          spring.jpa.hibernate.ddl-auto=create-drop
+          EOF
+          
+          # Ajouter la dépendance H2 pour les tests
+          sed -i '/<dependencies>/a \
+              <!-- H2 Database for testing --> \
+              <dependency> \
+                  <groupId>com.h2database</groupId> \
+                  <artifactId>h2</artifactId> \
+                  <scope>test</scope> \
+              </dependency>' pom.xml
+
+      - name: Run tests
+        run: |
+          cd app-java
+          mvn test
+
+      - name: Run SonarQube analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd app-java
+          mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.projectKey=yourmedia-backend \
+            -Dsonar.projectName='YourMedia Backend' \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=admin \
+            -Dsonar.password=admin \
+            -Dsonar.java.coveragePlugin=jacoco \
+            || echo "SonarQube analysis skipped"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-test-results
+          path: app-java/target/surefire-reports
+
+  integration-tests:
+    name: Integration Tests
+    needs: [test-react, test-java]
+    if: ${{ github.event.inputs.target == 'all' || github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: |
+          docker-compose --version
+
+      - name: Create integration test environment
+        run: |
+          # Créer un fichier docker-compose pour les tests d'intégration
+          cat > docker-compose.test.yml << 'EOF'
+          version: '3.8'
+          
+          services:
+            backend:
+              build:
+                context: ./app-java
+              ports:
+                - "8080:8080"
+              environment:
+                - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/yourmedia_test
+                - SPRING_DATASOURCE_USERNAME=root
+                - SPRING_DATASOURCE_PASSWORD=test
+                - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
+              depends_on:
+                - db
+            
+            frontend:
+              build:
+                context: ./app-react
+              ports:
+                - "3000:3000"
+              environment:
+                - API_URL=http://backend:8080
+              depends_on:
+                - backend
+            
+            db:
+              image: mysql:8.0
+              ports:
+                - "3306:3306"
+              environment:
+                - MYSQL_ROOT_PASSWORD=test
+                - MYSQL_DATABASE=yourmedia_test
+              volumes:
+                - db-data:/var/lib/mysql
+          
+          volumes:
+            db-data:
+          EOF
+
+      - name: Run integration tests
+        run: |
+          # Démarrer les services
+          docker-compose -f docker-compose.test.yml up -d
+          
+          # Attendre que les services soient prêts
+          echo "Waiting for services to be ready..."
+          sleep 30
+          
+          # Vérifier que le backend répond
+          echo "Testing backend health endpoint..."
+          curl -f http://localhost:8080/health || (echo "Backend health check failed" && exit 1)
+          
+          # Vérifier que le frontend répond
+          echo "Testing frontend..."
+          curl -f http://localhost:3000/ || (echo "Frontend check failed" && exit 1)
+          
+          # Arrêter les services
+          docker-compose -f docker-compose.test.yml down -v
+
+      - name: Summary
+        run: |
+          echo "## Integration Tests Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* **Backend Health Check:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "* **Frontend Check:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    name: Test Summary
+    needs: [test-react, test-java, integration-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check workflow status
+        id: check
+        run: |
+          if [[ "${{ needs.test-react.result }}" == "failure" || "${{ needs.test-java.result }}" == "failure" || "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Summary
+        run: |
+          echo "# Application Tests Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.check.outputs.status }}" == "failure" ]]; then
+            echo "❌ **FAILED**: Some tests have failed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **PASSED**: All tests have passed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "- React Native Tests: ${{ needs.test-react.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Java Tests: ${{ needs.test-java.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY

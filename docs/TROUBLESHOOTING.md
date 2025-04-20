@@ -67,7 +67,7 @@ aws s3 rm s3://<NOM_DU_BUCKET> --recursive
 ```
 Error: Invalid function argument
 
-Invalid value for "vars" parameter: vars map does not contain key "ec2_java_tomcat_ip", referenced at modules/s3/../ec2-monitoring/scripts/setup.sh.tpl:27,14-32.
+Invalid value for "vars" parameter: vars map does not contain key "ec2_java_tomcat_ip", referenced at modules/s3/../ec2-monitoring/scripts/setup.sh:27,14-32.
 ```
 
 **Cause** : Une variable est référencée dans un template Terraform mais n'est pas définie dans la map de variables passée à la fonction `templatefile()`.

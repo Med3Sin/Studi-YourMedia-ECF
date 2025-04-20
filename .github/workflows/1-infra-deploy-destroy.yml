@@ -173,6 +173,12 @@ jobs:
           echo "\n\n--- Outputs de l'infrastructure ---"
           terraform output
 
+          # Attendre que les instances soient prêtes
+          echo "::group::Attente que les instances soient prêtes"
+          echo "Attente que les instances soient prêtes (60 secondes)..."
+          sleep 60
+          echo "::endgroup::"
+
           # Stockage des outputs dans les secrets GitHub
           echo "::group::Stockage des outputs dans les secrets GitHub"
           # Récupération des outputs importants
@@ -341,50 +347,73 @@ jobs:
         continue-on-error: true  # Continuer même si le nettoyage échoue
 
       # Étape 10: Création des secrets GitHub à partir des outputs Terraform
-      # Création des secrets GitHub à partir des outputs Terraform
-      - name: Create GitHub Secrets from Terraform Outputs
+      - name: Update GitHub Secrets
         if: github.event.inputs.action == 'apply'
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_EC2_PUBLIC_IP
-          value: ${{ env.EC2_PUBLIC_IP }}
-          pa_token: ${{ secrets.GH_PAT }}
-        continue-on-error: true
+        run: |
+          # Fonction pour mettre à jour un secret GitHub
+          update_secret() {
+            local secret_name=$1
+            local secret_value=$2
 
-      - name: Create S3 Bucket Secret
-        if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_S3_BUCKET_NAME
-          value: ${{ env.S3_BUCKET_NAME }}
-          pa_token: ${{ secrets.GH_PAT }}
-        continue-on-error: true
+            if [ -z "$secret_value" ]; then
+              echo "Valeur vide pour $secret_name, secret non mis à jour."
+              return
+            fi
 
-      - name: Create Monitoring EC2 Secret
-        if: github.event.inputs.action == 'apply' && env.MONITORING_EC2_PUBLIC_IP != ''
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_MONITORING_EC2_PUBLIC_IP
-          value: ${{ env.MONITORING_EC2_PUBLIC_IP }}
-          pa_token: ${{ secrets.GH_PAT }}
-        continue-on-error: true
+            echo "Mise à jour du secret $secret_name..."
 
-      - name: Create RDS Endpoint Secret
-        if: github.event.inputs.action == 'apply' && env.RDS_ENDPOINT != ''
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_RDS_ENDPOINT
-          value: ${{ env.RDS_ENDPOINT }}
-          pa_token: ${{ secrets.GH_PAT }}
-        continue-on-error: true
+            # Récupérer la clé publique du dépôt
+            response=$(curl -s -X GET \
+              -H "Authorization: token ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key")
 
-      - name: Create Grafana URL Secret
-        if: github.event.inputs.action == 'apply' && env.GRAFANA_URL != ''
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_GRAFANA_URL
-          value: ${{ env.GRAFANA_URL }}
-          pa_token: ${{ secrets.GH_PAT }}
+            # Extraire la clé publique et son ID
+            key_id=$(echo "$response" | jq -r '.key_id')
+            public_key=$(echo "$response" | jq -r '.key')
+
+            if [ -z "$key_id" ] || [ "$key_id" == "null" ]; then
+              echo "Impossible de récupérer la clé publique. Réponse: $response"
+              return
+            fi
+
+            # Chiffrer la valeur du secret
+            encrypted_value=$(python3 -c "
+          import base64
+          import json
+          from nacl import encoding, public
+
+          def encrypt(public_key, secret_value):
+              public_key = public.PublicKey(public_key.encode('utf-8'), encoding.Base64Encoder())
+              sealed_box = public.SealedBox(public_key)
+              encrypted = sealed_box.encrypt(secret_value.encode('utf-8'))
+              return base64.b64encode(encrypted).decode('utf-8')
+
+          print(encrypt('$public_key', '$secret_value'))
+            ")
+
+            # Mettre à jour le secret
+            curl -s -X PUT \
+              -H "Authorization: token ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Content-Type: application/json" \
+              -d "{\"encrypted_value\":\"$encrypted_value\",\"key_id\":\"$key_id\"}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/secrets/$secret_name"
+
+            echo "Secret $secret_name mis à jour avec succès."
+          }
+
+          # Installer les dépendances nécessaires
+          sudo apt-get update
+          sudo apt-get install -y python3-pip libsodium-dev
+          pip3 install pynacl
+
+          # Mettre à jour les secrets
+          update_secret "TF_EC2_PUBLIC_IP" "$EC2_PUBLIC_IP"
+          update_secret "TF_S3_BUCKET_NAME" "$S3_BUCKET_NAME"
+          update_secret "TF_MONITORING_EC2_PUBLIC_IP" "$MONITORING_EC2_PUBLIC_IP"
+          update_secret "TF_RDS_ENDPOINT" "$RDS_ENDPOINT"
+          update_secret "TF_GRAFANA_URL" "$GRAFANA_URL"
         continue-on-error: true
 
       # Note: La création du secret Amplify App URL a été supprimée car nous utilisons maintenant des conteneurs Docker

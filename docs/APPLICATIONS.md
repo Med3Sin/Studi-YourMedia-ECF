@@ -26,9 +26,9 @@ Ce document centralise toute la documentation relative aux applications backend 
 Le projet YourMédia est composé de deux applications principales :
 
 1. **Backend** : Une application Java déployée sur Tomcat qui expose une API REST pour la gestion des médias.
-2. **Frontend** : Une application React Native Web déployée sur AWS Amplify qui fournit l'interface utilisateur.
+2. **Frontend** : Une application React Native Web conteneurisée avec Docker qui fournit l'interface utilisateur.
 
-Ces deux applications communiquent via des appels API REST et utilisent les services AWS (RDS, S3) pour le stockage des données et des médias.
+Ces deux applications communiquent via des appels API REST et utilisent les services AWS (RDS, S3) pour le stockage des données et des médias. Les deux applications sont déployées sur des instances EC2 via des conteneurs Docker.
 
 ## Application Backend (Java)
 
@@ -111,36 +111,36 @@ L'accès au bucket S3 est géré via le SDK AWS pour Java. Les fichiers médias 
 ```java
 @Service
 public class S3Service {
-    
+
     @Value("${aws.s3.bucket}")
     private String bucketName;
-    
+
     private final AmazonS3 s3Client;
-    
+
     public S3Service() {
         this.s3Client = AmazonS3ClientBuilder.standard()
                 .withRegion(Regions.EU_WEST_3)
                 .build();
     }
-    
+
     public String uploadFile(MultipartFile file, String key) {
         try {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize());
             metadata.setContentType(file.getContentType());
-            
+
             s3Client.putObject(bucketName, key, file.getInputStream(), metadata);
-            
+
             return s3Client.getUrl(bucketName, key).toString();
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload file to S3", e);
         }
     }
-    
+
     public S3Object downloadFile(String key) {
         return s3Client.getObject(bucketName, key);
     }
-    
+
     public void deleteFile(String key) {
         s3Client.deleteObject(bucketName, key);
     }
@@ -181,7 +181,7 @@ REACT_APP_API_URL=http://${EC2_PUBLIC_IP}:8080/api
 REACT_APP_S3_BUCKET=${S3_BUCKET_NAME}
 ```
 
-Les variables d'environnement (`EC2_PUBLIC_IP`, `S3_BUCKET_NAME`) sont injectées lors du déploiement via AWS Amplify.
+Les variables d'environnement (`EC2_PUBLIC_IP`, `S3_BUCKET_NAME`) sont injectées lors du déploiement via Docker.
 
 ### Composants principaux
 
@@ -220,7 +220,7 @@ const ApiService = {
       }
     });
   },
-  
+
   // Authentication
   login: (credentials) => axios.post(`${API_URL}/auth/login`, credentials),
   register: (user) => axios.post(`${API_URL}/auth/register`, user),
@@ -255,29 +255,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
           java-version: '11'
           distribution: 'adopt'
-      
+
       - name: Build with Maven
         run: |
           cd app-java
           mvn clean package
-      
+
       - name: Upload WAR to S3
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-3
-      
+
       - name: Copy WAR to S3
         run: |
           aws s3 cp app-java/target/yourmedia.war s3://${{ secrets.S3_BUCKET_NAME }}/builds/backend/yourmedia.war
-      
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -291,43 +291,91 @@ jobs:
 
 ### Déploiement du frontend
 
-Le déploiement du frontend est géré automatiquement par AWS Amplify. À chaque push sur la branche `main`, Amplify détecte les changements et déclenche un nouveau build et déploiement.
+Le déploiement du frontend est géré via GitHub Actions. Le workflow de déploiement effectue les étapes suivantes :
 
-La configuration du build est définie dans le fichier `amplify.yml` :
+1. Construction de l'image Docker pour l'application React Native
+2. Push de l'image vers Docker Hub
+3. Déploiement de l'image sur l'instance EC2 via SSH
 
 ```yaml
-version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - cd app-react
-        - npm install
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: app-react/build
-    files:
-      - '**/*'
-  cache:
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ main ]
     paths:
-      - node_modules/**/*
+      - 'app-react/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+
+      - name: Build Docker image
+        run: |
+          cd app-react
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-latest .
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-latest
+
+      - name: Deploy to EC2
+        run: |
+          ./scripts/deploy-containers.sh app
 ```
 
 ## Corrections et améliorations
 
 ### Corrections récentes
 
+#### Workflows GitHub Actions
+
+1. **Correction de la numérotation des workflows** : Renommage des fichiers de workflow pour avoir une numérotation cohérente et logique.
+2. **Mise à jour des références aux workflows** : Mise à jour de toutes les références aux workflows dans la documentation.
+3. **Correction des paramètres d'entrée** : Simplification des paramètres d'entrée du workflow d'infrastructure.
+4. **Automatisation du stockage des outputs Terraform** : Stockage automatique des outputs Terraform dans les secrets GitHub.
+5. **Correction du problème de cache des dépendances** : Résolution du problème de cache des dépendances dans le workflow frontend.
+
+#### Backend (Java)
+
 1. **Vulnérabilité MySQL Connector/J** : Mise à jour de la version du connecteur MySQL pour corriger une vulnérabilité de sécurité.
 2. **Problème de déploiement du WAR** : Correction du chemin de déploiement du WAR sur l'instance EC2.
 3. **Problème de CORS** : Ajout de la configuration CORS pour permettre les requêtes depuis le frontend.
 4. **Problème d'authentification** : Correction du mécanisme d'authentification pour gérer correctement les tokens JWT.
+5. **Configuration de l'utilisateur SSH** : Utilisation de l'utilisateur `ec2-user` au lieu de `ubuntu` pour la connexion SSH.
+
+#### Frontend (React Native Web)
+
+1. **Migration d'Amplify vers Docker** : Remplacement d'AWS Amplify par des conteneurs Docker pour le déploiement du frontend.
+2. **Correction du problème de dépendances** : Génération du fichier package-lock.json et désactivation du cache dans le workflow GitHub Actions.
+3. **Ajout de la dépendance manquante** : Installation de la dépendance `@expo/metro-runtime` pour la compilation web de l'application Expo.
+
+#### Infrastructure
+
+1. **Correction des erreurs de déploiement Terraform** : Résolution des problèmes d'incompatibilité entre MySQL 8.0 et l'instance db.t2.micro.
+2. **Correction des erreurs de validation Terraform** : Correction des références de variables et de ressources dans les modules Terraform.
+3. **Correction du fichier main.tf du module RDS MySQL** : Résolution des problèmes d'encodage et utilisation du secret DB_NAME.
+4. **Configuration de Grafana/Prometheus dans des conteneurs Docker** : Déploiement de Grafana et Prometheus dans des conteneurs Docker sur une instance EC2 dédiée au monitoring.
+5. **Création d'un VPC et de sous-réseaux dédiés** : Mise en place d'un VPC dédié au projet avec des sous-réseaux dans une seule zone de disponibilité.
 
 ### Améliorations planifiées
 
 1. **Tests automatisés** : Ajout de tests unitaires et d'intégration pour le backend et le frontend.
 2. **Documentation API** : Ajout de Swagger pour documenter l'API REST.
-3. **Monitoring** : Intégration avec Prometheus et Grafana pour le monitoring des applications.
+3. **Monitoring** : Configuration de dashboards Grafana pour le monitoring des applications.
 4. **CI/CD** : Amélioration des workflows GitHub Actions pour automatiser davantage le déploiement.
 5. **Sécurité** : Mise en place de HTTPS pour sécuriser les communications.
+6. **Optimisation des coûts** : Réduction des coûts en optimisant l'utilisation des ressources AWS.

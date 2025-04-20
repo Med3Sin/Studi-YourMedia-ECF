@@ -121,11 +121,11 @@ resource "aws_s3_object" "prometheus_yml" {
   etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/prometheus.yml") : filemd5("${path.module}/files/prometheus.yml")
 }
 
-resource "aws_s3_object" "deploy_containers_sh" {
+resource "aws_s3_object" "docker_manager_sh" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/deploy_containers.sh"
-  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/deploy_containers.sh" : "${path.module}/files/deploy_containers.sh"
-  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/deploy_containers.sh") : filemd5("${path.module}/files/deploy_containers.sh")
+  key    = "monitoring/docker-manager.sh"
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/../../scripts/docker-manager.sh" : "${path.module}/../../scripts/docker-manager.sh"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/../../scripts/docker-manager.sh") : filemd5("${path.module}/../../scripts/docker-manager.sh")
 }
 
 resource "aws_s3_object" "fix_permissions_sh" {
@@ -146,18 +146,8 @@ resource "aws_s3_object" "cloudwatch_config_yml" {
 resource "aws_s3_object" "setup_sh" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/setup.sh"
-  content = templatefile("${path.module}/../ec2-monitoring/scripts/setup.sh.tpl", {
-    # Utiliser des variables qui seront remplacées par le script user_data
-    # Les valeurs réelles sont substituées par le script user_data de l'instance EC2
-    ec2_instance_private_ip = "PLACEHOLDER_IP",
-    ec2_java_tomcat_ip      = "PLACEHOLDER_IP", # Ajouter cette variable pour prometheus.yml
-    db_username             = "PLACEHOLDER_USERNAME",
-    db_password             = "PLACEHOLDER_PASSWORD",
-    rds_endpoint            = "PLACEHOLDER_ENDPOINT",
-    # Ces variables sont disponibles dans le module S3
-    aws_region     = var.aws_region,
-    s3_bucket_name = aws_s3_bucket.media_storage.id
-  })
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/setup.sh" : "${path.module}/../ec2-monitoring/scripts/setup.sh"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/setup.sh") : filemd5("${path.module}/../ec2-monitoring/scripts/setup.sh")
 }
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration

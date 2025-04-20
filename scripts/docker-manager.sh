@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Script pour déployer les conteneurs Docker sur les instances EC2
-# Utilisation: ./deploy-containers.sh [monitoring|app|all]
+# Script pour gérer les images Docker et les conteneurs
+# Utilisation: ./docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
 
 # Variables
+DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
+DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
+VERSION=$(date +%Y%m%d%H%M%S)
+ACTION=${1:-all}
+TARGET=${2:-all}
 EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
 EC2_APP_IP=${TF_EC2_PUBLIC_IP}
 SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
-DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
-DOCKER_TOKEN=${DOCKERHUB_TOKEN}
-DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
-TARGET=${1:-all}
 GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
 DB_USERNAME=${DB_USERNAME}
 DB_PASSWORD=${DB_PASSWORD}
@@ -18,34 +19,132 @@ RDS_ENDPOINT=${TF_RDS_ENDPOINT}
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
 
-# Vérifier si les variables requises sont définies
-if [ -z "$SSH_KEY" ]; then
-    echo "La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
+# Afficher la bannière
+echo "========================================================="
+echo "=== Script de gestion Docker pour YourMedia ==="
+echo "========================================================="
+
+# Fonction d'aide
+show_help() {
+    echo "Usage: $0 [build|deploy|all] [mobile|monitoring|all]"
+    echo ""
+    echo "Actions:"
+    echo "  build      - Construit et pousse les images Docker vers Docker Hub"
+    echo "  deploy     - Déploie les conteneurs Docker sur les instances EC2"
+    echo "  all        - Exécute les actions build et deploy"
+    echo ""
+    echo "Cibles:"
+    echo "  mobile     - Application mobile React Native"
+    echo "  monitoring - Services de monitoring (Grafana, Prometheus, SonarQube)"
+    echo "  all        - Toutes les cibles"
+    echo ""
+    echo "Exemples:"
+    echo "  $0 build mobile     # Construit et pousse l'image de l'application mobile"
+    echo "  $0 deploy monitoring # Déploie les services de monitoring"
+    echo "  $0 all all          # Construit, pousse et déploie toutes les images"
+    echo ""
     exit 1
-fi
+}
 
-if [ -z "$DOCKER_TOKEN" ]; then
-    echo "Le token Docker Hub n'est pas défini. Veuillez définir la variable DOCKERHUB_TOKEN."
-    exit 1
-fi
+# Vérifier si Docker est installé
+check_docker() {
+    if ! command -v docker &> /dev/null; then
+        echo "[ERROR] Docker n'est pas installé. Veuillez l'installer avant d'exécuter ce script."
+        exit 1
+    fi
+}
 
-# Créer un fichier temporaire pour la clé SSH
-echo "$SSH_KEY" > ssh_key.pem
-chmod 600 ssh_key.pem
-
-# Fonction pour déployer les conteneurs de monitoring
-deploy_monitoring() {
-    if [ -z "$EC2_MONITORING_IP" ]; then
-        echo "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
+# Vérifier les variables requises pour le déploiement
+check_deploy_vars() {
+    if [ -z "$SSH_KEY" ]; then
+        echo "[ERROR] La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
         exit 1
     fi
 
-    echo "Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
+    if [ -z "$DOCKERHUB_TOKEN" ]; then
+        echo "[ERROR] Le token Docker Hub n'est pas défini. Veuillez définir la variable DOCKERHUB_TOKEN."
+        exit 1
+    fi
+
+    if [ "$TARGET" = "mobile" ] || [ "$TARGET" = "all" ]; then
+        if [ -z "$EC2_APP_IP" ]; then
+            echo "[ERROR] L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
+            exit 1
+        fi
+    fi
+
+    if [ "$TARGET" = "monitoring" ] || [ "$TARGET" = "all" ]; then
+        if [ -z "$EC2_MONITORING_IP" ]; then
+            echo "[ERROR] L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
+            exit 1
+        fi
+    fi
+}
+
+# Connexion à Docker Hub
+docker_login() {
+    echo "[INFO] Connexion à Docker Hub..."
+    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+}
+
+# Fonction pour construire et pousser l'image mobile
+build_push_mobile() {
+    echo "[INFO] Construction de l'image Docker pour l'application mobile..."
+    cd ../app-react
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest .
+
+    echo "[INFO] Publication de l'image mobile sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-$VERSION
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest
+
+    echo "[SUCCESS] Image mobile publiée avec succès!"
+    cd -
+}
+
+# Fonction pour construire et pousser les images de monitoring
+build_push_monitoring() {
+    echo "[INFO] Construction de l'image Docker pour Grafana..."
+    cd ../infrastructure/modules/ec2-monitoring/docker/grafana
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest .
+
+    echo "[INFO] Publication de l'image Grafana sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-$VERSION
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest
+
+    echo "[INFO] Construction de l'image Docker pour Prometheus..."
+    cd ../prometheus
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest .
+
+    echo "[INFO] Publication de l'image Prometheus sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$VERSION
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest
+
+    echo "[INFO] Construction de l'image Docker pour SonarQube..."
+    cd ../sonarqube
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest .
+
+    echo "[INFO] Publication de l'image SonarQube sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$VERSION
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest
+
+    echo "[SUCCESS] Images de monitoring publiées avec succès!"
+    cd -
+}
+
+# Fonction pour déployer les conteneurs de monitoring
+deploy_monitoring() {
+    echo "[INFO] Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
+
+    # Créer un fichier temporaire pour la clé SSH
+    # Supprimer les guillemets simples qui pourraient être présents dans la clé
+    CLEAN_SSH_KEY=$(echo "$SSH_KEY" | sed "s/'//g")
+    echo "$CLEAN_SSH_KEY" > ssh_key.pem
+    chmod 600 ssh_key.pem
 
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
         # Créer les répertoires nécessaires
         sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-extensions /opt/monitoring/sonarqube-logs /opt/monitoring/sonarqube-db
@@ -235,22 +334,26 @@ EOFINNER
         sudo docker ps
 EOF
 
-    echo "Déploiement des conteneurs de monitoring terminé."
+    # Supprimer le fichier temporaire de la clé SSH
+    rm ssh_key.pem
+
+    echo "[SUCCESS] Déploiement des conteneurs de monitoring terminé."
 }
 
 # Fonction pour déployer l'application mobile
-deploy_app() {
-    if [ -z "$EC2_APP_IP" ]; then
-        echo "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
-        exit 1
-    fi
+deploy_mobile() {
+    echo "[INFO] Déploiement de l'application mobile sur $EC2_APP_IP..."
 
-    echo "Déploiement de l'application mobile sur $EC2_APP_IP..."
+    # Créer un fichier temporaire pour la clé SSH
+    # Supprimer les guillemets simples qui pourraient être présents dans la clé
+    CLEAN_SSH_KEY=$(echo "$SSH_KEY" | sed "s/'//g")
+    echo "$CLEAN_SSH_KEY" > ssh_key.pem
+    chmod 600 ssh_key.pem
 
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_APP_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
         # Créer les répertoires nécessaires
         sudo mkdir -p /opt/yourmedia
@@ -296,29 +399,77 @@ EOFINNER
         sudo docker ps
 EOF
 
-    echo "Déploiement de l'application mobile terminé."
+    # Supprimer le fichier temporaire de la clé SSH
+    rm ssh_key.pem
+
+    echo "[SUCCESS] Déploiement de l'application mobile terminé."
 }
 
-# Exécution en fonction de la cible
-case $TARGET in
-    monitoring)
-        deploy_monitoring
+# Vérifier les arguments
+if [ "$ACTION" != "build" ] && [ "$ACTION" != "deploy" ] && [ "$ACTION" != "all" ]; then
+    echo "[ERROR] Action inconnue: $ACTION"
+    show_help
+fi
+
+if [ "$TARGET" != "mobile" ] && [ "$TARGET" != "monitoring" ] && [ "$TARGET" != "all" ]; then
+    echo "[ERROR] Cible inconnue: $TARGET"
+    show_help
+fi
+
+# Exécution en fonction de l'action et de la cible
+case $ACTION in
+    build)
+        check_docker
+        docker_login
+        case $TARGET in
+            mobile)
+                build_push_mobile
+                ;;
+            monitoring)
+                build_push_monitoring
+                ;;
+            all)
+                build_push_mobile
+                build_push_monitoring
+                ;;
+        esac
         ;;
-    app)
-        deploy_app
+    deploy)
+        check_deploy_vars
+        case $TARGET in
+            mobile)
+                deploy_mobile
+                ;;
+            monitoring)
+                deploy_monitoring
+                ;;
+            all)
+                deploy_monitoring
+                deploy_mobile
+                ;;
+        esac
         ;;
     all)
-        deploy_monitoring
-        deploy_app
-        ;;
-    *)
-        echo "Cible inconnue: $TARGET"
-        echo "Utilisation: ./deploy-containers.sh [monitoring|app|all]"
-        exit 1
+        check_docker
+        check_deploy_vars
+        docker_login
+        case $TARGET in
+            mobile)
+                build_push_mobile
+                deploy_mobile
+                ;;
+            monitoring)
+                build_push_monitoring
+                deploy_monitoring
+                ;;
+            all)
+                build_push_mobile
+                build_push_monitoring
+                deploy_monitoring
+                deploy_mobile
+                ;;
+        esac
         ;;
 esac
 
-# Supprimer le fichier temporaire de la clé SSH
-rm ssh_key.pem
-
-echo "Déploiement terminé avec succès!"
+echo "[SUCCESS] Opérations terminées avec succès!"

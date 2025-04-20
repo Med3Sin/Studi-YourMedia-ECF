@@ -495,7 +495,7 @@ La configuration du cycle de vie du bucket S3 a été optimisée pour éviter de
 ```
 Error: Invalid function argument
 
-Invalid value for "vars" parameter: vars map does not contain key "ec2_java_tomcat_ip", referenced at modules/s3/../ec2-monitoring/scripts/setup.sh.tpl:27,14-32.
+Invalid value for "vars" parameter: vars map does not contain key "ec2_java_tomcat_ip", referenced at modules/s3/../ec2-monitoring/scripts/setup.sh:27,14-32.
 ```
 
 **Solutions** :

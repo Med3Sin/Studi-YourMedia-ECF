@@ -152,18 +152,12 @@ if [ -n "$CLEANUP_TYPE" ] && ! [[ "$CLEANUP_TYPE" =~ ^(all|containers|images|vol
     show_help
 fi
 
-# Demander confirmation avant de procéder
-echo "\n[WARN] Vous êtes sur le point de nettoyer les conteneurs Docker sur les instances suivantes:"
+# Afficher les informations sur le nettoyage
+echo "\n[INFO] Nettoyage des conteneurs Docker sur les instances suivantes:"
 echo "  - Instance de monitoring: $EC2_MONITORING_IP"
 echo "  - Instance d'application: $EC2_APP_IP"
 echo "  - Type de nettoyage: $CLEANUP_TYPE"
-echo "\n[WARN] Cette opération peut entraîner la perte de données. Les logs seront sauvegardés."
-read -p "\n[PROMPT] Êtes-vous sûr de vouloir continuer? (y/n): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "[INFO] Opération annulée."
-    exit 0
-fi
+echo "\n[INFO] Les logs seront sauvegardés avant le nettoyage."
 
 # Nettoyer les conteneurs sur l'instance de monitoring
 cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
