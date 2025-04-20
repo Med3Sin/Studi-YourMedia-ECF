@@ -261,6 +261,11 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Actions: `backend`, `mobile`, `all`
     -   Processus: Analyse du code source, publication des résultats sur SonarQube
     -   Paramètres requis: Token SonarQube, URL SonarQube (récupérés des secrets GitHub)
+-   **`5-docker-cleanup.yml`:** Nettoie les images Docker Hub obsolètes ou inutilisées.
+    -   Déclenchement: Manuel (`workflow_dispatch`)
+    -   Paramètres: Dépôt Docker Hub, motif de tag, mode simulation
+    -   Processus: Suppression des images Docker Hub selon le motif spécifié
+    -   Paramètres requis: Identifiants Docker Hub (récupérés des secrets GitHub)
 
 ### Configuration SSH
 

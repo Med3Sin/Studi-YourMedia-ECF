@@ -16,16 +16,20 @@ Le nettoyage complet de l'infrastructure est important pour éviter des coûts i
 
 ## Processus de nettoyage
 
-Le processus de nettoyage automatique comprend les étapes suivantes :
+Le processus de nettoyage est divisé en deux workflows distincts :
+
+### 1. Nettoyage de l'infrastructure AWS (Workflow 1)
+
+Ce workflow gère le nettoyage de l'infrastructure AWS et comprend les étapes suivantes :
 
 1. **Arrêt et suppression des conteneurs Docker** : Le workflow arrête et supprime tous les conteneurs Docker sur les instances EC2 avant de détruire l'infrastructure.
 2. **Vidage du bucket S3** : Le workflow vide le bucket S3 avant de le supprimer.
 3. **Destruction de l'infrastructure Terraform** : Le workflow utilise `terraform destroy` pour supprimer toutes les ressources créées par Terraform.
 4. **Nettoyage des profils IAM persistants** : Le workflow nettoie les profils IAM qui pourraient persister après la destruction de l'infrastructure.
 
-### Exécution du workflow de nettoyage
+#### Exécution du workflow de nettoyage de l'infrastructure
 
-Pour exécuter le workflow de nettoyage :
+Pour exécuter le workflow de nettoyage de l'infrastructure :
 
 1. Accédez à l'onglet "Actions" de votre dépôt GitHub
 2. Sélectionnez le workflow "1 - Deploy/Destroy Infrastructure (Terraform)"
@@ -33,6 +37,25 @@ Pour exécuter le workflow de nettoyage :
 4. Sélectionnez l'action "destroy"
 5. Sélectionnez l'environnement à nettoyer (dev, pre-prod, prod)
 6. Cliquez sur "Run workflow"
+
+### 2. Nettoyage des images Docker Hub (Workflow 5)
+
+Ce workflow gère le nettoyage des images Docker Hub et permet de supprimer les images obsolètes ou inutilisées.
+
+#### Exécution du workflow de nettoyage des images Docker Hub
+
+Pour exécuter le workflow de nettoyage des images Docker Hub :
+
+1. Accédez à l'onglet "Actions" de votre dépôt GitHub
+2. Sélectionnez le workflow "5 - Docker Images Cleanup"
+3. Cliquez sur "Run workflow"
+4. Configurez les paramètres suivants :
+   - **Dépôt Docker Hub à nettoyer** : Le nom du dépôt Docker Hub (par défaut : `medsin/yourmedia-ecf`)
+   - **Motif de tag à supprimer** : Le motif de tag à supprimer (par exemple : `*-latest`, `grafana-*`, `all` pour tous les tags)
+   - **Mode simulation** : Activez cette option pour simuler la suppression sans réellement supprimer les images
+5. Cliquez sur "Run workflow"
+
+> **Note** : Il est recommandé d'exécuter d'abord le workflow en mode simulation pour vérifier quelles images seront supprimées, puis de l'exécuter à nouveau avec le mode simulation désactivé pour supprimer réellement les images.
 
 ## Nettoyage manuel
 
@@ -64,12 +87,26 @@ sudo rm -rf /opt/monitoring /opt/app-mobile
 
 ### 2. Nettoyage des images Docker Hub
 
-Si vous souhaitez également supprimer les images Docker Hub :
+Si vous souhaitez supprimer manuellement les images Docker Hub :
+
+#### Option 1 : Utilisation de l'interface web Docker Hub
 
 1. Connectez-vous à Docker Hub : https://hub.docker.com
 2. Accédez à votre dépôt : https://hub.docker.com/repository/docker/medsin/yourmedia-ecf/general
 3. Sélectionnez les images à supprimer
 4. Cliquez sur "Delete"
+
+#### Option 2 : Utilisation de l'API Docker Hub
+
+Vous pouvez également utiliser l'API Docker Hub pour supprimer les images :
+
+```bash
+# Obtenir un token d'authentification
+TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "votre_username", "password": "votre_token"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+
+# Supprimer une image spécifique
+curl -X DELETE -H "Authorization: Bearer $TOKEN" https://hub.docker.com/v2/repositories/medsin/yourmedia-ecf/tags/nom_du_tag/
+```
 
 ### 3. Nettoyage des ressources AWS
 

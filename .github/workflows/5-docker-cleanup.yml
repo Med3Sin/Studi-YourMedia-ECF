@@ -1,0 +1,149 @@
+name: 5 - Docker Images Cleanup
+
+# -----------------------------------------------------------------------
+# Ce workflow gère le nettoyage des images Docker Hub.
+# Il permet de supprimer les images Docker Hub obsolètes ou inutilisées.
+# -----------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Dépôt Docker Hub à nettoyer'
+        required: true
+        default: 'medsin/yourmedia-ecf'
+        type: string
+      tag_pattern:
+        description: 'Motif de tag à supprimer (ex: "*-latest", "grafana-*", "all")'
+        required: true
+        default: 'all'
+        type: string
+      dry_run:
+        description: 'Mode simulation (ne supprime pas réellement les images)'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  cleanup:
+    name: 'Nettoyage des images Docker Hub'
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape 1: Récupération du code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Étape 2: Installation de Docker
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      # Étape 3: Connexion à Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Étape 4: Création d'un script de nettoyage
+      - name: Create cleanup script
+        run: |
+          cat > cleanup-docker-images.sh << 'EOF'
+          #!/bin/bash
+          
+          # Variables
+          REPOSITORY=$1
+          TAG_PATTERN=$2
+          DRY_RUN=$3
+          
+          # Fonction pour supprimer une image Docker Hub
+          delete_image() {
+            local repo=$1
+            local tag=$2
+            local dry_run=$3
+            
+            if [ "$dry_run" = "true" ]; then
+              echo "[SIMULATION] Suppression de l'image $repo:$tag"
+            else
+              echo "Suppression de l'image $repo:$tag"
+              curl -s -X DELETE -H "Authorization: Bearer $DOCKER_TOKEN" "https://hub.docker.com/v2/repositories/$repo/tags/$tag/"
+              if [ $? -eq 0 ]; then
+                echo "✅ Image $repo:$tag supprimée avec succès"
+              else
+                echo "❌ Échec de la suppression de l'image $repo:$tag"
+              fi
+            fi
+          }
+          
+          # Récupérer le token d'authentification Docker Hub
+          echo "Récupération du token Docker Hub..."
+          DOCKER_TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "'$DOCKER_USERNAME'", "password": "'$DOCKER_PASSWORD'"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+          
+          if [ -z "$DOCKER_TOKEN" ] || [ "$DOCKER_TOKEN" = "null" ]; then
+            echo "❌ Échec de l'authentification Docker Hub"
+            exit 1
+          fi
+          
+          echo "✅ Authentification Docker Hub réussie"
+          
+          # Récupérer la liste des tags
+          echo "Récupération des tags pour le dépôt $REPOSITORY..."
+          TAGS=$(curl -s -H "Authorization: Bearer $DOCKER_TOKEN" "https://hub.docker.com/v2/repositories/$REPOSITORY/tags?page_size=100" | jq -r '.results[].name')
+          
+          if [ -z "$TAGS" ]; then
+            echo "Aucun tag trouvé pour le dépôt $REPOSITORY"
+            exit 0
+          fi
+          
+          echo "Tags trouvés:"
+          echo "$TAGS"
+          
+          # Supprimer les images selon le motif
+          echo "Suppression des images correspondant au motif: $TAG_PATTERN"
+          
+          if [ "$TAG_PATTERN" = "all" ]; then
+            # Supprimer toutes les images
+            for tag in $TAGS; do
+              delete_image "$REPOSITORY" "$tag" "$DRY_RUN"
+            done
+          else
+            # Supprimer les images correspondant au motif
+            for tag in $TAGS; do
+              if [[ "$tag" == $TAG_PATTERN ]]; then
+                delete_image "$REPOSITORY" "$tag" "$DRY_RUN"
+              fi
+            done
+          fi
+          
+          echo "Nettoyage terminé"
+          EOF
+          
+          chmod +x cleanup-docker-images.sh
+
+      # Étape 5: Exécution du script de nettoyage
+      - name: Run cleanup script
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # Installation de jq pour le traitement JSON
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+          # Exécution du script de nettoyage
+          ./cleanup-docker-images.sh "${{ github.event.inputs.repository }}" "${{ github.event.inputs.tag_pattern }}" "${{ github.event.inputs.dry_run }}"
+
+      # Étape 6: Résumé de l'exécution
+      - name: Summary
+        run: |
+          echo "## Résumé du nettoyage des images Docker Hub" >> $GITHUB_STEP_SUMMARY
+          echo "* **Dépôt:** ${{ github.event.inputs.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Motif de tag:** ${{ github.event.inputs.tag_pattern }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Mode simulation:** ${{ github.event.inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "* **Statut:** Simulation terminée ✅" >> $GITHUB_STEP_SUMMARY
+            echo "* **Note:** Aucune image n'a été supprimée. Exécutez à nouveau avec 'Mode simulation' défini sur 'false' pour supprimer réellement les images." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "* **Statut:** Nettoyage terminé ✅" >> $GITHUB_STEP_SUMMARY
+          fi
