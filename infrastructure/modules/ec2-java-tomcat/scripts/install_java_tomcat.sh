@@ -19,54 +19,55 @@ chmod 600 /home/ec2-user/.ssh/authorized_keys
 
 # Fonction pour corriger les clés SSH
 fix_ssh_keys() {
-  echo "Vérification et correction des clés SSH..."
+  local ssh_dir="$1"
+  echo "Vérification et correction des clés SSH dans $ssh_dir..."
 
   # Vérifier si le fichier authorized_keys existe
-  if [ ! -f /home/ec2-user/.ssh/authorized_keys ]; then
+  if [ ! -f "$ssh_dir/authorized_keys" ]; then
     echo "Le fichier authorized_keys n'existe pas. Rien à faire."
     return
   fi
 
   # Sauvegarder le fichier original
-  cp /home/ec2-user/.ssh/authorized_keys /home/ec2-user/.ssh/authorized_keys.bak
+  cp "$ssh_dir/authorized_keys" "$ssh_dir/authorized_keys.bak"
 
   # Supprimer les guillemets simples dans le fichier authorized_keys
-  sed "s/'//g" /home/ec2-user/.ssh/authorized_keys.bak > /home/ec2-user/.ssh/authorized_keys.tmp
+  sed "s/'//g" "$ssh_dir/authorized_keys.bak" > "$ssh_dir/authorized_keys.tmp"
 
   # Vérifier le format des clés SSH
-  > /home/ec2-user/.ssh/authorized_keys.new
+  > "$ssh_dir/authorized_keys.new"
   while IFS= read -r line; do
     # Ignorer les lignes vides ou commentées
     if [[ -z "$line" || "$line" == \#* ]]; then
-      echo "$line" >> /home/ec2-user/.ssh/authorized_keys.new
+      echo "$line" >> "$ssh_dir/authorized_keys.new"
       continue
     fi
 
     # Vérifier si la ligne commence par ssh-rsa, ssh-ed25519, etc.
     if [[ "$line" =~ ^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
-      echo "$line" >> /home/ec2-user/.ssh/authorized_keys.new
+      echo "$line" >> "$ssh_dir/authorized_keys.new"
     else
       # Si la ligne ne commence pas par un type de clé SSH valide,
       # vérifier si elle contient un type de clé SSH valide
       if [[ "$line" =~ (ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
         # Extraire la partie qui commence par le type de clé SSH
         key_part=$(echo "$line" | grep -o "ssh-[^ ]*.*")
-        echo "$key_part" >> /home/ec2-user/.ssh/authorized_keys.new
+        echo "$key_part" >> "$ssh_dir/authorized_keys.new"
       else
         # Si la ligne ne contient pas de type de clé SSH valide, l'ignorer
         echo "Ligne ignorée (format non reconnu): $line"
       fi
     fi
-  done < /home/ec2-user/.ssh/authorized_keys.tmp
+  done < "$ssh_dir/authorized_keys.tmp"
 
   # Remplacer le fichier authorized_keys
-  mv /home/ec2-user/.ssh/authorized_keys.new /home/ec2-user/.ssh/authorized_keys
+  mv "$ssh_dir/authorized_keys.new" "$ssh_dir/authorized_keys"
 
   # Ajuster les permissions
-  chmod 600 /home/ec2-user/.ssh/authorized_keys
+  chmod 600 "$ssh_dir/authorized_keys"
 
   # Supprimer les fichiers temporaires
-  rm -f /home/ec2-user/.ssh/authorized_keys.tmp
+  rm -f "$ssh_dir/authorized_keys.tmp"
 
   echo "Correction des clés SSH terminée."
 }
@@ -80,70 +81,18 @@ if [ ! -z "$SSH_PUBLIC_KEY" ]; then
   echo "Clé SSH publique GitHub installée avec succès"
 
   # Corriger les clés SSH
-  fix_ssh_keys
+  fix_ssh_keys "/home/ec2-user/.ssh"
 fi
 
 # Créer un service systemd pour vérifier périodiquement les clés SSH
-cat > /tmp/fix-ssh-keys.sh << 'EOF'
+cat > /tmp/fix-ssh-keys.sh << EOF
 #!/bin/bash
 # Script pour vérifier et corriger les clés SSH dans le fichier authorized_keys
 
-# Fonction pour corriger les clés SSH
-fix_ssh_keys() {
-  echo "Vérification et correction des clés SSH..."
-
-  # Vérifier si le fichier authorized_keys existe
-  if [ ! -f ~/.ssh/authorized_keys ]; then
-    echo "Le fichier authorized_keys n'existe pas. Rien à faire."
-    return
-  fi
-
-  # Sauvegarder le fichier original
-  cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak
-
-  # Supprimer les guillemets simples dans le fichier authorized_keys
-  sed "s/'//g" ~/.ssh/authorized_keys.bak > ~/.ssh/authorized_keys.tmp
-
-  # Vérifier le format des clés SSH
-  > ~/.ssh/authorized_keys.new
-  while IFS= read -r line; do
-    # Ignorer les lignes vides ou commentées
-    if [[ -z "$line" || "$line" == \#* ]]; then
-      echo "$line" >> ~/.ssh/authorized_keys.new
-      continue
-    fi
-
-    # Vérifier si la ligne commence par ssh-rsa, ssh-ed25519, etc.
-    if [[ "$line" =~ ^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
-      echo "$line" >> ~/.ssh/authorized_keys.new
-    else
-      # Si la ligne ne commence pas par un type de clé SSH valide,
-      # vérifier si elle contient un type de clé SSH valide
-      if [[ "$line" =~ (ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
-        # Extraire la partie qui commence par le type de clé SSH
-        key_part=$(echo "$line" | grep -o "ssh-[^ ]*.*")
-        echo "$key_part" >> ~/.ssh/authorized_keys.new
-      else
-        # Si la ligne ne contient pas de type de clé SSH valide, l'ignorer
-        echo "Ligne ignorée (format non reconnu): $line"
-      fi
-    fi
-  done < ~/.ssh/authorized_keys.tmp
-
-  # Remplacer le fichier authorized_keys
-  mv ~/.ssh/authorized_keys.new ~/.ssh/authorized_keys
-
-  # Ajuster les permissions
-  chmod 600 ~/.ssh/authorized_keys
-
-  # Supprimer les fichiers temporaires
-  rm -f ~/.ssh/authorized_keys.tmp
-
-  echo "Correction des clés SSH terminée."
-}
+$(declare -f fix_ssh_keys)
 
 # Exécuter la fonction de correction
-fix_ssh_keys
+fix_ssh_keys ~/.ssh
 EOF
 
 chmod +x /tmp/fix-ssh-keys.sh
@@ -301,110 +250,8 @@ sudo systemctl enable node_exporter
 # Vérifier le statut de Node Exporter
 sudo systemctl status node_exporter
 
-echo "--- Installation du script de correction des clés SSH ---"
-# Créer le script de correction des clés SSH
-cat > /tmp/fix_ssh_keys.sh << 'EOFFIX'
-#!/bin/bash
-# Script pour vérifier et corriger les clés SSH dans le fichier authorized_keys
-# Ce script supprime les guillemets simples qui entourent les clés SSH
-
-# Fonction pour corriger les clés SSH
-fix_ssh_keys() {
-    echo "[INFO] Vérification et correction des clés SSH..."
-
-    # Vérifier si le fichier authorized_keys existe
-    if [ ! -f ~/.ssh/authorized_keys ]; then
-        echo "[WARN] Le fichier authorized_keys n'existe pas. Rien à faire."
-        return
-    fi
-
-    # Sauvegarder le fichier original
-    cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak
-
-    # Supprimer les guillemets simples dans le fichier authorized_keys
-    sed "s/'//g" ~/.ssh/authorized_keys.bak > ~/.ssh/authorized_keys.tmp
-
-    # Vérifier le format des clés SSH
-    > ~/.ssh/authorized_keys.new
-    while IFS= read -r line; do
-        # Ignorer les lignes vides ou commentées
-        if [[ -z "$line" || "$line" == \#* ]]; then
-            echo "$line" >> ~/.ssh/authorized_keys.new
-            continue
-        fi
-
-        # Vérifier si la ligne commence par ssh-rsa, ssh-ed25519, etc.
-        if [[ "$line" =~ ^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
-            echo "$line" >> ~/.ssh/authorized_keys.new
-        else
-            # Si la ligne ne commence pas par un type de clé SSH valide,
-            # vérifier si elle contient un type de clé SSH valide
-            if [[ "$line" =~ (ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521) ]]; then
-                # Extraire la partie qui commence par le type de clé SSH
-                key_part=$(echo "$line" | grep -o "ssh-[^ ]*.*")
-                echo "$key_part" >> ~/.ssh/authorized_keys.new
-            else
-                # Si la ligne ne contient pas de type de clé SSH valide, l'ignorer
-                echo "[WARN] Ligne ignorée (format non reconnu): $line"
-            fi
-        fi
-    done < ~/.ssh/authorized_keys.tmp
-
-    # Remplacer le fichier authorized_keys
-    mv ~/.ssh/authorized_keys.new ~/.ssh/authorized_keys
-
-    # Ajuster les permissions
-    chmod 600 ~/.ssh/authorized_keys
-
-    # Supprimer les fichiers temporaires
-    rm -f ~/.ssh/authorized_keys.tmp
-
-    echo "[INFO] Correction des clés SSH terminée."
-}
-
-# Exécuter la fonction de correction
-fix_ssh_keys
-EOFFIX
-
-# Rendre le script exécutable
-chmod +x /tmp/fix_ssh_keys.sh
-
+echo "--- Exécution du script de correction des clés SSH ---"
 # Exécuter le script en tant qu'utilisateur ec2-user
-su - ec2-user -c "/tmp/fix_ssh_keys.sh"
-
-# Copier le script dans /usr/local/bin pour une utilisation future
-sudo cp /tmp/fix_ssh_keys.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/fix_ssh_keys.sh
-
-# Créer un service systemd pour exécuter le script périodiquement
-sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.service' << EOF
-[Unit]
-Description=SSH Key Format Checker
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/fix_ssh_keys.sh
-User=ec2-user
-Group=ec2-user
-EOF
-
-sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.timer' << EOF
-[Unit]
-Description=Run SSH Key Format Checker periodically
-
-[Timer]
-OnBootSec=5min
-OnUnitActiveSec=1h
-RandomizedDelaySec=5min
-
-[Install]
-WantedBy=timers.target
-EOF
-
-# Activer et démarrer le timer
-sudo systemctl daemon-reload
-sudo systemctl enable ssh-key-checker.timer
-sudo systemctl start ssh-key-checker.timer
+su - ec2-user -c "/usr/local/bin/fix-ssh-keys.sh"
 
 echo "--- Installation terminée ---"
