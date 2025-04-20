@@ -21,6 +21,9 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
 - [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
+- [Guide des conteneurs Docker](docs/DOCKER-CONTAINERS.md) : Guide d'utilisation des conteneurs Docker
+- [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
+- [Migration Amplify vers Docker](docs/MIGRATION-AMPLIFY-TO-DOCKER.md) : Migration du frontend vers des conteneurs Docker
 
 ## Table des Matières
 
@@ -54,13 +57,13 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 * **Compute:**
     * AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
-    * AWS EC2 (t2.micro) pour exécuter les conteneurs Docker de monitoring (Prometheus, Grafana) tout en restant dans les limites du Free Tier.
+    * AWS EC2 (t2.micro) pour exécuter les conteneurs Docker de monitoring (Prometheus, Grafana, SonarQube) et l'application mobile React Native tout en restant dans les limites du Free Tier.
 * **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 * **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 * **Réseau:** Utilisation d'un VPC dédié avec des groupes de sécurité spécifiques pour contrôler les flux.
-* **Hébergement Frontend:** AWS Amplify Hosting pour déployer la version web de l'application React Native de manière simple et scalable.
+* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native et les services de monitoring (Prometheus, Grafana, SonarQube).
 * **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
-* **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques) et les déploiements des applications backend et frontend, ainsi que la gestion de l'infrastructure Terraform.
+* **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), l'analyse de qualité du code avec SonarQube, et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
 
 **Schéma d'Architecture :**
 
@@ -166,27 +169,27 @@ Pour déployer l'application backend, utilisez le workflow GitHub Actions `2-bac
 
 Une fois le déploiement terminé, l'application sera accessible à l'URL : `http://<IP_PUBLIQUE_EC2>:8080/yourmedia-backend/`
 
-## Application Frontend (React Native Web)
+## Application Mobile (React Native en conteneur Docker)
 
-L'application frontend est développée avec React Native Web, permettant une expérience utilisateur fluide et réactive. Elle communique avec le backend via des appels API REST.
+L'application mobile est développée avec React Native, permettant une expérience utilisateur fluide et réactive sur les appareils mobiles. Elle communique avec le backend via des appels API REST et est déployée dans un conteneur Docker.
 
-### Déploiement du Frontend
+### Construction et Déploiement de l'Application Mobile
 
-Le déploiement du frontend est géré automatiquement par AWS Amplify, qui est configuré pour surveiller les changements sur la branche `main` du dépôt GitHub. Le workflow GitHub Actions `3-frontend-deploy.yml` sert uniquement à vérifier que le code frontend peut être compilé correctement.
+La construction et le déploiement de l'application mobile sont gérés par le workflow GitHub Actions `4-docker-build-deploy.yml`. Ce workflow construit l'image Docker de l'application mobile et la déploie sur l'instance EC2.
 
-Pour vérifier la compilation du frontend :
+Pour construire et déployer l'application mobile :
 
 1.  Accédez à l'onglet "Actions" de votre dépôt GitHub
-2.  Sélectionnez le workflow "3 - Build Frontend (React Native Web CI)"
+2.  Sélectionnez le workflow "4 - Docker Build and Deploy"
 3.  Cliquez sur "Run workflow"
-4.  Cliquez sur "Run workflow" sans paramètres supplémentaires
+4.  Sélectionnez la cible "mobile" ou "all"
+5.  Sélectionnez "true" pour déployer après la construction
+6.  Cliquez sur "Run workflow"
 
-Pour accéder à l'application déployée sur Amplify :
+Pour accéder à l'application mobile déployée :
 
-1.  Connectez-vous à la console AWS
-2.  Accédez au service Amplify
-3.  Sélectionnez l'application `yourmedia-frontend`
-4.  Cliquez sur l'URL fournie dans la section "Domain"
+1.  Utilisez l'URL `http://<IP_PUBLIQUE_EC2>:3000` dans votre navigateur
+2.  L'application est optimisée pour les appareils mobiles mais peut être utilisée sur n'importe quel appareil
 
 ## Monitoring (Docker sur EC2 - Prometheus & Grafana)
 
@@ -245,10 +248,16 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Déclenchement: Manuel (`workflow_dispatch`)
     -   Processus: Compilation Maven, téléversement sur S3, déploiement sur Tomcat via SSH
     -   Paramètres requis: IP publique de l'EC2, nom du bucket S3 (récupérés automatiquement des secrets)
--   **`3-frontend-deploy.yml`:** Vérifie la compilation de l'application React Native Web.
+-   **`4-docker-build-deploy.yml`:** Construit et déploie les conteneurs Docker.
+    -   Déclenchement: Manuel (`workflow_dispatch`)
+    -   Actions: `mobile`, `monitoring`, `all`
+    -   Processus: Construction des images Docker, publication sur Docker Hub, déploiement sur les instances EC2
+    -   Paramètres requis: Identifiants Docker Hub, clés SSH (récupérés des secrets GitHub)
+-   **`5-sonarqube-analysis.yml`:** Analyse la qualité du code avec SonarQube.
     -   Déclenchement: Automatique (`push` sur `main`) ou manuel
-    -   Processus: Installation des dépendances, compilation du code
-    -   Note: Le déploiement réel est géré par AWS Amplify via la connexion directe au repo GitHub
+    -   Actions: `backend`, `mobile`, `all`
+    -   Processus: Analyse du code source, publication des résultats sur SonarQube
+    -   Paramètres requis: Token SonarQube, URL SonarQube (récupérés des secrets GitHub)
 
 ### Configuration SSH
 
@@ -337,7 +346,10 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 * `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements).
 * `EC2_SSH_PUBLIC_KEY`: Le contenu de votre clé SSH publique (utilisée pour configurer l'accès SSH aux instances EC2).
 * `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 dans AWS (utilisé par Terraform pour configurer les instances EC2).
-* `GH_PAT`: Un Personal Access Token GitHub pour les intégrations comme Amplify.
+* `DOCKERHUB_USERNAME`: Votre nom d'utilisateur Docker Hub.
+* `DOCKERHUB_TOKEN`: Votre token d'accès Docker Hub.
+* `SONAR_TOKEN`: Token d'accès pour SonarQube.
+* `GH_PAT`: Un Personal Access Token GitHub pour les intégrations.
 
 **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 
