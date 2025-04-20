@@ -57,6 +57,12 @@ variable "monitoring_ami_id" {
   # Renommer en ec2_ami_id dans une future version pour plus de cohérence
 }
 
+variable "use_latest_ami" {
+  description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
+  type        = bool
+  default     = true
+}
+
 variable "key_pair_name" {
   description = "Nom de la paire de clés SSH pour l'instance EC2 de monitoring."
   type        = string

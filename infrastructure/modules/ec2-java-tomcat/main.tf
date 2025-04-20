@@ -82,6 +82,32 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 # Instance EC2
 # -----------------------------------------------------------------------------
 
+# Récupération automatique de l'AMI Amazon Linux 2 la plus récente
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
 # Récupère le contenu du script d'installation pour l'user_data
 data "template_file" "install_script" {
   template = file("${path.module}/scripts/install_java_tomcat.sh")
@@ -92,7 +118,7 @@ data "template_file" "install_script" {
 }
 
 resource "aws_instance" "app_server" {
-  ami                    = var.ami_id
+  ami                    = var.use_latest_ami ? data.aws_ami.amazon_linux_2.id : var.ami_id
   instance_type          = var.instance_type_ec2
   key_name               = var.key_pair_name
   subnet_id              = var.subnet_id

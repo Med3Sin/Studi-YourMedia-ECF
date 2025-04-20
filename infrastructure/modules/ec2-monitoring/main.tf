@@ -63,9 +63,35 @@ resource "aws_iam_instance_profile" "monitoring_profile" {
 # Instance EC2 pour Grafana et Prometheus
 # -----------------------------------------------------------------------------
 
+# Récupération automatique de l'AMI Amazon Linux 2 la plus récente
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
 # Instance EC2 pour le monitoring
 resource "aws_instance" "monitoring_instance" {
-  ami                    = var.monitoring_ami_id
+  ami                    = var.use_latest_ami ? data.aws_ami.amazon_linux_2.id : var.monitoring_ami_id
   instance_type          = "t2.micro"
   subnet_id              = var.subnet_ids[0]
   vpc_security_group_ids = [var.monitoring_security_group_id]

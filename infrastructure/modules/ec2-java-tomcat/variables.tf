@@ -20,6 +20,12 @@ variable "ami_id" {
   default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 dans eu-west-3 (Paris)
 }
 
+variable "use_latest_ami" {
+  description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
+  type        = bool
+  default     = true
+}
+
 variable "instance_type_ec2" {
   description = "Type d'instance EC2 (Free Tier eligible)."
   type        = string
