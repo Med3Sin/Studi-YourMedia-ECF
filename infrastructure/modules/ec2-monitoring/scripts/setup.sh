@@ -1,39 +1,111 @@
 #!/bin/bash
 # Script d'installation et de configuration des conteneurs Docker pour le monitoring
 
-# Variables
-ec2_java_tomcat_ip="PLACEHOLDER_IP"
-db_username="PLACEHOLDER_USERNAME"
-db_password="PLACEHOLDER_PASSWORD"
-db_endpoint="PLACEHOLDER_ENDPOINT"
-sonar_jdbc_username="SONAR_JDBC_USERNAME"
-sonar_jdbc_password="SONAR_JDBC_PASSWORD"
-sonar_jdbc_url="SONAR_JDBC_URL"
-grafana_admin_password="GRAFANA_ADMIN_PASSWORD"
+# Variables (peuvent être remplacées par des variables d'environnement)
+ec2_java_tomcat_ip="${EC2_JAVA_TOMCAT_IP:-PLACEHOLDER_IP}"
+db_username="${DB_USERNAME:-PLACEHOLDER_USERNAME}"
+db_password="${DB_PASSWORD:-PLACEHOLDER_PASSWORD}"
+db_endpoint="${DB_ENDPOINT:-PLACEHOLDER_ENDPOINT}"
+sonar_jdbc_username="${SONAR_JDBC_USERNAME:-sonar}"
+sonar_jdbc_password="${SONAR_JDBC_PASSWORD:-sonar123}"
+sonar_jdbc_url="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+grafana_admin_password="${GRAFANA_ADMIN_PASSWORD:-admin}"
 
 # Fonction pour afficher les messages
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Fonction pour afficher les erreurs et quitter
+error_exit() {
+    log "ERREUR: $1"
+    exit 1
+}
+
+# Vérification de sécurité pour les mots de passe par défaut
+if [ "$grafana_admin_password" = "admin" ]; then
+    log "AVERTISSEMENT: Mot de passe Grafana par défaut détecté. Il est recommandé de le changer."
+fi
+
+if [ "$sonar_jdbc_password" = "sonar123" ]; then
+    log "AVERTISSEMENT: Mot de passe SonarQube par défaut détecté. Il est recommandé de le changer."
+fi
+
+# Vérification des prérequis
+log "Vérification des prérequis..."
+if [ ! -f "/etc/os-release" ] || ! grep -q "Amazon Linux" /etc/os-release; then
+    error_exit "Ce script est conçu pour Amazon Linux. Veuillez l'adapter pour votre système d'exploitation."
+fi
+
+if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
+    error_exit "Ce script nécessite des privilèges sudo. Veuillez l'exécuter avec sudo ou en tant que root."
+fi
+
 # Installation des dépendances
 log "Installation des dépendances..."
 sudo yum update -y
-sudo amazon-linux-extras install docker -y
-sudo systemctl start docker
-sudo systemctl enable docker
-sudo usermod -a -G docker ec2-user
 
-# Installation de Docker Compose
-log "Installation de Docker Compose..."
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+# Vérification si Docker est déjà installé
+if ! command -v docker &> /dev/null; then
+    log "Installation de Docker..."
+    sudo amazon-linux-extras install docker -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -a -G docker ec2-user
+else
+    log "Docker est déjà installé."
+    # S'assurer que Docker est démarré
+    if ! sudo systemctl is-active --quiet docker; then
+        log "Démarrage de Docker..."
+        sudo systemctl start docker
+        sudo systemctl enable docker
+    fi
+    # S'assurer que l'utilisateur ec2-user est dans le groupe docker
+    if ! groups ec2-user | grep -q docker; then
+        log "Ajout de l'utilisateur ec2-user au groupe docker..."
+        sudo usermod -a -G docker ec2-user
+    fi
+fi
+
+# Vérification si Docker Compose est déjà installé
+if ! command -v docker-compose &> /dev/null; then
+    log "Installation de Docker Compose..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    # Créer un lien symbolique si /usr/bin/docker-compose n'existe pas
+    if [ ! -f "/usr/bin/docker-compose" ] && [ ! -L "/usr/bin/docker-compose" ]; then
+        sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    fi
+
+    # Vérifier l'installation
+    if ! command -v docker-compose &> /dev/null; then
+        error_exit "L'installation de Docker Compose a échoué."
+    fi
+else
+    log "Docker Compose est déjà installé."
+    docker-compose --version
+fi
 
 # Création des répertoires pour les données persistantes
 log "Création des répertoires pour les données persistantes..."
-sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-db-data
+
+# Vérifier si le répertoire principal existe déjà
+if [ ! -d "/opt/monitoring" ]; then
+    sudo mkdir -p /opt/monitoring
+fi
+
+# Créer les sous-répertoires nécessaires
+for dir in prometheus-data grafana-data sonarqube-data sonarqube-db-data; do
+    if [ ! -d "/opt/monitoring/$dir" ]; then
+        log "Création du répertoire /opt/monitoring/$dir"
+        sudo mkdir -p "/opt/monitoring/$dir"
+    fi
+done
+
+# Ajuster les permissions
 sudo chown -R ec2-user:ec2-user /opt/monitoring
+sudo chmod -R 755 /opt/monitoring
 
 # Création du fichier docker-compose.yml
 log "Création du fichier docker-compose.yml..."
@@ -189,11 +261,29 @@ sed -i "s/SONAR_DB_USER/${sonar_jdbc_username}/g" /opt/monitoring/docker-compose
 sed -i "s/SONAR_DB_PASSWORD/${sonar_jdbc_password}/g" /opt/monitoring/docker-compose.yml
 sed -i "s|SONAR_JDBC_URL|${sonar_jdbc_url}|g" /opt/monitoring/docker-compose.yml
 
-# Démarrage des conteneurs avec docker-manager.sh
-log "Démarrage des conteneurs avec docker-manager.sh..."
+# Démarrage des conteneurs
+log "Démarrage des conteneurs..."
+
+# Vérifier si des conteneurs sont déjà en cours d'exécution
+RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)
+if [ "$RUNNING_CONTAINERS" -gt 0 ]; then
+    log "Des conteneurs sont déjà en cours d'exécution. Arrêt des conteneurs existants..."
+    cd /opt/monitoring
+    docker-compose down || log "Erreur lors de l'arrêt des conteneurs. Tentative de continuer..."
+fi
+
+# Utiliser docker-manager.sh si disponible, sinon utiliser docker-compose directement
 if [ -f "/tmp/docker-manager.sh" ]; then
+    log "Utilisation de docker-manager.sh pour déployer les conteneurs..."
     chmod +x /tmp/docker-manager.sh
     /tmp/docker-manager.sh deploy monitoring
+
+    # Vérifier si le déploiement a réussi
+    if [ $? -ne 0 ]; then
+        log "Erreur lors du déploiement avec docker-manager.sh. Tentative avec docker-compose..."
+        cd /opt/monitoring
+        docker-compose up -d
+    fi
 else
     log "Le script docker-manager.sh n'est pas disponible. Utilisation de docker-compose..."
     cd /opt/monitoring
@@ -203,6 +293,24 @@ fi
 # Vérification du statut des conteneurs
 log "Vérification du statut des conteneurs..."
 docker ps
+
+# Vérifier si tous les conteneurs sont en cours d'exécution
+EXPECTED_CONTAINERS=6  # prometheus, node-exporter, mysql-exporter, grafana, sonarqube-db, sonarqube
+RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|sonarqube|node-exporter|mysql-exporter" --format "{{.Names}}" | wc -l)
+
+if [ "$RUNNING_CONTAINERS" -lt "$EXPECTED_CONTAINERS" ]; then
+    log "AVERTISSEMENT: Certains conteneurs ne sont pas en cours d'exécution. Vérifiez les logs pour plus d'informations."
+    docker ps -a
+    log "Logs des conteneurs qui ont échoué:"
+    for container in prometheus grafana sonarqube sonarqube-db node-exporter mysql-exporter; do
+        if ! docker ps --filter "name=$container" --format "{{.Names}}" | grep -q "$container"; then
+            log "Logs du conteneur $container:"
+            docker logs $container 2>&1 | tail -n 20
+        fi
+    done
+else
+    log "Tous les conteneurs sont en cours d'exécution."
+fi
 
 log "Installation et configuration terminées avec succès."
 log "Grafana est accessible à l'adresse http://localhost:3001"
