@@ -145,7 +145,7 @@ Avant de commencer, assurez-vous d'avoir :
 │   ├── secure-database.sh       # Script de sécurisation de la base de données
 │   └── secure-database.sql      # Script SQL pour sécuriser la base de données
 ├── .gitignore                   # Fichier d'exclusion Git
-├── YourMedia_AWS_Architecture.md # Schéma d'architecture AWS (Mermaid)
+├── YourMedia_AWS_Architecture.drawio.png # Schéma d'architecture AWS
 └── README.md                    # Ce fichier - Documentation principale
 ```
 
