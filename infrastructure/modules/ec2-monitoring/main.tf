@@ -229,6 +229,9 @@ resource "null_resource" "provision_monitoring" {
 
 # Génération et stockage du token SonarQube
 resource "null_resource" "generate_sonar_token" {
+  # Créer cette ressource uniquement si le provisionnement est activé
+  count = var.enable_provisioning ? 1 : 0
+
   # Dépend de l'instance EC2 de monitoring
   depends_on = [aws_instance.monitoring_instance]
 
