@@ -19,6 +19,18 @@ RDS_ENDPOINT=${TF_RDS_ENDPOINT}
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
 
+# Vérification des mots de passe par défaut
+if [ "$GF_SECURITY_ADMIN_PASSWORD" = "admin" ]; then
+    echo "[WARNING] Le mot de passe administrateur Grafana est défini sur la valeur par défaut 'admin'."
+    echo "[WARNING] Il est fortement recommandé de définir un mot de passe plus sécurisé via la variable GF_SECURITY_ADMIN_PASSWORD."
+    read -p "Voulez-vous continuer avec ce mot de passe par défaut? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "[INFO] Opération annulée. Veuillez définir un mot de passe plus sécurisé."
+        exit 1
+    fi
+fi
+
 # Afficher la bannière
 echo "========================================================="
 echo "=== Script de gestion Docker pour YourMedia ==="
@@ -56,6 +68,7 @@ check_docker() {
 
 # Vérifier les variables requises pour le déploiement
 check_deploy_vars() {
+    # Vérifier les variables essentielles
     if [ -z "$SSH_KEY" ]; then
         echo "[ERROR] La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
         exit 1
@@ -66,6 +79,7 @@ check_deploy_vars() {
         exit 1
     fi
 
+    # Vérifier les variables spécifiques à la cible
     if [ "$TARGET" = "mobile" ] || [ "$TARGET" = "all" ]; then
         if [ -z "$EC2_APP_IP" ]; then
             echo "[ERROR] L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
@@ -77,6 +91,26 @@ check_deploy_vars() {
         if [ -z "$EC2_MONITORING_IP" ]; then
             echo "[ERROR] L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
             exit 1
+        fi
+
+        # Vérifier les variables de base de données pour le monitoring
+        if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$RDS_ENDPOINT" ]; then
+            echo "[ERROR] Les informations de connexion à la base de données ne sont pas complètes."
+            echo "[ERROR] Veuillez définir les variables DB_USERNAME, DB_PASSWORD et TF_RDS_ENDPOINT."
+            exit 1
+        fi
+
+        # Vérifier les variables GitHub pour SonarQube
+        if [ -z "$GITHUB_CLIENT_ID" ] || [ -z "$GITHUB_CLIENT_SECRET" ]; then
+            echo "[WARNING] Les informations d'authentification GitHub pour SonarQube ne sont pas définies."
+            echo "[WARNING] L'intégration GitHub avec SonarQube ne sera pas disponible."
+            echo "[WARNING] Veuillez définir les variables GITHUB_CLIENT_ID et GITHUB_CLIENT_SECRET pour activer cette fonctionnalité."
+            read -p "Voulez-vous continuer sans l'intégration GitHub? (y/n) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "[INFO] Opération annulée. Veuillez définir les variables GitHub."
+                exit 1
+            fi
         fi
     fi
 }
