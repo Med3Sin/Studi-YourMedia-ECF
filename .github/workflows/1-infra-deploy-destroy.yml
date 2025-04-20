@@ -153,6 +153,8 @@ jobs:
             -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
             -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
             -var="environment=${{ github.event.inputs.environment }}" \
+            -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
+            -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -287,7 +289,9 @@ jobs:
             -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
             -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
             -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
-            -var="environment=${{ github.event.inputs.environment }}"
+            -var="environment=${{ github.event.inputs.environment }}" \
+            -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
+            -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
 
