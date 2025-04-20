@@ -38,7 +38,7 @@ fi
 # Créer un fichier SQL temporaire avec le mot de passe généré
 log "Création du fichier SQL temporaire..."
 TMP_SQL_FILE=$(mktemp)
-cat scripts/secure-database.sql | sed "s/StrongPassword123!/$NEW_DB_PASSWORD/g" > $TMP_SQL_FILE
+cat scripts/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$NEW_DB_PASSWORD/g" > $TMP_SQL_FILE
 
 # Exécuter le script SQL
 log "Exécution du script SQL pour sécuriser la base de données..."
@@ -61,13 +61,26 @@ fi
 # Mettre à jour le secret dans GitHub Actions (si GH_PAT est défini)
 if [ -n "$GH_PAT" ] && [ -n "$GITHUB_REPOSITORY" ]; then
     log "Mise à jour du secret DB_PASSWORD dans GitHub Actions..."
-    curl -X PUT \
-        -H "Authorization: token $GH_PAT" \
+
+    # Récupérer la clé publique pour chiffrer le secret
+    log "Récupération de la clé publique pour le dépôt..."
+    PUBLIC_KEY_RESPONSE=$(curl -s -H "Authorization: token $GH_PAT" \
         -H "Accept: application/vnd.github.v3+json" \
-        https://api.github.com/repos/$GITHUB_REPOSITORY/actions/secrets/DB_PASSWORD \
-        -d "{\"encrypted_value\":\"$(echo -n $NEW_DB_PASSWORD | base64)\", \"key_id\":\"012345678901234567\"}"
-    if [ $? -ne 0 ]; then
-        log "AVERTISSEMENT: Impossible de mettre à jour le secret dans GitHub Actions. Vous devrez le faire manuellement."
+        https://api.github.com/repos/$GITHUB_REPOSITORY/actions/secrets/public-key)
+
+    # Extraire key_id et key
+    KEY_ID=$(echo $PUBLIC_KEY_RESPONSE | grep -o '"key_id":"[^"]*"' | cut -d '"' -f 4)
+    PUBLIC_KEY=$(echo $PUBLIC_KEY_RESPONSE | grep -o '"key":"[^"]*"' | cut -d '"' -f 4)
+
+    if [ -z "$KEY_ID" ] || [ -z "$PUBLIC_KEY" ]; then
+        log "AVERTISSEMENT: Impossible de récupérer la clé publique. Vous devrez mettre à jour le secret manuellement."
+    else
+        # Chiffrer le mot de passe avec la clé publique (nécessite sodium-plus)
+        # Note: Cette étape nécessite des outils supplémentaires pour le chiffrement
+        # Pour simplifier, nous recommandons de mettre à jour le secret manuellement
+        log "AVERTISSEMENT: Le chiffrement des secrets nécessite des outils supplémentaires."
+        log "Veuillez mettre à jour le secret DB_PASSWORD manuellement dans les paramètres GitHub Actions."
+        log "Valeur du secret à définir: $NEW_DB_PASSWORD"
     fi
 fi
 

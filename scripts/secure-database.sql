@@ -2,8 +2,8 @@
 -- Ce script révoque les privilèges de l'utilisateur root et crée un utilisateur dédié pour l'application
 
 -- Créer un nouvel utilisateur dédié avec un mot de passe fort
--- IMPORTANT: Remplacez 'StrongPassword123!' par un mot de passe fort généré aléatoirement
-CREATE USER IF NOT EXISTS 'yourmedia_user'@'%' IDENTIFIED BY 'StrongPassword123!';
+-- IMPORTANT: Ce placeholder sera remplacé par un mot de passe fort généré aléatoirement par le script secure-database.sh
+CREATE USER IF NOT EXISTS 'yourmedia_user'@'%' IDENTIFIED BY '__DB_PASSWORD_PLACEHOLDER__';
 
 -- Accorder uniquement les privilèges nécessaires sur la base de données yourmedia
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, REFERENCES, CREATE TEMPORARY TABLES ON yourmedia.* TO 'yourmedia_user'@'%';
