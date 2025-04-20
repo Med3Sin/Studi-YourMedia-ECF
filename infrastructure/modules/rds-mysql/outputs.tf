@@ -2,19 +2,9 @@
 # Outputs du module RDS MySQL
 # -----------------------------------------------------------------------------
 
-output "rds_endpoint" {
-  description = "L'endpoint de connexion à l'instance RDS MySQL"
-  value       = aws_db_instance.mysql.endpoint
-}
-
 output "db_instance_endpoint" {
   description = "Endpoint de connexion à la base de données RDS MySQL"
   value       = aws_db_instance.mysql.endpoint
-}
-
-output "rds_port" {
-  description = "Le port de connexion à l'instance RDS MySQL"
-  value       = aws_db_instance.mysql.port
 }
 
 output "db_instance_port" {
@@ -22,18 +12,34 @@ output "db_instance_port" {
   value       = aws_db_instance.mysql.port
 }
 
-output "rds_username" {
-  description = "Le nom d'utilisateur pour se connecter à l'instance RDS MySQL"
+output "db_instance_username" {
+  description = "Nom d'utilisateur pour se connecter à la base de données RDS MySQL"
   value       = aws_db_instance.mysql.username
-}
-
-output "rds_database_name" {
-  description = "Le nom de la base de données MySQL"
-  value       = aws_db_instance.mysql.db_name
 }
 
 output "db_instance_name" {
   description = "Nom de la base de données initiale dans l'instance RDS"
+  value       = aws_db_instance.mysql.db_name
+}
+
+# Alias pour compatibilité avec le code existant
+output "rds_endpoint" {
+  description = "Alias pour db_instance_endpoint"
+  value       = aws_db_instance.mysql.endpoint
+}
+
+output "rds_port" {
+  description = "Alias pour db_instance_port"
+  value       = aws_db_instance.mysql.port
+}
+
+output "rds_username" {
+  description = "Alias pour db_instance_username"
+  value       = aws_db_instance.mysql.username
+}
+
+output "rds_database_name" {
+  description = "Alias pour db_instance_name"
   value       = aws_db_instance.mysql.db_name
 }
 

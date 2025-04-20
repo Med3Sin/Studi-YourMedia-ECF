@@ -54,9 +54,15 @@ variable "operator_ip" {
 }
 
 variable "ami_id" {
-  description = "ID de l'AMI Ubuntu à utiliser pour l'EC2 (doit correspondre à la région)."
+  description = "ID de l'AMI Amazon Linux 2 à utiliser pour l'EC2 (doit correspondre à la région)."
   type        = string
-  default     = "ami-0160e8d70ebc43ee1" # Exemple: Ubuntu 22.04 LTS pour eu-west-3 (Paris) - Vérifiez la dernière version Free Tier
+  default     = "ami-0f4982c2ea2a68de5" # Exemple: Amazon Linux 2 pour eu-west-3 (Paris) - Vérifiez la dernière version Free Tier
+}
+
+variable "use_latest_ami" {
+  description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
+  type        = bool
+  default     = true
 }
 
 variable "instance_type_ec2" {

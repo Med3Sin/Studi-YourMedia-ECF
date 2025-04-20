@@ -177,7 +177,7 @@ module "ec2-java-tomcat" {
   project_name          = var.project_name
   environment           = var.environment
   ami_id                = var.ami_id
-  use_latest_ami        = true # Utiliser l'AMI Amazon Linux 2 la plus récente
+  use_latest_ami        = var.use_latest_ami
   instance_type_ec2     = var.instance_type_ec2
   key_pair_name         = var.ec2_key_pair_name
   subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
@@ -208,7 +208,7 @@ module "ec2-monitoring" {
   monitoring_task_cpu          = var.monitoring_task_cpu
   monitoring_task_memory       = var.monitoring_task_memory
   monitoring_ami_id            = "ami-0925eac45db11fef2"     # Utilisation de l'AMI Amazon Linux 2 demandée
-  use_latest_ami               = true                        # Utiliser l'AMI Amazon Linux 2 la plus récente
+  use_latest_ami               = var.use_latest_ami
   key_pair_name                = var.ec2_key_pair_name       # Nom de la paire de clés SSH pour l'instance EC2 de monitoring
   ssh_private_key_path         = var.ssh_private_key_path    # Chemin vers la clé privée SSH
   ssh_private_key_content      = var.ssh_private_key_content # Contenu de la clé privée SSH

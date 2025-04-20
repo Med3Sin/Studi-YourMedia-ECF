@@ -32,7 +32,6 @@ variable "subnet_ids" {
 variable "monitoring_security_group_id" {
   description = "ID du groupe de sécurité à attacher à l'instance EC2 de monitoring."
   type        = string
-  # Renommer en ec2_security_group_id dans une future version pour plus de cohérence
 }
 
 variable "ec2_instance_private_ip" {
@@ -41,12 +40,12 @@ variable "ec2_instance_private_ip" {
 }
 
 variable "monitoring_task_cpu" {
-  description = "CPU alloué aux conteneurs Docker (maintenu pour compatibilité, sera supprimé dans une future version)."
+  description = "CPU alloué aux conteneurs Docker sur l'instance EC2 de monitoring."
   type        = number
 }
 
 variable "monitoring_task_memory" {
-  description = "Mémoire allouée aux conteneurs Docker (maintenu pour compatibilité, sera supprimé dans une future version)."
+  description = "Mémoire allouée aux conteneurs Docker sur l'instance EC2 de monitoring."
   type        = number
 }
 
@@ -54,7 +53,6 @@ variable "monitoring_ami_id" {
   description = "ID de l'AMI Amazon Linux 2 pour l'instance EC2 de monitoring."
   type        = string
   default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 dans eu-west-3 (Paris)
-  # Renommer en ec2_ami_id dans une future version pour plus de cohérence
 }
 
 variable "use_latest_ami" {

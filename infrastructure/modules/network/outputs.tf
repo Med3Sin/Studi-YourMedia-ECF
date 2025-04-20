@@ -13,7 +13,7 @@ output "rds_security_group_id" {
 }
 
 output "monitoring_security_group_id" {
-  description = "ID du groupe de sécurité pour les tâches ECS (ecs-monitoring)"
+  description = "ID du groupe de sécurité pour l'instance EC2 de monitoring (ec2-monitoring)"
   value       = aws_security_group.monitoring_sg.id
 }
 

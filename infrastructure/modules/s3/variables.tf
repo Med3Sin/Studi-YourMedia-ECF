@@ -15,7 +15,7 @@ variable "environment" {
 }
 
 variable "aws_region" {
-  description = "Région AWS (utilisée pour la politique Amplify)."
+  description = "Région AWS pour le bucket S3."
   type        = string
 }
 
