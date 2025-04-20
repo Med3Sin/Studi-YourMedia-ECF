@@ -205,8 +205,8 @@ module "ec2-monitoring" {
   subnet_ids                   = [aws_subnet.main_az1.id, aws_subnet.main_az1_secondary.id]
   monitoring_security_group_id = module.network.monitoring_security_group_id
   ec2_instance_private_ip      = module.ec2-java-tomcat.private_ip
-  monitoring_task_cpu          = var.monitoring_task_cpu
-  monitoring_task_memory       = var.monitoring_task_memory
+  # Note: Les variables monitoring_task_cpu et monitoring_task_memory ont été supprimées
+  # car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
   monitoring_ami_id            = "ami-0925eac45db11fef2"
   use_latest_ami               = var.use_latest_ami
   key_pair_name                = var.ec2_key_pair_name

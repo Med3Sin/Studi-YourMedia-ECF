@@ -42,11 +42,13 @@ variable "ec2_instance_private_ip" {
 variable "monitoring_task_cpu" {
   description = "CPU alloué aux conteneurs Docker sur l'instance EC2 de monitoring."
   type        = number
+  default     = 256 # Valeur par défaut pour la compatibilité avec les anciens scripts
 }
 
 variable "monitoring_task_memory" {
   description = "Mémoire allouée aux conteneurs Docker sur l'instance EC2 de monitoring."
   type        = number
+  default     = 512 # Valeur par défaut pour la compatibilité avec les anciens scripts
 }
 
 variable "monitoring_ami_id" {

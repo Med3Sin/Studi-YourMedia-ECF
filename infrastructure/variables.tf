@@ -77,17 +77,8 @@ variable "instance_type_rds" {
   default     = "db.t3.micro"
 }
 
-variable "monitoring_task_cpu" {
-  description = "CPU alloué aux tâches ECS Fargate (unités)."
-  type        = number
-  default     = 256 # Minimum pour Fargate (équivalent à 0.25 vCPU)
-}
-
-variable "monitoring_task_memory" {
-  description = "Mémoire allouée aux tâches ECS Fargate (MiB)."
-  type        = number
-  default     = 512 # Minimum pour Fargate
-}
+# Note: Les variables monitoring_task_cpu et monitoring_task_memory ont été supprimées
+# car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
 
 variable "github_token" {
   description = "Token GitHub (PAT) pour l'authentification aux services GitHub."

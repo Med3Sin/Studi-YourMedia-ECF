@@ -102,35 +102,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   }
 }
 
-# Politique de bucket pour autoriser Amplify Hosting à lire les artefacts de build
-# Note: On suppose que le build frontend est placé dans un préfixe "builds/frontend/"
-data "aws_iam_policy_document" "amplify_read_policy_doc" {
-  statement {
-    actions = [
-      "s3:GetObject",
-      "s3:ListBucket" # Nécessaire pour certains processus Amplify
-    ]
-    resources = [
-      aws_s3_bucket.media_storage.arn,                       # Accès au bucket lui-même (pour ListBucket)
-      "${aws_s3_bucket.media_storage.arn}/builds/frontend/*" # Accès aux objets dans le dossier de build
-    ]
-    principals {
-      type        = "Service"
-      identifiers = ["amplify.amazonaws.com"]
-    }
-    # Condition pour s'assurer que la requête vient bien d'Amplify pour ce compte/région
-    condition {
-      test     = "ArnLike"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:amplify:${var.aws_region}:${data.aws_caller_identity.current.account_id}:apps/*"]
-    }
-  }
-}
-
-resource "aws_s3_bucket_policy" "amplify_read_policy" {
-  bucket = aws_s3_bucket.media_storage.id
-  policy = data.aws_iam_policy_document.amplify_read_policy_doc.json
-}
+# Note: La politique de bucket pour Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
+# pour le déploiement du frontend React Native au lieu d'AWS Amplify.
 
 # Téléchargement des fichiers de configuration de monitoring dans le bucket S3
 # Les fichiers sont référencés depuis le module ec2-monitoring pour éviter la duplication
