@@ -1,0 +1,70 @@
+Référence pour la mise à jour du diagramme YourMedia_AWS_Architecture.drawio.png
+
+STRUCTURE GÉNÉRALE :
+-------------------
+
+1. AWS CLOUD (VPC)
+   
+   ZONE DE DISPONIBILITÉ eu-west-3a :
+   - EC2 Instance (t2.micro) - Java/Tomcat Backend
+     * Connexions : → RDS MySQL, → S3 Bucket
+   
+   - EC2 Instance (t2.micro) - Monitoring & Docker Containers
+     * Conteneurs Docker :
+       - Prometheus (collecte de métriques)
+       - Grafana (visualisation)
+       - SonarQube (analyse de code)
+       - React Native (application mobile)
+     * Connexions : → EC2 Java/Tomcat (pour monitoring)
+   
+   ZONE DE DISPONIBILITÉ eu-west-3b :
+   - Sous-réseau RDS (requis par AWS)
+   
+   SERVICES PARTAGÉS :
+   - RDS MySQL (db.t3.micro)
+   - S3 Bucket (stockage médias et artefacts)
+
+2. SERVICES EXTERNES
+   
+   - GitHub
+     * Repository
+     * GitHub Actions (CI/CD)
+     * GitHub Secrets
+     * Connexions : → EC2 instances, → S3, → Docker Hub, → Terraform Cloud
+   
+   - Docker Hub
+     * Repository privé d'images Docker
+     * Connexions : ← GitHub Actions, → EC2 Monitoring
+   
+   - Terraform Cloud
+     * Gestion des états Terraform
+     * Gestion des secrets
+     * Connexions : ← GitHub Actions, → AWS Cloud
+
+FLUX DE DONNÉES :
+----------------
+- GitHub Actions → AWS (déploiement infrastructure et applications)
+- GitHub Actions → Docker Hub → EC2 Monitoring (déploiement conteneurs)
+- React Native → EC2 Java/Tomcat (API calls)
+- EC2 Java/Tomcat → RDS MySQL (requêtes DB)
+- EC2 Java/Tomcat → S3 Bucket (stockage/récupération médias)
+- Prometheus → EC2 Java/Tomcat (collecte métriques)
+
+COULEURS SUGGÉRÉES :
+------------------
+- AWS Cloud/VPC : bleu clair
+- EC2 Instances : orange
+- RDS : bleu
+- S3 : vert
+- Conteneurs Docker : bleu Docker
+- GitHub : gris foncé
+- Docker Hub : bleu Docker
+- Terraform Cloud : violet
+
+NOTES IMPORTANTES :
+-----------------
+1. Supprimer toute référence à AWS Amplify
+2. Mettre en évidence que l'application React Native est maintenant en conteneur Docker
+3. Montrer clairement la séparation des zones de disponibilité
+4. Inclure Terraform Cloud pour la gestion des états et secrets
+5. Montrer les flux CI/CD via GitHub Actions

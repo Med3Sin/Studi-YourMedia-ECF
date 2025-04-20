@@ -70,7 +70,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
-[Voir le schéma d'architecture](aws-architecture-project-yourmedia.html)
+![Schéma d'Architecture YourMédia](YourMedia_AWS_Architecture.drawio.png)
 
 ## Prérequis
 
@@ -94,12 +94,13 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── 1-infra-deploy-destroy.yml
 │       ├── 2-backend-deploy.yml
 │       ├── 3-docker-build-deploy.yml
-│       └── 4-sonarqube-analysis.yml
+│       ├── 4-sonarqube-analysis.yml
+│       └── 5-docker-cleanup.yml
 ├── app-java/                    # Code source Backend Spring Boot
 │   ├── src/
 │   ├── pom.xml
 │   └── README.md
-├── app-react/                   # Code source Frontend React Native (Web)
+├── app-react/                   # Code source Frontend React Native
 │   ├── src/
 │   ├── package.json
 │   └── README.md
@@ -107,12 +108,19 @@ Avant de commencer, assurez-vous d'avoir :
 │   ├── APPLICATIONS.md          # Documentation des applications
 │   ├── APPLICATIONS-CORRECTIONS.md # Corrections apportées aux applications
 │   ├── ARCHITECTURE-IMPROVEMENT-PLAN.md # Plan d'amélioration
+│   ├── CLEANUP-GUIDE.md         # Guide de nettoyage complet
+│   ├── DOCKER-CONTAINERS.md     # Guide d'utilisation des conteneurs Docker
 │   ├── INFRASTRUCTURE.md        # Documentation de l'infrastructure
+│   ├── MIGRATION-AMPLIFY-TO-DOCKER.md # Migration du frontend vers Docker
 │   ├── MONITORING-SETUP-GUIDE.md # Guide de monitoring
 │   ├── OPERATIONS.md            # Documentation des opérations
-│   └── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets
+│   ├── SENSITIVE-VARIABLES.md   # Guide de gestion des variables sensibles
+│   ├── SONARQUBE-SETUP.md       # Guide de configuration de SonarQube
+│   ├── TERRAFORM-CLOUD-SECRETS.md # Guide de gestion des secrets dans Terraform Cloud
+│   ├── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets GitHub avec Terraform
+│   └── TROUBLESHOOTING.md       # Solutions aux problèmes courants
 ├── infrastructure/              # Code Terraform pour l'infrastructure AWS
-│   ├── main.tf                  # Point d'entrée principal (inclut Amplify)
+│   ├── main.tf                  # Point d'entrée principal
 │   ├── variables.tf             # Variables Terraform
 │   ├── outputs.tf               # Sorties Terraform (IPs, Endpoints, etc.)
 │   ├── providers.tf             # Configuration du provider AWS
@@ -127,11 +135,17 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── s3/                  # Bucket S3
 │       │   ├── files/            # Fichiers à stocker dans le bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf)
+│       ├── secrets-management/  # Gestion des secrets
+│       │   └── ... (main.tf, variables.tf, outputs.tf)
 │       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
-│           ├── scripts/          # Scripts pour Prometheus et Grafana
+│           ├── scripts/          # Scripts pour Prometheus, Grafana, SonarQube et React Native
 │           └── ... (main.tf, variables.tf, outputs.tf)
-├── .gitignore                    # Fichier d'exclusion Git
-├── aws-architecture-project-yourmedia.html  # Schéma d'architecture AWS
+├── scripts/                     # Scripts utilitaires
+│   ├── deploy-containers.sh     # Script de déploiement des conteneurs Docker
+│   ├── secure-database.sh       # Script de sécurisation de la base de données
+│   └── secure-database.sql      # Script SQL pour sécuriser la base de données
+├── .gitignore                   # Fichier d'exclusion Git
+├── YourMedia_AWS_Architecture.md # Schéma d'architecture AWS (Mermaid)
 └── README.md                    # Ce fichier - Documentation principale
 ```
 
@@ -142,6 +156,13 @@ Cette section décrit la configuration Terraform utilisée pour provisionner l'i
 ### Modules Terraform
 
 L'infrastructure est organisée en modules réutilisables pour faciliter la maintenance et l'évolution :
+
+- **network** : Gère les groupes de sécurité et les règles de trafic réseau.
+- **ec2-java-tomcat** : Provisionne l'instance EC2 pour le backend Java/Tomcat.
+- **rds-mysql** : Crée et configure la base de données RDS MySQL.
+- **s3** : Gère le bucket S3 pour le stockage des médias et des artefacts.
+- **ec2-monitoring** : Déploie l'instance EC2 pour le monitoring et les conteneurs Docker (Prometheus, Grafana, SonarQube, React Native).
+- **secrets-management** : Gère les secrets de l'application via Terraform Cloud.
 
 ### Déploiement/Destruction de l'Infrastructure
 
@@ -392,11 +413,11 @@ Pour plus de détails sur la configuration et l'utilisation des secrets GitHub a
    - Sélectionnez "Generate new token (classic)"
 
 4. **Configurez le token :**
-   - Donnez un nom descriptif à votre token (par exemple "YourMedia Terraform Amplify")
+   - Donnez un nom descriptif à votre token (par exemple "YourMedia Terraform")
    - Définissez une date d'expiration (recommandé : 90 jours)
    - Sélectionnez les autorisations nécessaires :
      - `repo` (accès complet au dépôt)
-     - `admin:repo_hook` (pour les webhooks Amplify)
+     - `admin:repo_hook` (pour les webhooks)
    - Faites défiler vers le bas et cliquez sur "Generate token" (Générer le token)
 
 5. **Copiez le token :**
