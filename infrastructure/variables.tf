@@ -84,7 +84,7 @@ variable "monitoring_task_memory" {
 }
 
 variable "github_token" {
-  description = "Token GitHub (PAT) pour connecter Amplify au repository."
+  description = "Token GitHub (PAT) pour l'authentification aux services GitHub."
   type        = string
   sensitive   = true
   # Sera fourni via les secrets GitHub Actions.

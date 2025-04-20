@@ -146,7 +146,7 @@ module "s3" {
 
   project_name            = var.project_name
   environment             = var.environment
-  aws_region              = var.aws_region                                  # Nécessaire pour la politique de déploiement Amplify
+  aws_region              = var.aws_region
   monitoring_scripts_path = "${path.module}/modules/ec2-monitoring/scripts" # Chemin vers les scripts de monitoring pour éviter la duplication
 }
 
@@ -226,79 +226,6 @@ module "ec2-monitoring" {
 }
 
 # -----------------------------------------------------------------------------
-# Ressource AWS Amplify Hosting pour le Frontend
+# Note: La ressource AWS Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
+# pour le déploiement du frontend React Native.
 # -----------------------------------------------------------------------------
-# Création conditionnelle de l'app Amplify en fonction de la disponibilité du token GitHub
-locals {
-  create_amplify_app = var.github_token != "" # Créer l'app Amplify seulement si github_token n'est pas vide
-}
-
-resource "aws_amplify_app" "frontend_app" {
-  count        = local.create_amplify_app ? 1 : 0 # Créer 0 ou 1 instance en fonction de la condition
-  name         = "${var.project_name}-frontend"
-  repository   = "https://github.com/${var.repo_owner}/Studi-YourMedia-ECF" # URL du repo GitHub
-  access_token = var.github_token                                           # Token PAT GitHub
-
-  # Configuration du build (simple copie depuis S3 dans ce cas)
-  # Amplify peut builder lui-même, mais pour suivre le plan, on build via GH Actions et on déploie depuis S3.
-  # Cependant, la configuration la plus simple est de laisser Amplify builder depuis le repo.
-  # On choisit cette option pour simplifier le Terraform. Le workflow GH Actions fera juste le push.
-  build_spec = <<-EOT
-    version: 1
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - cd app-react
-            - npm run amplify:install
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: app-react/dist
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - app-react/node_modules/**/*
-  EOT
-
-  # Variables d'environnement pour le build Amplify si nécessaire
-  # environment_variables = {
-  #   EXAMPLE_VAR = "example_value"
-  # }
-
-  tags = {
-    Project   = var.project_name
-    ManagedBy = "Terraform"
-  }
-}
-
-# Branche par défaut (ex: main ou master)
-resource "aws_amplify_branch" "main" {
-  count       = local.create_amplify_app ? 1 : 0 # Créer seulement si l'app Amplify est créée
-  app_id      = aws_amplify_app.frontend_app[0].id
-  branch_name = "main" # Ou la branche principale de votre repo
-
-  # Activer le build automatique à chaque push sur cette branche
-  enable_auto_build = true
-
-  tags = {
-    Project   = var.project_name
-    ManagedBy = "Terraform"
-  }
-}
-
-# (Optionnel) Domaine personnalisé - Non inclus pour rester simple et Free Tier
-# resource "aws_amplify_domain_association" "main" {
-#   app_id      = aws_amplify_app.frontend_app.id
-#   domain_name = "votre.domaine.com"
-#   sub_domain {
-#     branch_name = aws_amplify_branch.main.branch_name
-#     prefix      = "" # Pour le domaine racine
-#   }
-#   sub_domain {
-#     branch_name = aws_amplify_branch.main.branch_name
-#     prefix      = "www" # Pour le sous-domaine www
-#   }
-# }

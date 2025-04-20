@@ -64,7 +64,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 * **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 * **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 * **Réseau:** Utilisation d'un VPC dédié avec des groupes de sécurité spécifiques pour contrôler les flux.
-* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native et les services de monitoring (Prometheus, Grafana, SonarQube).
+* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native (remplaçant l'ancienne approche basée sur AWS Amplify) et les services de monitoring (Prometheus, Grafana, SonarQube).
 * **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 * **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), l'analyse de qualité du code avec SonarQube, et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
 

@@ -182,7 +182,6 @@ jobs:
           MONITORING_EC2_PUBLIC_IP=$(terraform output -raw monitoring_ec2_public_ip 2>/dev/null || echo "")
           RDS_ENDPOINT=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
           GRAFANA_URL=$(terraform output -raw grafana_url 2>/dev/null || echo "")
-          AMPLIFY_APP_URL=$(terraform output -raw amplify_app_url 2>/dev/null || echo "")
 
           # Stockage dans les variables d'environnement du workflow
           if [ ! -z "$EC2_PUBLIC_IP" ]; then
@@ -390,14 +389,8 @@ jobs:
           pa_token: ${{ secrets.GH_PAT }}
         continue-on-error: true
 
-      - name: Create Amplify App URL Secret
-        if: github.event.inputs.action == 'apply' && env.AMPLIFY_APP_URL != ''
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_AMPLIFY_APP_URL
-          value: ${{ env.AMPLIFY_APP_URL }}
-          pa_token: ${{ secrets.GH_PAT }}
-        continue-on-error: true
+      # Note: La création du secret Amplify App URL a été supprimée car nous utilisons maintenant des conteneurs Docker
+      # pour le déploiement du frontend React Native.
 
       # Étape 11: Résumé de l'exécution
       - name: Summary

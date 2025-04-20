@@ -232,22 +232,20 @@ L'instance dispose d'un rôle IAM avec les permissions suivantes :
 
 * **EC2 Java/Tomcat** : Accès en lecture/écriture via rôle IAM
 * **EC2 Monitoring** : Accès en lecture seule via rôle IAM
-* **AWS Amplify** : Accès en lecture seule pour les fichiers frontend
 
-## Hébergement Frontend (Amplify)
+## Hébergement Frontend (Conteneur Docker)
 
 ### Caractéristiques
 
-* **Repository** : Connecté directement au repository GitHub
-* **Branche** : main
-* **Framework** : React Native Web
-* **Build settings** : Personnalisés pour React Native Web
+* **Image Docker** : Conteneur React Native pour mobile
+* **Hébergement** : Instance EC2 de monitoring
+* **Framework** : React Native
 
 ### Configuration
 
 * **Environnement** : Variables d'environnement pour l'URL de l'API backend
-* **Domaine** : Domaine par défaut d'Amplify (peut être personnalisé ultérieurement)
-* **Déploiement** : Automatique à chaque push sur la branche main
+* **Accès** : Via l'adresse IP publique de l'instance EC2 de monitoring sur le port 3000
+* **Déploiement** : Via le workflow GitHub Actions `3-docker-build-deploy.yml`
 
 ## Gestion des secrets
 
