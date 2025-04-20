@@ -7,7 +7,7 @@ Ce document présente un plan détaillé pour améliorer l'architecture actuelle
 ### 1.1. Amélioration de la résilience et de la disponibilité
 
 #### Mise en place d'un Auto Scaling Group pour EC2
-**Pourquoi ?** 
+**Pourquoi ?**
 - **Haute disponibilité** : Un ASG permet de maintenir automatiquement le nombre souhaité d'instances EC2 en cas de défaillance d'une instance.
 - **Résilience** : Si une instance devient défectueuse, l'ASG la remplace automatiquement.
 - **Adaptation à la charge** : Bien que limité à 1-2 instances pour rester dans le Free Tier, cela permet de gérer les pics de charge occasionnels.
@@ -125,28 +125,28 @@ Ce document présente un plan détaillé pour améliorer l'architecture actuelle
 - **Documentation vivante** : Les tests servent de documentation sur le comportement attendu du système.
 - **Réduction des coûts de maintenance** : Réduit le temps passé à déboguer les problèmes en production.
 
-### 3.2. Optimisation du frontend React
+### 3.2. Optimisation de l'application mobile React Native
 
 #### Amélioration des performances
 **Pourquoi ?**
-- **Chargement plus rapide** : Le code splitting et le lazy loading réduisent le temps de chargement initial.
-- **Réduction de la taille du bundle** : Le tree shaking élimine le code inutilisé.
+- **Chargement plus rapide** : L'optimisation des assets et des composants réduit le temps de chargement initial.
+- **Réduction de la taille du bundle** : Le tree shaking et la minification éliminent le code inutilisé.
 - **Expérience utilisateur améliorée** : Des temps de chargement plus rapides améliorent la satisfaction des utilisateurs.
 - **Économie de bande passante** : Réduit la quantité de données que les utilisateurs doivent télécharger.
 
-#### Mise en place de PWA
+#### Mise en place du mode hors ligne
 **Pourquoi ?**
 - **Expérience hors ligne** : Permet aux utilisateurs d'accéder à l'application même sans connexion internet.
-- **Installation sur l'écran d'accueil** : Offre une expérience similaire à une application native.
-- **Chargement plus rapide** : Le caching des assets améliore les performances de chargement.
-- **Engagement utilisateur** : Permet d'envoyer des notifications push pour réengager les utilisateurs.
+- **Synchronisation en arrière-plan** : Synchronise les données lorsque la connexion est rétablie.
+- **Stockage local** : Utilise AsyncStorage pour stocker les données localement.
+- **Engagement utilisateur** : Améliore l'expérience utilisateur en évitant les interruptions dues à une mauvaise connectivité.
 
-#### Intégration avec CloudFront
+#### Optimisation des conteneurs Docker
 **Pourquoi ?**
-- **Distribution globale** : Réduit la latence pour les utilisateurs du monde entier.
-- **Mise en cache** : Améliore les performances en mettant en cache le contenu statique.
-- **Sécurité** : Offre une protection contre les attaques DDoS et d'autres menaces.
-- **Économie de bande passante** : Réduit le trafic vers le serveur d'origine.
+- **Déploiement simplifié** : Facilite le déploiement de l'application sur différentes plateformes.
+- **Isolation** : Isole l'application des autres services pour une meilleure stabilité.
+- **Scalabilité** : Permet de déployer plusieurs instances de l'application selon les besoins.
+- **Intégration avec le monitoring** : Facilite la surveillance des performances de l'application.
 
 ## 4. Amélioration du monitoring et de l'observabilité
 

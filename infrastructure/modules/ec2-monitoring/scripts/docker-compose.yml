@@ -48,7 +48,7 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-  # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, Amplify)
+  # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
   cloudwatch-exporter:
     image: prom/cloudwatch-exporter:latest
     container_name: cloudwatch-exporter
