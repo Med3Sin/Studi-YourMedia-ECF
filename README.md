@@ -26,7 +26,6 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
 - [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
 - [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
-- [Guide de contribution](docs/CONTRIBUTING.md) : Guide pour contribuer au projet
 
 ## Table des Matières
 
@@ -107,6 +106,7 @@ Avant de commencer, assurez-vous d'avoir :
 ├── docs/                        # Documentation centralisée
 │   ├── APPLICATIONS.md          # Documentation des applications
 │   ├── ARCHITECTURE-IMPROVEMENT-PLAN.md # Plan d'amélioration
+│   ├── ARCHITECTURE.md          # Description détaillée de l'architecture technique
 │   ├── CLEANUP-GUIDE.md         # Guide de nettoyage complet
 │   ├── DOCKER-MANAGEMENT.md     # Guide d'utilisation des conteneurs Docker
 │   ├── INFRASTRUCTURE.md        # Documentation de l'infrastructure
