@@ -10,9 +10,28 @@
 # - Prometheus : "open /prometheus/queries.active: permission denied"
 # - Grafana : "GF_PATHS_DATA='/var/lib/grafana' is not writable"
 #
+# Usage: ./fix_permissions.sh [--force] [--help]
+#   --force : Force le nettoyage des répertoires de données existants
+#   --help  : Affiche ce message d'aide
+#
 # Auteur: Med3Sin
 # Date: 2023-11-30
 #############################################################################
+
+# Afficher l'aide
+if [ "$1" = "--help" ]; then
+    echo "Usage: $0 [--force] [--help]"
+    echo "  --force : Force le nettoyage des répertoires de données existants"
+    echo "  --help  : Affiche ce message d'aide"
+    echo ""
+    echo "Ce script résout les problèmes courants de permissions qui empêchent"
+    echo "Grafana et Prometheus de fonctionner correctement dans des conteneurs Docker."
+    echo ""
+    echo "Problèmes résolus :"
+    echo "- Prometheus : \"open /prometheus/queries.active: permission denied\""
+    echo "- Grafana : \"GF_PATHS_DATA='/var/lib/grafana' is not writable\""
+    exit 0
+fi
 
 # Afficher un message avec formatage
 print_section() {
@@ -38,6 +57,13 @@ print_error() {
     echo "[ERREUR] $1" >&2
 }
 
+# Vérifier si le script est exécuté avec les privilèges root
+if [ "$(id -u)" -ne 0 ]; then
+    print_error "Ce script doit être exécuté avec les privilèges root (sudo)."
+    print_error "Veuillez réessayer avec: sudo $0 $*"
+    exit 1
+fi
+
 # Vérifier si une commande s'est exécutée avec succès
 check_success() {
     if [ $? -eq 0 ]; then
@@ -58,21 +84,41 @@ docker-compose down 2>/dev/null || true
 check_success "Arrêt des conteneurs"
 
 #############################################################################
-# ÉTAPE 2 : Nettoyer et préparer les répertoires de données
+# ÉTAPE 2 : Préparer les répertoires de données
 #############################################################################
 print_section "Préparation des répertoires de données"
 
-# Nettoyer les répertoires de données existants
-print_info "Nettoyage des répertoires de données..."
-rm -rf /opt/monitoring/prometheus-data/*
-rm -rf /opt/monitoring/grafana-data/*
-check_success "Nettoyage des répertoires"
+# Demander confirmation avant de nettoyer les répertoires
+print_info "Vérification des répertoires de données..."
 
 # Créer les répertoires s'ils n'existent pas
-print_info "Création des répertoires de données..."
+print_info "Création des répertoires de données si nécessaire..."
 mkdir -p /opt/monitoring/prometheus-data
 mkdir -p /opt/monitoring/grafana-data
 check_success "Création des répertoires"
+
+# Vérifier si les répertoires contiennent des données
+PROMETHEUS_FILES=$(find /opt/monitoring/prometheus-data -type f | wc -l)
+GRAFANA_FILES=$(find /opt/monitoring/grafana-data -type f | wc -l)
+
+if [ "$PROMETHEUS_FILES" -gt 0 ] || [ "$GRAFANA_FILES" -gt 0 ]; then
+    print_info "Les répertoires de données contiennent des fichiers existants."
+    print_info "Prometheus: $PROMETHEUS_FILES fichiers, Grafana: $GRAFANA_FILES fichiers"
+
+    # Vérifier si l'argument --force a été passé
+    if [ "$1" = "--force" ]; then
+        print_info "Option --force détectée. Nettoyage forcé des répertoires..."
+        rm -rf /opt/monitoring/prometheus-data/*
+        rm -rf /opt/monitoring/grafana-data/*
+        check_success "Nettoyage forcé des répertoires"
+    else
+        print_info "Pour nettoyer les répertoires et supprimer toutes les données existantes, relancez le script avec l'option --force."
+        print_info "Exemple: sudo ./fix_permissions.sh --force"
+        print_info "Conservation des données existantes..."
+    fi
+else
+    print_info "Les répertoires de données sont vides. Aucun nettoyage nécessaire."
+fi
 
 #############################################################################
 # ÉTAPE 3 : Corriger les permissions des répertoires
@@ -88,12 +134,29 @@ chown -R 472:472 /opt/monitoring/grafana-data
 check_success "Configuration des permissions pour Grafana"
 
 #############################################################################
-# ÉTAPE 4 : Créer les fichiers de configuration
+# ÉTAPE 4 : Sauvegarder et mettre à jour les fichiers de configuration
 #############################################################################
-print_section "Création des fichiers de configuration"
+print_section "Sauvegarde et mise à jour des fichiers de configuration"
 
-print_info "Création du fichier docker-compose.yml..."
-cat > /opt/monitoring/docker-compose.yml << 'EOL'
+# Sauvegarder les fichiers de configuration existants
+print_info "Sauvegarde des fichiers de configuration existants..."
+if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+    cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak
+    print_success "Sauvegarde du fichier docker-compose.yml"
+fi
+
+if [ -f "/opt/monitoring/prometheus.yml" ]; then
+    cp /opt/monitoring/prometheus.yml /opt/monitoring/prometheus.yml.bak
+    print_success "Sauvegarde du fichier prometheus.yml"
+fi
+
+# Mettre à jour les fichiers de configuration existants avec les bonnes permissions
+print_info "Mise à jour des fichiers de configuration..."
+
+# Mettre à jour le fichier docker-compose.yml uniquement s'il n'existe pas
+if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+    print_info "Création du fichier docker-compose.yml..."
+    cat > /opt/monitoring/docker-compose.yml << 'EOL'
 version: '3'
 
 services:
@@ -127,16 +190,25 @@ services:
     volumes:
       - ./grafana-data:/var/lib/grafana  # Données persistantes
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # Mot de passe par défaut
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}  # Mot de passe par défaut ou variable d'environnement
       - GF_USERS_ALLOW_SIGN_UP=false  # Désactive l'inscription des utilisateurs
     restart: always
     depends_on:
       - prometheus
 EOL
-check_success "Création du fichier docker-compose.yml"
+    check_success "Création du fichier docker-compose.yml"
+else
+    print_info "Le fichier docker-compose.yml existe déjà. Mise à jour des permissions utilisateur..."
+    # Mettre à jour les permissions utilisateur dans le fichier docker-compose.yml existant
+    sed -i 's/\(\s*user:\s*\)"[^"]*"/\1"65534"/' /opt/monitoring/docker-compose.yml
+    sed -i 's/\(\s*user:\s*\)"[^"]*"/\1"472"/' /opt/monitoring/docker-compose.yml
+    check_success "Mise à jour des permissions utilisateur dans docker-compose.yml"
+fi
 
-print_info "Création du fichier prometheus.yml..."
-cat > /opt/monitoring/prometheus.yml << 'EOL'
+# Mettre à jour le fichier prometheus.yml uniquement s'il n'existe pas
+if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+    print_info "Création du fichier prometheus.yml..."
+    cat > /opt/monitoring/prometheus.yml << 'EOL'
 # Configuration globale de Prometheus
 global:
   scrape_interval: 15s      # Fréquence de collecte des métriques
@@ -160,7 +232,10 @@ scrape_configs:
     static_configs:
       - targets: ['backend:8080']
 EOL
-check_success "Création du fichier prometheus.yml"
+    check_success "Création du fichier prometheus.yml"
+else
+    print_info "Le fichier prometheus.yml existe déjà. Conservation de la configuration existante."
+fi
 
 #############################################################################
 # ÉTAPE 5 : Démarrer les conteneurs
