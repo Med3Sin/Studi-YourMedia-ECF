@@ -41,7 +41,7 @@ services:
     image: ${DOCKER_USERNAME}/${DOCKER_REPO}:grafana-latest
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:

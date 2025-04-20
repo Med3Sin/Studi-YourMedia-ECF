@@ -7,8 +7,8 @@ USER root
 COPY provisioning /etc/grafana/provisioning
 COPY dashboards /var/lib/grafana/dashboards
 
-# Définir les variables d'environnement
-ENV GF_SECURITY_ADMIN_PASSWORD=admin
+# Définir les variables d'environnement par défaut
+# Le mot de passe admin sera remplacé par la variable d'environnement GF_SECURITY_ADMIN_PASSWORD lors du déploiement
 ENV GF_USERS_ALLOW_SIGN_UP=false
 ENV GF_AUTH_ANONYMOUS_ENABLED=true
 ENV GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer

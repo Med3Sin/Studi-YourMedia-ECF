@@ -63,7 +63,7 @@ Vous pouvez construire les images manuellement en utilisant le script `scripts/b
 ### Construction automatisée
 
 Un workflow GitHub Actions est configuré pour construire et pousser les images automatiquement :
-- `.github/workflows/4-docker-build-deploy.yml`
+- `.github/workflows/3-docker-build-deploy.yml`
 
 Vous pouvez déclencher ce workflow manuellement depuis l'interface GitHub Actions en sélectionnant les options suivantes :
 - **Target** : all, mobile ou monitoring

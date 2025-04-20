@@ -41,25 +41,25 @@ deploy_monitoring() {
     fi
 
     echo "Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
-    
+
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
-        
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
         # Créer les répertoires nécessaires
         sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-extensions /opt/monitoring/sonarqube-logs /opt/monitoring/sonarqube-db
-        
+
         # Configurer les permissions
         sudo chown -R 1000:1000 /opt/monitoring/grafana-data
         sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-extensions /opt/monitoring/sonarqube-logs
         sudo chown -R 999:999 /opt/monitoring/sonarqube-db
-        
+
         # Augmenter les limites système pour SonarQube
         echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
         echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
         sudo sysctl -p
-        
+
         # Créer le fichier docker-compose.yml
         cat > /tmp/docker-compose.yml << 'EOFINNER'
 version: '3'
@@ -222,19 +222,19 @@ EOFINNER
         sed -i "s/\$RDS_ENDPOINT/$RDS_ENDPOINT/g" /tmp/docker-compose.yml
         sed -i "s/\$GITHUB_CLIENT_ID/$GITHUB_CLIENT_ID/g" /tmp/docker-compose.yml
         sed -i "s/\$GITHUB_CLIENT_SECRET/$GITHUB_CLIENT_SECRET/g" /tmp/docker-compose.yml
-        
+
         # Déplacer le fichier docker-compose.yml
         sudo mv /tmp/docker-compose.yml /opt/monitoring/docker-compose.yml
-        
+
         # Démarrer les conteneurs
         cd /opt/monitoring
         sudo docker-compose pull
         sudo docker-compose up -d
-        
+
         # Vérifier que les conteneurs sont en cours d'exécution
         sudo docker ps
 EOF
-    
+
     echo "Déploiement des conteneurs de monitoring terminé."
 }
 
@@ -246,15 +246,15 @@ deploy_app() {
     fi
 
     echo "Déploiement de l'application mobile sur $EC2_APP_IP..."
-    
+
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_APP_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
-        
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
         # Créer les répertoires nécessaires
         sudo mkdir -p /opt/yourmedia
-        
+
         # Créer le fichier docker-compose.yml
         cat > /tmp/docker-compose.yml << 'EOFINNER'
 version: '3'
@@ -283,19 +283,19 @@ EOFINNER
         sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /tmp/docker-compose.yml
         sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /tmp/docker-compose.yml
         sed -i "s/\$EC2_APP_IP/$EC2_APP_IP/g" /tmp/docker-compose.yml
-        
+
         # Déplacer le fichier docker-compose.yml
         sudo mv /tmp/docker-compose.yml /opt/yourmedia/docker-compose.yml
-        
+
         # Démarrer les conteneurs
         cd /opt/yourmedia
         sudo docker-compose pull
         sudo docker-compose up -d
-        
+
         # Vérifier que les conteneurs sont en cours d'exécution
         sudo docker ps
 EOF
-    
+
     echo "Déploiement de l'application mobile terminé."
 }
 

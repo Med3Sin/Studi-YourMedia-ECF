@@ -27,6 +27,5 @@ scrape_configs:
     static_configs:
       - targets: ['app-backend:8080']
 
-  - job_name: 'app-mobile'
-    static_configs:
-      - targets: ['app-mobile:3000']
+  # L'application mobile ne fournit pas de métriques Prometheus directement
+  # Utilisez node-exporter pour surveiller le système hôte

@@ -17,6 +17,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 ### Documentation spécifique
 
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
+- [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
@@ -90,7 +91,8 @@ Avant de commencer, assurez-vous d'avoir :
 │   └── workflows/              # Workflows GitHub Actions
 │       ├── 1-infra-deploy-destroy.yml
 │       ├── 2-backend-deploy.yml
-│       └── 3-frontend-deploy.yml
+│       ├── 3-docker-build-deploy.yml
+│       └── 4-sonarqube-analysis.yml
 ├── app-java/                    # Code source Backend Spring Boot
 │   ├── src/
 │   ├── pom.xml
@@ -175,12 +177,12 @@ L'application mobile est développée avec React Native, permettant une expérie
 
 ### Construction et Déploiement de l'Application Mobile
 
-La construction et le déploiement de l'application mobile sont gérés par le workflow GitHub Actions `4-docker-build-deploy.yml`. Ce workflow construit l'image Docker de l'application mobile et la déploie sur l'instance EC2.
+La construction et le déploiement de l'application mobile sont gérés par le workflow GitHub Actions `3-docker-build-deploy.yml`. Ce workflow construit l'image Docker de l'application mobile et la déploie sur l'instance EC2.
 
 Pour construire et déployer l'application mobile :
 
 1.  Accédez à l'onglet "Actions" de votre dépôt GitHub
-2.  Sélectionnez le workflow "4 - Docker Build and Deploy"
+2.  Sélectionnez le workflow "3 - Docker Build and Deploy"
 3.  Cliquez sur "Run workflow"
 4.  Sélectionnez la cible "mobile" ou "all"
 5.  Sélectionnez "true" pour déployer après la construction
@@ -222,11 +224,11 @@ Ces services sont déployés automatiquement lors de l'application de l'infrastr
 Pour accéder à l'interface Grafana :
 
 1.  Récupérez l'adresse IP publique de l'instance EC2 de monitoring depuis les outputs Terraform
-2.  Accédez à `http://<IP_PUBLIQUE_EC2_MONITORING>:3000` dans votre navigateur
+2.  Accédez à `http://<IP_PUBLIQUE_EC2_MONITORING>:3001` dans votre navigateur
 3.  Connectez-vous avec les identifiants par défaut :
     * Utilisateur : `admin`
-    * Mot de passe : `admin`
-4.  Lors de la première connexion, Grafana vous demandera de changer le mot de passe
+    * Mot de passe : celui défini dans le secret GitHub `GF_SECURITY_ADMIN_PASSWORD`
+4.  Si c'est votre première connexion, Grafana vous demandera de changer le mot de passe
 
 Pour accéder à l'interface Prometheus :
 
@@ -248,12 +250,12 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Déclenchement: Manuel (`workflow_dispatch`)
     -   Processus: Compilation Maven, téléversement sur S3, déploiement sur Tomcat via SSH
     -   Paramètres requis: IP publique de l'EC2, nom du bucket S3 (récupérés automatiquement des secrets)
--   **`4-docker-build-deploy.yml`:** Construit et déploie les conteneurs Docker.
+-   **`3-docker-build-deploy.yml`:** Construit et déploie les conteneurs Docker.
     -   Déclenchement: Manuel (`workflow_dispatch`)
     -   Actions: `mobile`, `monitoring`, `all`
     -   Processus: Construction des images Docker, publication sur Docker Hub, déploiement sur les instances EC2
     -   Paramètres requis: Identifiants Docker Hub, clés SSH (récupérés des secrets GitHub)
--   **`5-sonarqube-analysis.yml`:** Analyse la qualité du code avec SonarQube.
+-   **`4-sonarqube-analysis.yml`:** Analyse la qualité du code avec SonarQube.
     -   Déclenchement: Automatique (`push` sur `main`) ou manuel
     -   Actions: `backend`, `mobile`, `all`
     -   Processus: Analyse du code source, publication des résultats sur SonarQube

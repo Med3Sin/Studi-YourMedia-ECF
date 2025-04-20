@@ -92,7 +92,7 @@ Des webhooks GitHub sont configurés pour déclencher une analyse SonarQube à c
 Vous pouvez déclencher une analyse manuelle en utilisant le workflow GitHub Actions :
 
 1. Accédez à l'onglet "Actions" du dépôt GitHub
-2. Sélectionnez le workflow "5 - SonarQube Analysis"
+2. Sélectionnez le workflow "4 - SonarQube Analysis"
 3. Cliquez sur "Run workflow"
 4. Sélectionnez le projet à analyser (all, backend ou mobile)
 5. Cliquez sur "Run workflow"
@@ -105,7 +105,7 @@ Une analyse est automatiquement déclenchée à chaque push sur la branche main 
 
 L'analyse est configurée dans les fichiers suivants :
 
-- `.github/workflows/5-sonarqube-analysis.yml` : Configuration du workflow GitHub Actions
+- `.github/workflows/4-sonarqube-analysis.yml` : Configuration du workflow GitHub Actions
 - `app-java/pom.xml` : Configuration de l'analyse Java
 - `app-react/sonar-project.properties` : Configuration de l'analyse JavaScript/React
 

@@ -1,4 +1,4 @@
-name: 4 - Docker Build and Deploy
+name: 3 - Docker Build and Deploy
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
       deploy:
         description: 'Deploy after build'
         required: true
-        default: 'true'
+        default: true
         type: boolean
 
 jobs:
@@ -101,11 +101,11 @@ jobs:
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Deploy:** ${{ github.event.inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "* **Mobile App Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Grafana Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus Image:** ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
@@ -160,13 +160,13 @@ jobs:
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
+            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3001" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
             echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "* **Mobile App URL:** http://${{ secrets.TF_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
           fi

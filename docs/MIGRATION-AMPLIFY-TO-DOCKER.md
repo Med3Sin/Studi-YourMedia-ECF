@@ -39,8 +39,8 @@ Les conteneurs Docker suivants ont été créés :
 
 Les workflows GitHub Actions suivants ont été mis à jour ou créés :
 
-- **4-docker-build-deploy.yml** : Construction et déploiement des conteneurs Docker
-- **5-sonarqube-analysis.yml** : Analyse de la qualité du code avec SonarQube
+- **3-docker-build-deploy.yml** : Construction et déploiement des conteneurs Docker
+- **4-sonarqube-analysis.yml** : Analyse de la qualité du code avec SonarQube
 
 Le workflow suivant a été supprimé :
 
