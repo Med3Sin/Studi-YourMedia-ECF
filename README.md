@@ -26,6 +26,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
 - [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
 - [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
+- [Guide de contribution](docs/CONTRIBUTING.md) : Guide pour contribuer au projet
 
 ## Table des Matières
 
@@ -227,6 +228,7 @@ Les fichiers de configuration pour le monitoring sont définis dans le répertoi
 -   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
 -   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter pour collecter les métriques AWS
 -   `docker-manager.sh` : Script pour gérer les conteneurs Docker (construction, publication, déploiement)
+-   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs Docker
 -   `fix_permissions.sh` : Script pour corriger les permissions des volumes
 
 Ces fichiers sont utilisés de deux façons :
