@@ -20,6 +20,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
+- [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
 
 ## Table des Matières
 
@@ -40,7 +41,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
     * [Configuration SSH](#configuration-ssh)
     * [Configuration des Secrets](#configuration-des-secrets)
 9.  [Utilisation des Secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md)
-10. [Résolution des problèmes courants](#résolution-des-problèmes-courants)
+10. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
 11. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
 12. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
