@@ -217,7 +217,6 @@ jobs:
         run: |
           echo "::group::Vidage du bucket S3"
           # Récupérer le nom du bucket S3 depuis les outputs Terraform
-          cd infrastructure
           S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
 
           if [ ! -z "$S3_BUCKET_NAME" ]; then
