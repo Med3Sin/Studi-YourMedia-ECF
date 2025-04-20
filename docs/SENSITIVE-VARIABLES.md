@@ -49,18 +49,29 @@ Les variables sensibles (mots de passe, tokens, clés API, etc.) ne doivent jama
 
 ### Secrets SonarQube
 
-| Nom du secret | Description | Utilisé par |
-|--------------|-------------|------------|
-| `SONAR_TOKEN` | Token d'accès SonarQube | Workflow d'analyse SonarQube |
-| `GITHUB_CLIENT_ID` | ID client OAuth GitHub pour SonarQube | Conteneur SonarQube |
-| `GITHUB_CLIENT_SECRET` | Secret client OAuth GitHub pour SonarQube | Conteneur SonarQube |
+| Nom du secret | Description | Utilisé par | Généré automatiquement |
+|--------------|-------------|------------|------------------------|
+| `SONAR_TOKEN` | Token d'accès SonarQube | Workflow d'analyse SonarQube | Oui, par le script `generate_sonar_token.sh` |
+| `SONAR_HOST_URL` | URL de l'instance SonarQube | Workflow d'analyse SonarQube | Non, construit à partir de `TF_MONITORING_EC2_PUBLIC_IP` |
+| `SONAR_JDBC_USERNAME` | Nom d'utilisateur pour la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
+| `SONAR_JDBC_PASSWORD` | Mot de passe pour la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
+| `SONAR_JDBC_URL` | URL de connexion à la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
+| `GITHUB_CLIENT_ID` | ID client OAuth GitHub pour SonarQube | Conteneur SonarQube | Non |
+| `GITHUB_CLIENT_SECRET` | Secret client OAuth GitHub pour SonarQube | Conteneur SonarQube | Non |
+
+### Secrets Terraform Cloud
+
+| Nom du secret | Description | Utilisé par | Généré automatiquement |
+|--------------|-------------|------------|------------------------|
+| `TF_API_TOKEN` | Token d'API Terraform Cloud | Workflows GitHub Actions, scripts | Non |
+| `TF_WORKSPACE_ID` | ID de l'espace de travail Terraform Cloud | Workflows GitHub Actions, scripts | Non |
 
 ### Autres secrets
 
-| Nom du secret | Description | Utilisé par |
-|--------------|-------------|------------|
-| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Conteneur Grafana |
-| `GH_PAT` | Personal Access Token GitHub | Terraform, intégrations GitHub |
+| Nom du secret | Description | Utilisé par | Généré automatiquement |
+|--------------|-------------|------------|------------------------|
+| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Conteneur Grafana | Oui, par le module `secrets_management` |
+| `GH_PAT` | Personal Access Token GitHub | Terraform, intégrations GitHub | Non |
 
 ## Configuration des secrets GitHub
 

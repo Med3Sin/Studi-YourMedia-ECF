@@ -1,5 +1,22 @@
 # Fichier principal Terraform pour l'infrastructure YourMédia
 
+# Configuration du provider Terraform Cloud pour la gestion des secrets
+provider "tfe" {
+  token = var.tf_api_token
+}
+
+# -----------------------------------------------------------------------------
+# Module de gestion des secrets
+# -----------------------------------------------------------------------------
+module "secrets_management" {
+  source = "./modules/secrets-management"
+
+  workspace_id = var.tf_workspace_id
+  organization = var.tf_organization
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # -----------------------------------------------------------------------------
 # Création d'un VPC dédié au projet
 # -----------------------------------------------------------------------------
@@ -191,9 +208,15 @@ module "ec2-monitoring" {
   enable_provisioning          = false                       # Désactiver le provisionnement automatique
   s3_bucket_name               = module.s3.bucket_name
   s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
-  db_username                  = var.db_username               # Nom d'utilisateur RDS pour MySQL Exporter
-  db_password                  = var.db_password               # Mot de passe RDS pour MySQL Exporter
-  rds_endpoint                 = module.rds-mysql.rds_endpoint # Endpoint RDS pour MySQL Exporter
+  db_username                  = var.db_username                                # Nom d'utilisateur RDS pour MySQL Exporter
+  db_password                  = var.db_password                                # Mot de passe RDS pour MySQL Exporter
+  rds_endpoint                 = module.rds-mysql.rds_endpoint                  # Endpoint RDS pour MySQL Exporter
+  sonar_jdbc_username          = module.secrets_management.sonar_jdbc_username  # Nom d'utilisateur pour la base de données SonarQube
+  sonar_jdbc_password          = module.secrets_management.sonar_jdbc_password  # Mot de passe pour la base de données SonarQube
+  sonar_jdbc_url               = module.secrets_management.sonar_jdbc_url       # URL de connexion à la base de données SonarQube
+  grafana_admin_password       = module.secrets_management.grafana_admin_password # Mot de passe administrateur Grafana
+  tf_api_token                 = var.tf_api_token                               # Token d'API Terraform Cloud
+  tf_workspace_id              = var.tf_workspace_id                            # ID de l'espace de travail Terraform Cloud
 }
 
 # -----------------------------------------------------------------------------

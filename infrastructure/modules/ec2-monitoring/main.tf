@@ -119,6 +119,14 @@ resource "aws_instance" "monitoring_instance" {
     sed -i 's/PLACEHOLDER_PASSWORD/${var.db_password}/g' /opt/monitoring/setup.sh
     sed -i 's/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g' /opt/monitoring/setup.sh
 
+    # Ajouter les variables pour SonarQube
+    sed -i 's/SONAR_JDBC_USERNAME/${var.sonar_jdbc_username}/g' /opt/monitoring/setup.sh
+    sed -i 's/SONAR_JDBC_PASSWORD/${var.sonar_jdbc_password}/g' /opt/monitoring/setup.sh
+    sed -i 's|SONAR_JDBC_URL|${var.sonar_jdbc_url}|g' /opt/monitoring/setup.sh
+
+    # Ajouter la variable pour le mot de passe administrateur Grafana
+    sed -i 's/GRAFANA_ADMIN_PASSWORD/${var.grafana_admin_password}/g' /opt/monitoring/setup.sh
+
     # Rendre le script exécutable et l'exécuter
     chmod +x /opt/monitoring/setup.sh
     /opt/monitoring/setup.sh
@@ -217,6 +225,45 @@ resource "null_resource" "provision_monitoring" {
   }
 
   depends_on = [aws_instance.monitoring_instance]
+}
+
+# Génération et stockage du token SonarQube
+resource "null_resource" "generate_sonar_token" {
+  # Dépend de l'instance EC2 de monitoring
+  depends_on = [aws_instance.monitoring_instance]
+
+  # Déclencher uniquement lorsque l'instance est créée ou modifiée
+  triggers = {
+    instance_id = aws_instance.monitoring_instance.id
+  }
+
+  # Copie du script de génération du token SonarQube
+  provisioner "file" {
+    source      = "${path.module}/scripts/generate_sonar_token.sh"
+    destination = "/tmp/generate_sonar_token.sh"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      host        = aws_instance.monitoring_instance.public_ip
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
+    }
+  }
+
+  # Exécution du script de génération du token SonarQube
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/generate_sonar_token.sh",
+      "/tmp/generate_sonar_token.sh ${aws_instance.monitoring_instance.public_ip} ${var.tf_api_token} ${var.tf_workspace_id}"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      host        = aws_instance.monitoring_instance.public_ip
+      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
+    }
+  }
 }
 
 # Ajouter un message dans les outputs pour indiquer comment configurer manuellement l'instance

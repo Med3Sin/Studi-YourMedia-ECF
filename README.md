@@ -18,6 +18,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
+- [Guide des secrets Terraform Cloud](docs/TERRAFORM-CLOUD-SECRETS.md) : Guide de gestion des secrets dans Terraform Cloud
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Corrections des applications](docs/APPLICATIONS-CORRECTIONS.md) : Corrections apportées aux applications
@@ -266,6 +267,12 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Paramètres: Dépôt Docker Hub, motif de tag, mode simulation
     -   Processus: Suppression des images Docker Hub selon le motif spécifié
     -   Paramètres requis: Identifiants Docker Hub (récupérés des secrets GitHub)
+-   **`6-retrieve-secrets.yml`:** Récupère les secrets depuis Terraform Cloud.
+    -   Déclenchement: Manuel (`workflow_dispatch`)
+    -   Paramètres: Nom du secret, afficher la valeur
+    -   Processus: Récupération des secrets depuis Terraform Cloud
+    -   Paramètres requis: Token d'API Terraform Cloud, ID de l'espace de travail (récupérés des secrets GitHub)
+    -   Sécurité: Limité aux administrateurs du projet
 
 ### Configuration SSH
 

@@ -117,3 +117,43 @@ variable "rds_endpoint" {
   type        = string
   default     = ""
 }
+
+variable "sonar_jdbc_username" {
+  description = "Nom d'utilisateur pour la base de données SonarQube."
+  type        = string
+  default     = "sonar"
+  sensitive   = true
+}
+
+variable "sonar_jdbc_password" {
+  description = "Mot de passe pour la base de données SonarQube."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "sonar_jdbc_url" {
+  description = "URL de connexion à la base de données SonarQube."
+  type        = string
+  default     = "jdbc:postgresql://sonarqube-db:5432/sonar"
+}
+
+variable "grafana_admin_password" {
+  description = "Mot de passe administrateur Grafana."
+  type        = string
+  default     = "admin"
+  sensitive   = true
+}
+
+variable "tf_api_token" {
+  description = "Token d'API Terraform Cloud pour l'authentification."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "tf_workspace_id" {
+  description = "ID de l'espace de travail Terraform Cloud."
+  type        = string
+  default     = ""
+}
