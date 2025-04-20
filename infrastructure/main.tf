@@ -214,17 +214,17 @@ module "ec2-monitoring" {
   ssh_private_key_content      = var.ssh_private_key_content # Contenu de la clé privée SSH
   ssh_public_key               = var.ssh_public_key          # Clé SSH publique pour l'accès à l'instance
   enable_provisioning          = false                       # Désactiver le provisionnement automatique
-  s3_bucket_name         = module.s3.bucket_name
-  s3_config_policy_arn    = module.s3.monitoring_s3_access_policy_arn
-  db_username            = var.db_username
-  db_password            = var.db_password
-  rds_endpoint           = module.rds-mysql.rds_endpoint
-  sonar_jdbc_username    = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
-  sonar_jdbc_password    = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
-  sonar_jdbc_url         = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
-  grafana_admin_password = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
-  tf_api_token           = var.tf_api_token
-  tf_workspace_id        = var.tf_workspace_id
+  s3_bucket_name              = module.s3.bucket_name
+  s3_config_policy_arn        = module.s3.monitoring_s3_access_policy_arn
+  db_username                 = var.db_username
+  db_password                 = var.db_password
+  rds_endpoint                = module.rds-mysql.rds_endpoint
+  sonar_jdbc_username         = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
+  sonar_jdbc_password         = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
+  sonar_jdbc_url              = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
+  grafana_admin_password      = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
+  tf_api_token                = var.tf_api_token
+  tf_workspace_id             = var.tf_workspace_id
 }
 
 # -----------------------------------------------------------------------------
