@@ -210,7 +210,38 @@ jobs:
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si l'application échoue
 
-      # Étape 8.5: Vider le bucket S3 avant la destruction
+      # Étape 8.5: Arrêter et supprimer les conteneurs Docker sur les instances EC2
+      - name: Cleanup Docker Containers
+        id: cleanup_containers
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Nettoyage des conteneurs Docker"
+          # Récupérer les adresses IP des instances EC2 depuis les outputs Terraform
+          EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || echo "")
+          MONITORING_EC2_PUBLIC_IP=$(terraform output -raw monitoring_ec2_public_ip 2>/dev/null || echo "")
+
+          # Créer le fichier de clé SSH si le secret est disponible
+          if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "Clé SSH privée configurée."
+          fi
+
+          # Exécuter le script de nettoyage des conteneurs
+          if [ ! -z "$EC2_PUBLIC_IP" ] && [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
+            echo "Nettoyage des conteneurs Docker sur les instances EC2..."
+            cd ../../
+            chmod +x ./scripts/cleanup-containers.sh
+            ./scripts/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
+            echo "Nettoyage des conteneurs Docker terminé."
+          else
+            echo "Adresses IP des instances EC2 non disponibles. Impossible de nettoyer les conteneurs Docker."
+          fi
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le nettoyage échoue
+
+      # Étape 8.6: Vider le bucket S3 avant la destruction
       - name: Empty S3 Bucket
         id: empty_s3
         if: github.event.inputs.action == 'destroy'

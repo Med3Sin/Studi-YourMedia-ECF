@@ -25,6 +25,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide des conteneurs Docker](docs/DOCKER-CONTAINERS.md) : Guide d'utilisation des conteneurs Docker
 - [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
 - [Migration Amplify vers Docker](docs/MIGRATION-AMPLIFY-TO-DOCKER.md) : Migration du frontend vers des conteneurs Docker
+- [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
 
 ## Table des Matières
 
