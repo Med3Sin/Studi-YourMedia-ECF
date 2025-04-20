@@ -147,12 +147,14 @@ variable "tf_api_token" {
   description = "Token d'API Terraform Cloud pour l'authentification."
   type        = string
   sensitive   = true
+  default     = ""
   # Sera fourni via les secrets GitHub Actions.
 }
 
 variable "tf_workspace_id" {
   description = "ID de l'espace de travail Terraform Cloud."
   type        = string
+  default     = ""
   # Sera fourni via les secrets GitHub Actions.
 }
 
@@ -160,4 +162,11 @@ variable "tf_organization" {
   description = "Nom de l'organisation Terraform Cloud."
   type        = string
   default     = "yourmedia"
+}
+
+variable "grafana_admin_password" {
+  description = "Mot de passe administrateur Grafana."
+  type        = string
+  default     = "admin"
+  sensitive   = true
 }
