@@ -91,7 +91,7 @@ jobs:
           npm test
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: react-test-results
           path: app-react/coverage
@@ -204,7 +204,7 @@ jobs:
             || echo "SonarQube analysis skipped"
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: java-test-results
           path: app-java/target/surefire-reports

@@ -95,7 +95,7 @@ jobs:
           trivy image --severity HIGH,CRITICAL yourmedia-ecf:sonarqube-scan
 
       - name: Upload Scan Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-scan-reports
           path: |
@@ -179,7 +179,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Code Scan Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-scan-reports
           path: |
@@ -212,7 +212,7 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Infrastructure Scan Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: infrastructure-scan-reports
           path: |
