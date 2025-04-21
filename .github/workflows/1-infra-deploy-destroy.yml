@@ -236,9 +236,8 @@ jobs:
           # Exécuter le script de nettoyage des conteneurs
           if [ ! -z "$EC2_PUBLIC_IP" ] && [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
             echo "Nettoyage des conteneurs Docker sur les instances EC2..."
-            cd ../../
-            chmod +x ./scripts/docker/cleanup-containers.sh
-            ./scripts/docker/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
+            chmod +x /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF/scripts/docker/cleanup-containers.sh
+            /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF/scripts/docker/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
             echo "Nettoyage des conteneurs Docker terminé."
           else
             echo "Adresses IP des instances EC2 non disponibles. Impossible de nettoyer les conteneurs Docker."
@@ -257,9 +256,14 @@ jobs:
 
           if [ ! -z "$S3_BUCKET_NAME" ]; then
             echo "Vidage du bucket S3: $S3_BUCKET_NAME"
-            # Vider le bucket S3
-            aws s3 rm s3://$S3_BUCKET_NAME --recursive
-            echo "Bucket S3 vidé avec succès."
+            # Vérifier si le bucket existe
+            if aws s3api head-bucket --bucket $S3_BUCKET_NAME 2>/dev/null; then
+              # Vider le bucket S3
+              aws s3 rm s3://$S3_BUCKET_NAME --recursive
+              echo "Bucket S3 vidé avec succès."
+            else
+              echo "Le bucket S3 $S3_BUCKET_NAME n'existe pas ou n'est pas accessible."
+            fi
           else
             echo "Aucun bucket S3 à vider ou nom de bucket non disponible."
           fi
