@@ -138,12 +138,27 @@ Avant de commencer, assurez-vous d'avoir :
 │       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
 │           ├── scripts/          # Scripts pour Prometheus, Grafana, SonarQube et React Native
 │           └── ... (main.tf, variables.tf, outputs.tf)
-├── scripts/                     # Scripts utilitaires
-│   ├── docker-manager.sh        # Script de gestion des conteneurs Docker (construction, publication, déploiement)
-│   ├── cleanup-containers.sh    # Script de nettoyage des conteneurs Docker
-│   ├── backup-restore-containers.sh # Script de sauvegarde et restauration des conteneurs Docker
-│   ├── secure-database.sh       # Script de sécurisation de la base de données
-│   └── secure-database.sql      # Script SQL pour sécuriser la base de données
+├── scripts/                     # Scripts utilitaires organisés par catégorie
+│   ├── database/                # Scripts liés à la base de données
+│   │   └── secure-database.sh   # Script de sécurisation de la base de données
+│   ├── docker/                  # Scripts liés à Docker
+│   │   ├── docker-manager.sh    # Script de gestion des conteneurs Docker (construction, publication, déploiement)
+│   │   ├── cleanup-containers.sh # Script de nettoyage des conteneurs Docker
+│   │   └── backup-restore-containers.sh # Script de sauvegarde et restauration des conteneurs Docker
+│   ├── ec2-java-tomcat/         # Scripts liés à l'instance EC2 Java/Tomcat
+│   │   └── install_java_tomcat.sh # Script d'installation de Java et Tomcat
+│   ├── ec2-monitoring/          # Scripts liés à l'instance EC2 de monitoring
+│   │   ├── setup.sh             # Script principal d'installation et de configuration
+│   │   ├── fix_permissions.sh   # Script de correction des permissions des volumes
+│   │   ├── generate_sonar_token.sh # Script de génération du token SonarQube
+│   │   ├── init-instance.sh     # Script d'initialisation de l'instance
+│   │   ├── docker-compose.yml   # Configuration des conteneurs Docker
+│   │   ├── prometheus.yml       # Configuration de Prometheus
+│   │   └── cloudwatch-config.yml # Configuration de CloudWatch Exporter
+│   └── utils/                   # Scripts utilitaires génériques
+│       ├── fix-ssh-keys.sh      # Script de correction des clés SSH
+│       ├── ssh-key-checker.service # Service systemd pour vérifier les clés SSH
+│       └── ssh-key-checker.timer # Timer systemd pour exécuter le service périodiquement
 ├── .gitignore                   # Fichier d'exclusion Git
 ├── YourMedia_AWS_Architecture.drawio.png # Schéma d'architecture AWS
 └── README.md                    # Ce fichier - Documentation principale
@@ -222,19 +237,32 @@ Le système de monitoring est basé sur Prometheus et Grafana, exécutés dans d
 
 ### Structure des fichiers de configuration
 
-Les fichiers de configuration pour le monitoring sont définis dans le répertoire `infrastructure/modules/ec2-monitoring/scripts`. Ces fichiers sont :
+Les fichiers de configuration pour le monitoring sont maintenant centralisés dans le répertoire `scripts/ec2-monitoring/`. Ces fichiers sont :
 
 -   `docker-compose.yml` : Configuration des conteneurs Docker pour Prometheus, Grafana, et les exportateurs
 -   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
 -   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter pour collecter les métriques AWS
+-   `setup.sh` : Script principal d'installation et de configuration
+-   `fix_permissions.sh` : Script pour corriger les permissions des volumes
+-   `generate_sonar_token.sh` : Script de génération du token SonarQube
+-   `init-instance.sh` : Script d'initialisation de l'instance
+
+Les scripts Docker sont centralisés dans le répertoire `scripts/docker/` :
+
 -   `docker-manager.sh` : Script pour gérer les conteneurs Docker (construction, publication, déploiement)
 -   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs Docker
--   `fix_permissions.sh` : Script pour corriger les permissions des volumes
+-   `cleanup-containers.sh` : Script pour nettoyer les conteneurs Docker
+
+Les scripts utilitaires génériques sont dans le répertoire `scripts/utils/` :
+
+-   `fix-ssh-keys.sh` : Script pour corriger les clés SSH
+-   `ssh-key-checker.service` : Service systemd pour vérifier les clés SSH
+-   `ssh-key-checker.timer` : Timer systemd pour exécuter le service périodiquement
 
 Ces fichiers sont utilisés de deux façons :
 
 1.  **Générés directement dans l'instance EC2** : Les fichiers sont générés directement dans l'instance EC2 lors de son initialisation via le script `user_data`. Les variables comme l'adresse IP de l'instance EC2 Java/Tomcat sont substituées automatiquement.
-2.  **Disponibles dans le bucket S3** : Les mêmes fichiers sont également téléversés dans le bucket S3 pour permettre une récupération manuelle si nécessaire. Le module S3 référence les fichiers depuis le module ec2-monitoring pour éviter la duplication.
+2.  **Disponibles dans le bucket S3** : Les mêmes fichiers sont également téléversés dans le bucket S3 pour permettre une récupération manuelle si nécessaire. Le module S3 référence les fichiers depuis le dossier scripts centralisé pour éviter la duplication.
 
 **Composants :**
 

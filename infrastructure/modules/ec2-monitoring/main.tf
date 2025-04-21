@@ -261,7 +261,7 @@ resource "null_resource" "provision_monitoring" {
 
   # Copie du fichier docker-compose.yml
   provisioner "file" {
-    source      = "${path.module}/scripts/docker-compose.yml"
+    source      = "${path.module}/../../scripts/ec2-monitoring/docker-compose.yml"
     destination = "/tmp/docker-compose.yml"
 
     connection {
@@ -274,7 +274,7 @@ resource "null_resource" "provision_monitoring" {
 
   # Copie du fichier prometheus.yml
   provisioner "file" {
-    source      = "${path.module}/docker/prometheus/prometheus.yml"
+    source      = "${path.module}/../../scripts/ec2-monitoring/prometheus.yml"
     destination = "/tmp/prometheus.yml"
 
     connection {
@@ -287,7 +287,7 @@ resource "null_resource" "provision_monitoring" {
 
   # Copie du script de gestion Docker
   provisioner "file" {
-    source      = "${path.module}/../../scripts/docker-manager.sh"
+    source      = "${path.module}/../../scripts/docker/docker-manager.sh"
     destination = "/tmp/docker-manager.sh"
 
     connection {
@@ -300,7 +300,7 @@ resource "null_resource" "provision_monitoring" {
 
   # Copie du script de correction des permissions
   provisioner "file" {
-    source      = "${path.module}/scripts/fix_permissions.sh"
+    source      = "${path.module}/../../scripts/ec2-monitoring/fix_permissions.sh"
     destination = "/tmp/fix_permissions.sh"
 
     connection {
@@ -346,7 +346,7 @@ resource "null_resource" "generate_sonar_token" {
 
   # Copie du script de génération du token SonarQube
   provisioner "file" {
-    source      = "${path.module}/scripts/generate_sonar_token.sh"
+    source      = "${path.module}/../../scripts/ec2-monitoring/generate_sonar_token.sh"
     destination = "/tmp/generate_sonar_token.sh"
 
     connection {
