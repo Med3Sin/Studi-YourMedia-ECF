@@ -254,6 +254,12 @@ Les scripts Docker sont centralisés dans le répertoire `scripts/docker/` :
 -   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs Docker
 -   `cleanup-containers.sh` : Script pour nettoyer les conteneurs Docker
 
+Les Dockerfiles et fichiers de configuration pour les conteneurs sont organisés dans les sous-répertoires de `scripts/docker/` :
+
+-   `prometheus/` : Dockerfile et configuration pour Prometheus
+-   `grafana/` : Dockerfile et configuration pour Grafana
+-   `sonarqube/` : Dockerfile et configuration pour SonarQube
+
 Les scripts utilitaires génériques sont dans le répertoire `scripts/utils/` :
 
 -   `fix-ssh-keys.sh` : Script pour corriger les clés SSH
