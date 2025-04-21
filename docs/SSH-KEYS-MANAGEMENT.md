@@ -33,7 +33,7 @@ Pour résoudre ce problème, nous avons mis en place une solution automatisée q
 
 ## Fonctionnement du script de correction
 
-Le script de correction des clés SSH (`scripts/fix-ssh-keys.sh`) effectue les opérations suivantes :
+Le script de correction des clés SSH (`scripts/utils/fix-ssh-keys.sh`) effectue les opérations suivantes :
 
 1. Se connecte aux instances EC2 via SSH
 2. Sauvegarde le fichier `authorized_keys` original
