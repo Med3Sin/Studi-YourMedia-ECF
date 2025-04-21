@@ -227,14 +227,9 @@ jobs:
                 exit 1
             fi
 
-            # Déployer le WAR avec le nom correct pour correspondre au contexte dans application.properties
-            sudo cp /tmp/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/yourmedia-backend.war
-
-            # Vérifier que le fichier a été copié
-            if [ ! -f "/opt/tomcat/webapps/yourmedia-backend.war" ]; then
-                echo "ERREUR: Le fichier WAR n'a pas été copié dans le répertoire webapps"
-                exit 1
-            fi
+            # Utiliser le script de déploiement WAR
+            echo "--- Déploiement du WAR avec le script deploy-war.sh ---"
+            sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
 
             # Supprimer le fichier temporaire
             sudo rm /tmp/${{ env.DEPLOY_WAR_NAME }}
