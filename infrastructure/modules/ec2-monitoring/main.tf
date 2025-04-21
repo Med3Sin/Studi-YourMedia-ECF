@@ -214,35 +214,35 @@ resource "aws_instance" "monitoring_instance" {
 #!/bin/bash
 
 # Mettre à jour le système et installer les dépendances
-yum update -y
-yum install -y amazon-cloudwatch-agent
+sudo yum update -y
+sudo yum install -y amazon-cloudwatch-agent
 
 # Créer le répertoire .ssh s'il n'existe pas
-mkdir -p /home/ec2-user/.ssh
-chmod 700 /home/ec2-user/.ssh
+sudo mkdir -p /home/ec2-user/.ssh
+sudo chmod 700 /home/ec2-user/.ssh
 
 # Installer la clé SSH publique
-echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys
+sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Télécharger et exécuter le script d'initialisation depuis S3
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance.sh /tmp/init-instance.sh
-chmod +x /tmp/init-instance.sh
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance.sh /tmp/init-instance.sh
+sudo chmod +x /tmp/init-instance.sh
 
 # Remplacer les variables dans le script d'initialisation
-sed -i "s/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g" /tmp/init-instance.sh
-sed -i "s/PLACEHOLDER_USERNAME/${var.db_username}/g" /tmp/init-instance.sh
-sed -i "s/PLACEHOLDER_PASSWORD/${var.db_password}/g" /tmp/init-instance.sh
-sed -i "s/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g" /tmp/init-instance.sh
-sed -i "s/SONAR_JDBC_USERNAME/${var.sonar_jdbc_username}/g" /tmp/init-instance.sh
-sed -i "s/SONAR_JDBC_PASSWORD/${var.sonar_jdbc_password}/g" /tmp/init-instance.sh
-sed -i "s|SONAR_JDBC_URL|${var.sonar_jdbc_url}|g" /tmp/init-instance.sh
-sed -i "s/GRAFANA_ADMIN_PASSWORD/${var.grafana_admin_password}/g" /tmp/init-instance.sh
-sed -i "s/PLACEHOLDER_BUCKET/${var.s3_bucket_name}/g" /tmp/init-instance.sh
+sudo sed -i "s/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g" /tmp/init-instance.sh
+sudo sed -i "s/PLACEHOLDER_USERNAME/${var.db_username}/g" /tmp/init-instance.sh
+sudo sed -i "s/PLACEHOLDER_PASSWORD/${var.db_password}/g" /tmp/init-instance.sh
+sudo sed -i "s/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g" /tmp/init-instance.sh
+sudo sed -i "s/SONAR_JDBC_USERNAME/${var.sonar_jdbc_username}/g" /tmp/init-instance.sh
+sudo sed -i "s/SONAR_JDBC_PASSWORD/${var.sonar_jdbc_password}/g" /tmp/init-instance.sh
+sudo sed -i "s|SONAR_JDBC_URL|${var.sonar_jdbc_url}|g" /tmp/init-instance.sh
+sudo sed -i "s/GRAFANA_ADMIN_PASSWORD/${var.grafana_admin_password}/g" /tmp/init-instance.sh
+sudo sed -i "s/PLACEHOLDER_BUCKET/${var.s3_bucket_name}/g" /tmp/init-instance.sh
 
 # Exécuter le script d'initialisation
-/tmp/init-instance.sh
+sudo /tmp/init-instance.sh
 EOF
 
   tags = {
@@ -323,9 +323,9 @@ resource "null_resource" "provision_monitoring" {
   # Exécution des scripts
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /tmp/docker-manager.sh",
-      "chmod +x /tmp/fix_permissions.sh",
-      "/tmp/docker-manager.sh deploy monitoring",
+      "sudo chmod +x /tmp/docker-manager.sh",
+      "sudo chmod +x /tmp/fix_permissions.sh",
+      "sudo /tmp/docker-manager.sh deploy monitoring",
       "sudo /tmp/fix_permissions.sh"
     ]
 
@@ -369,8 +369,8 @@ resource "null_resource" "generate_sonar_token" {
   # Exécution du script de génération du token SonarQube
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /tmp/generate_sonar_token.sh",
-      "/tmp/generate_sonar_token.sh ${aws_instance.monitoring_instance.public_ip} ${var.tf_api_token} ${var.tf_workspace_id}"
+      "sudo chmod +x /tmp/generate_sonar_token.sh",
+      "sudo /tmp/generate_sonar_token.sh ${aws_instance.monitoring_instance.public_ip} ${var.tf_api_token} ${var.tf_workspace_id}"
     ]
 
     connection {
