@@ -86,9 +86,6 @@ jobs:
           }
           EOF
 
-          # Définir la date de dernière rotation
-          echo "last_rotation_date=$(date +%Y-%m-%d)" >> $GITHUB_ENV
-
       # Étape 5: Initialisation de Terraform
       - name: Terraform Init
         id: init
@@ -137,7 +134,6 @@ jobs:
             -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
             -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
-            -var="last_rotation_date=${{ env.last_rotation_date }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -284,8 +280,7 @@ jobs:
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
             -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
-            -var="last_rotation_date=${{ env.last_rotation_date }}"
+            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
 
