@@ -36,6 +36,7 @@ on:
 env:
   TF_WORKING_DIR: ./infrastructure  # Répertoire contenant les fichiers Terraform
   AWS_REGION: eu-west-3            # Région AWS (Paris)
+  AWS_DEFAULT_REGION: eu-west-3    # Région AWS par défaut (Paris)
 
 jobs:
   terraform:
@@ -76,10 +77,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Étape 4: Configuration des variables Terraform Cloud
-      - name: Configure Terraform Cloud Variables
+      # Étape 4: Configuration des variables d'environnement
+      - name: Configure Environment Variables
         run: |
-          # Créer un fichier de configuration pour l'API Terraform Cloud
+          # Définir les variables d'environnement AWS
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+
+          # Créer un fichier de configuration pour l'API Terraform Cloud (uniquement pour le stockage de l'état)
           cat > ~/.terraformrc << EOF
           credentials "app.terraform.io" {
             token = "${{ secrets.TF_API_TOKEN }}"
