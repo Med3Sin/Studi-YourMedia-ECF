@@ -77,6 +77,12 @@ variable "ami_id" {
   default     = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
 }
 
+variable "use_existing_sg" {
+  description = "Utiliser un groupe de sécurité existant au lieu d'en créer un nouveau."
+  type        = bool
+  default     = true
+}
+
 variable "use_latest_ami" {
   description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
   type        = bool

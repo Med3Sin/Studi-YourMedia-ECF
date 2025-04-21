@@ -9,8 +9,17 @@
 # Ressources
 # -----------------------------------------------------------------------------
 
-# Groupe de sécurité pour l'instance EC2 de monitoring
+# Utiliser un groupe de sécurité existant ou en créer un nouveau
+# Data source pour récupérer le groupe de sécurité existant s'il existe
+data "aws_security_group" "existing_monitoring_sg" {
+  count  = var.use_existing_sg ? 1 : 0
+  name   = "${var.project_name}-${var.environment}-monitoring-sg"
+  vpc_id = var.vpc_id
+}
+
+# Groupe de sécurité pour l'instance EC2 de monitoring (créé uniquement si use_existing_sg = false)
 resource "aws_security_group" "monitoring_sg" {
+  count       = var.use_existing_sg ? 0 : 1
   name        = "${var.project_name}-${var.environment}-monitoring-sg"
   description = "Security group for monitoring instance"
   vpc_id      = var.vpc_id
@@ -92,6 +101,11 @@ resource "aws_security_group" "monitoring_sg" {
     Project     = var.project_name
     Environment = var.environment
   }
+}
+
+# ID du groupe de sécurité à utiliser (existant ou nouveau)
+locals {
+  monitoring_sg_id = var.use_existing_sg ? data.aws_security_group.existing_monitoring_sg[0].id : aws_security_group.monitoring_sg[0].id
 }
 
 # Rôle IAM pour l'instance EC2 de monitoring
@@ -190,7 +204,7 @@ resource "aws_instance" "monitoring_instance" {
   ami                    = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux_2.id
   instance_type          = var.instance_type
   subnet_id              = var.subnet_id
-  vpc_security_group_ids = [aws_security_group.monitoring_sg.id]
+  vpc_security_group_ids = [local.monitoring_sg_id]
   key_name               = var.key_name
   iam_instance_profile   = aws_iam_instance_profile.monitoring_profile.name
 
