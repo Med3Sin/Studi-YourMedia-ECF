@@ -185,3 +185,24 @@ variable "sonar_jdbc_url" {
   type        = string
   default     = "jdbc:postgresql://sonarqube-db:5432/sonar"
 }
+
+variable "dockerhub_username" {
+  description = "Nom d'utilisateur Docker Hub pour l'authentification."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_token" {
+  description = "Token Docker Hub pour l'authentification."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_repo" {
+  description = "Nom du dépôt Docker Hub pour stocker les images."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
