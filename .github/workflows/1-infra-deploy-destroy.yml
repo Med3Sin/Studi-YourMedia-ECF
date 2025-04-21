@@ -141,6 +141,8 @@ jobs:
           export AWS_DEFAULT_REGION="${{ env.AWS_REGION }}"
 
           terraform plan \
+            -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
@@ -297,6 +299,8 @@ jobs:
           export AWS_DEFAULT_REGION="${{ env.AWS_REGION }}"
 
           terraform destroy -auto-approve \
+            -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             -var="db_username=${{ secrets.DB_USERNAME }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \

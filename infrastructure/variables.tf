@@ -4,6 +4,18 @@ variable "aws_region" {
   default     = "eu-west-3" # Paris, une région souvent éligible au Free Tier
 }
 
+variable "aws_access_key" {
+  description = "Clé d'accès AWS"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_key" {
+  description = "Clé secrète AWS"
+  type        = string
+  sensitive   = true
+}
+
 variable "project_name" {
   description = "Nom du projet utilisé pour nommer les ressources."
   type        = string
@@ -205,4 +217,10 @@ variable "dockerhub_repo" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "last_rotation_date" {
+  description = "Date de la dernière rotation des identifiants."
+  type        = string
+  default     = ""
 }
