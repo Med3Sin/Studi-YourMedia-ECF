@@ -70,21 +70,16 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
+Les diagrammes d'architecture sont disponibles dans le dossier `docs/diagrams/v2023-12/` :
+
+- **Infrastructure globale** (`yourmedia-infrastructure-globale.drawio`) - Présente tous les services AWS et leurs connexions
+- **Services externes** (`yourmedia-services-externes.drawio`) - Montre les services externes comme GitHub, Docker Hub, etc.
+- **Instance de monitoring** (`yourmedia-instance-monitoring.drawio`) - Détaille les conteneurs et services sur l'instance EC2 de monitoring
+- **Flux de données** (`yourmedia-flux-donnees.drawio`) - Présente clairement les flux de données entre les différents composants
+
+**Note :** Ces diagrammes sont disponibles localement mais ne sont pas inclus dans le dépôt Git (ignorés via .gitignore).
+
 ![Schéma d'Architecture YourMédia](YourMedia_AWS_Architecture.drawio.png)
-
-**Note sur les diagrammes d'architecture :**
-
-Les diagrammes d'architecture sont organisés en plusieurs couches pour faciliter la compréhension :
-
-1. **Vue d'ensemble** - Vue globale de l'architecture AWS
-2. **Couche réseau** - VPC, sous-réseaux, groupes de sécurité
-3. **Couche calcul** - EC2, conteneurs Docker
-4. **Couche stockage** - S3, RDS
-5. **Couche CI/CD** - GitHub Actions, Terraform Cloud
-6. **Couche monitoring** - Prometheus, Grafana, SonarQube
-7. **Organisation des scripts** - Structure des scripts centralisés
-
-Ces diagrammes sont disponibles localement dans le dossier `docs/diagrams/` mais ne sont pas inclus dans le dépôt Git (ignorés via .gitignore).
 
 ## Prérequis
 
@@ -175,8 +170,7 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── ssh-key-checker.service # Service systemd pour vérifier les clés SSH
 │       └── ssh-key-checker.timer # Timer systemd pour exécuter le service périodiquement
 ├── .gitignore                   # Fichier d'exclusion Git
-├── YourMedia_AWS_Architecture.drawio.png # Schéma d'architecture AWS principal
-│   └── docs/diagrams/                # Diagrammes d'architecture détaillés (non suivis par Git)
+├── YourMedia_AWS_Architecture.drawio.png # Schéma d'architecture AWS
 └── README.md                    # Ce fichier - Documentation principale
 ```
 
