@@ -83,6 +83,12 @@ variable "use_existing_sg" {
   default     = false # Modifié de true à false pour éviter la dépendance circulaire
 }
 
+variable "monitoring_security_group_id" {
+  description = "ID du groupe de sécurité pour l'instance EC2 de monitoring (utilisé uniquement si use_existing_sg = true)."
+  type        = string
+  default     = ""
+}
+
 variable "use_latest_ami" {
   description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
   type        = bool
