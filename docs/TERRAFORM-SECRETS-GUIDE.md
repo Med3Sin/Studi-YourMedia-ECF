@@ -1,8 +1,8 @@
 # Guide d'utilisation des secrets GitHub avec Terraform Cloud
 
-Ce document explique comment configurer et utiliser les secrets GitHub et Terraform Cloud pour les variables sensibles dans le projet YourMédia.
+Ce document explique comment configurer et utiliser les secrets GitHub pour les variables sensibles dans le projet YourMédia, avec Terraform Cloud utilisé uniquement pour le stockage de l'état Terraform.
 
-> **Note** : Ce document remplace les anciens documents `TERRAFORM-CLOUD-SECRETS.md` et `TERRAFORM-SECRETS-GUIDE.md` qui ont été fusionnés pour centraliser toutes les informations sur la gestion des secrets dans Terraform Cloud.
+> **Note** : Ce document a été mis à jour pour refléter l'approche centralisée des variables sensibles dans GitHub Secrets, avec Terraform Cloud utilisé uniquement pour le stockage de l'état Terraform.
 
 ## Problématique
 
@@ -77,17 +77,17 @@ Certains secrets sont créés automatiquement par le workflow d'infrastructure l
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
 
-### Secrets Terraform Cloud
+### Secrets générés automatiquement
 
-Les secrets suivants sont générés automatiquement et stockés dans Terraform Cloud :
+Les secrets suivants sont générés automatiquement et stockés dans GitHub Secrets :
 
 | Nom du secret | Description | Généré par |
 |--------------|-------------|------------|
-| `sonar_jdbc_username` | Nom d'utilisateur pour la base de données SonarQube | Module `secrets_management` |
-| `sonar_jdbc_password` | Mot de passe pour la base de données SonarQube | Module `secrets_management` |
-| `sonar_jdbc_url` | URL de connexion à la base de données SonarQube | Module `secrets_management` |
-| `grafana_admin_password` | Mot de passe administrateur Grafana | Module `secrets_management` |
-| `sonar_token` | Token d'accès à l'API SonarQube | Script `generate_sonar_token.sh` |
+| `SONAR_JDBC_USERNAME` | Nom d'utilisateur pour la base de données SonarQube | Module `secrets_management` |
+| `SONAR_JDBC_PASSWORD` | Mot de passe pour la base de données SonarQube | Module `secrets_management` |
+| `SONAR_JDBC_URL` | URL de connexion à la base de données SonarQube | Module `secrets_management` |
+| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Module `secrets_management` |
+| `SONAR_TOKEN` | Token d'accès à l'API SonarQube | Script `generate_sonar_token.sh` |
 
 ## Résolution des problèmes courants
 
@@ -156,11 +156,11 @@ Bien que nous utilisions un seul workspace Terraform Cloud, les environnements (
 
 ### Gestion des variables AWS
 
-Les identifiants AWS sont configurés comme variables dans Terraform Cloud via l'API :
+Les identifiants AWS sont configurés comme variables d'environnement dans le workflow GitHub Actions :
 
-1. Les secrets GitHub `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont utilisés pour créer des variables Terraform Cloud
-2. Ces variables sont créées automatiquement lors de l'exécution du workflow via des appels API à Terraform Cloud
-3. Les variables sont marquées comme sensibles dans Terraform Cloud pour plus de sécurité
+1. Les secrets GitHub `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY` sont utilisés directement dans le workflow
+2. Ces variables sont définies comme variables d'environnement pour le runner GitHub Actions
+3. Le provider AWS utilise automatiquement ces variables d'environnement pour l'authentification
 
 ### Particularités de l'intégration avec Terraform Cloud
 
@@ -170,7 +170,7 @@ Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particular
 
 2. **Exécution distante** : Les commandes Terraform sont exécutées sur les serveurs de Terraform Cloud, pas localement. Cela signifie que les outputs ne sont pas toujours immédiatement disponibles.
 
-3. **Variables d'environnement** : Les variables sensibles sont stockées dans Terraform Cloud via l'API, mais configurées à partir des secrets GitHub pour plus de flexibilité.
+3. **Variables d'environnement** : Les variables sensibles sont stockées uniquement dans GitHub Secrets et utilisées directement dans les workflows GitHub Actions.
 
 4. **Fichiers de plan** : Avec un workflow CLI, nous pouvons utiliser des fichiers de plan sauvegardés (`terraform plan -out=tfplan`), contrairement aux workspaces avec connexion VCS.
 
@@ -183,21 +183,21 @@ Lorsque vous utilisez Terraform Cloud avec un workflow CLI, certaines particular
 
 ## Comment accéder aux secrets
 
-### Interface web Terraform Cloud (Accès sécurisé)
+### Interface web GitHub (Accès sécurisé)
 
-Pour des raisons de sécurité, les secrets ne sont accessibles que via l'interface web de Terraform Cloud :
+Pour des raisons de sécurité, les secrets sont accessibles via l'interface web de GitHub :
 
-1. Connectez-vous à [Terraform Cloud](https://app.terraform.io/)
-2. Accédez à votre organisation et à l'espace de travail du projet
-3. Allez dans l'onglet "Variables"
-4. Les variables sensibles seront masquées, mais vous pouvez cliquer sur "Reveal" pour voir leur valeur
+1. Connectez-vous à GitHub et accédez à votre dépôt
+2. Allez dans "Settings" > "Secrets and variables" > "Actions"
+3. Les secrets sont listés mais leurs valeurs sont masquées pour des raisons de sécurité
+4. Vous pouvez mettre à jour les secrets existants ou en créer de nouveaux
 
 ### Sécurité renforcée
 
-- L'accès aux secrets est limité aux utilisateurs ayant accès à Terraform Cloud
+- L'accès aux secrets est limité aux utilisateurs ayant les permissions appropriées sur le dépôt GitHub
 - Les secrets ne sont jamais exposés dans les logs ou les sorties de workflow
-- L'authentification multi-facteurs (MFA) de Terraform Cloud ajoute une couche de sécurité supplémentaire
-- Toutes les consultations de secrets sont journalisées dans les logs d'audit de Terraform Cloud
+- L'authentification multi-facteurs (MFA) de GitHub ajoute une couche de sécurité supplémentaire
+- Toutes les consultations de secrets sont journalisées dans les logs d'audit de GitHub
 
 ## Bonnes pratiques
 
@@ -213,3 +213,4 @@ Pour des raisons de sécurité, les secrets ne sont accessibles que via l'interf
 10. **Vérifier régulièrement les logs** pour s'assurer qu'aucun secret n'est exposé
 11. **Utiliser des variables d'environnement** pour passer les secrets aux applications
 12. **Éviter de passer des secrets en ligne de commande** car ils pourraient apparaître dans l'historique des commandes
+13. **Centraliser les secrets dans GitHub Secrets** pour simplifier la gestion et éviter les duplications

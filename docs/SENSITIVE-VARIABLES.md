@@ -13,7 +13,7 @@ Ce document explique comment gérer les variables sensibles dans le projet YourM
 
 ## Introduction
 
-Les variables sensibles (mots de passe, tokens, clés API, etc.) ne doivent jamais être stockées en clair dans le code source. Pour gérer ces variables de manière sécurisée, nous utilisons les secrets GitHub.
+Les variables sensibles (mots de passe, tokens, clés API, etc.) ne doivent jamais être stockées en clair dans le code source. Pour gérer ces variables de manière sécurisée, nous utilisons les secrets GitHub comme source unique de vérité pour toutes les variables sensibles du projet, y compris celles utilisées par Terraform.
 
 ## Liste des variables sensibles
 
@@ -128,8 +128,8 @@ export SECRET_VALUE=${{ secrets.SECRET_VALUE }}
 6. **Vérifier régulièrement les logs** pour s'assurer qu'aucun secret n'est exposé
 7. **Utiliser des variables d'environnement** pour passer les secrets aux applications
 8. **Éviter de passer des secrets en ligne de commande** car ils pourraient apparaître dans l'historique des commandes
-9. **Consulter les secrets uniquement via Terraform Cloud** pour une sécurité renforcée
-10. **Utiliser l'authentification multi-facteurs (MFA)** pour accéder à Terraform Cloud
+9. **Centraliser les secrets dans GitHub Secrets** pour simplifier la gestion et éviter les duplications
+10. **Utiliser l'authentification multi-facteurs (MFA)** pour accéder à GitHub
 
 ## Sécurisation de la base de données
 
@@ -143,12 +143,12 @@ Ce script :
 1. Révoque les privilèges de l'utilisateur root sur la base de données yourmedia
 2. Crée un utilisateur dédié avec des privilèges limités
 3. Génère un mot de passe fort si aucun n'est fourni
-4. Met à jour les secrets dans Terraform Cloud (si les variables d'environnement nécessaires sont définies)
+4. Met à jour les secrets dans GitHub (si les variables d'environnement nécessaires sont définies)
 5. Affiche des instructions pour mettre à jour manuellement les secrets dans GitHub Actions
 
 ## Génération du token SonarQube
 
-Pour générer un token SonarQube et le stocker dans Terraform Cloud, un script a été créé :
+Pour générer un token SonarQube et le stocker comme secret GitHub, un script a été créé :
 
 ```bash
 ./scripts/ec2-monitoring/generate_sonar_token.sh [SONAR_HOST] [TF_API_TOKEN] [TF_WORKSPACE_ID] [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
@@ -157,7 +157,7 @@ Pour générer un token SonarQube et le stocker dans Terraform Cloud, un script 
 Ce script :
 1. Attend que SonarQube soit opérationnel
 2. Génère un token SonarQube avec un nom unique
-3. Stocke le token dans Terraform Cloud comme variable sensible
+3. Stocke le token comme secret GitHub
 4. Affiche des instructions pour ajouter le token comme secret GitHub
 
 ## Correction des clés SSH
