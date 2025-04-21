@@ -346,7 +346,77 @@ jobs:
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si le nettoyage échoue
 
-      # Étape 9.2: Nettoyage des groupes de sécurité persistants
+      # Étape 9.2: Nettoyage des instances EC2 persistantes
+      - name: Cleanup EC2 Instances
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Nettoyage des instances EC2 persistantes"
+
+          # Définir les noms des instances EC2 à nettoyer
+          PROJECT_NAME="yourmedia"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          MONITORING_INSTANCE_NAME="${PROJECT_NAME}-${ENVIRONMENT}-monitoring-instance"
+          APP_INSTANCE_NAME="${PROJECT_NAME}-${ENVIRONMENT}-app-instance"
+
+          echo "Nettoyage des instances EC2 pour le projet ${PROJECT_NAME} et l'environnement ${ENVIRONMENT}..."
+
+          # Fonction pour supprimer une instance EC2
+          terminate_ec2_instance() {
+            local instance_name=$1
+            echo "Recherche de l'instance EC2 $instance_name..."
+
+            # Récupérer l'ID de l'instance EC2 par son nom
+            INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=$instance_name" "Name=instance-state-name,Values=running,stopped,pending,stopping" --query "Reservations[*].Instances[*].InstanceId" --output text 2>/dev/null)
+
+            if [ ! -z "$INSTANCE_IDS" ]; then
+              echo "Terminaison des instances EC2 $instance_name (IDs: $INSTANCE_IDS)..."
+              aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
+
+              # Attendre que les instances soient terminées
+              echo "Attente de la terminaison des instances..."
+              aws ec2 wait instance-terminated --instance-ids $INSTANCE_IDS
+              echo "Instances EC2 $instance_name terminées avec succès."
+            else
+              echo "Aucune instance EC2 $instance_name n'a été trouvée."
+            fi
+          }
+
+          # Supprimer les instances EC2
+          terminate_ec2_instance $MONITORING_INSTANCE_NAME
+          terminate_ec2_instance $APP_INSTANCE_NAME
+
+          echo "Nettoyage des instances EC2 terminé."
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le nettoyage échoue
+
+      # Étape 9.3: Nettoyage des interfaces réseau persistantes
+      - name: Cleanup Network Interfaces
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Nettoyage des interfaces réseau persistantes"
+
+          # Récupérer toutes les interfaces réseau disponibles
+          echo "Recherche des interfaces réseau disponibles..."
+          ENI_IDS=$(aws ec2 describe-network-interfaces --filters "Name=status,Values=available" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text 2>/dev/null)
+
+          if [ ! -z "$ENI_IDS" ]; then
+            echo "Interfaces réseau disponibles trouvées: $ENI_IDS"
+
+            # Supprimer chaque interface réseau
+            for ENI_ID in $ENI_IDS; do
+              echo "Suppression de l'interface réseau $ENI_ID..."
+              aws ec2 delete-network-interface --network-interface-id $ENI_ID
+              echo "Interface réseau $ENI_ID supprimée avec succès."
+            done
+          else
+            echo "Aucune interface réseau disponible n'a été trouvée."
+          fi
+
+          echo "Nettoyage des interfaces réseau terminé."
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le nettoyage échoue
+
+      # Étape 9.4: Nettoyage des groupes de sécurité persistants
       - name: Cleanup Security Groups
         if: github.event.inputs.action == 'destroy'
         run: |
@@ -372,17 +442,60 @@ jobs:
             if [ "$SG_ID" != "None" ] && [ ! -z "$SG_ID" ]; then
               echo "Suppression du groupe de sécurité $sg_name (ID: $SG_ID)..."
 
+              # Vérifier les dépendances du groupe de sécurité
+              echo "Vérification des dépendances du groupe de sécurité..."
+
+              # Vérifier les instances EC2 qui utilisent ce groupe de sécurité
+              INSTANCES=$(aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_ID" --query "Reservations[*].Instances[*].InstanceId" --output text 2>/dev/null)
+              if [ ! -z "$INSTANCES" ]; then
+                echo "Instances EC2 utilisant ce groupe de sécurité: $INSTANCES"
+                echo "Terminaison des instances EC2..."
+                aws ec2 terminate-instances --instance-ids $INSTANCES
+                echo "Attente de la terminaison des instances..."
+                aws ec2 wait instance-terminated --instance-ids $INSTANCES
+              fi
+
+              # Vérifier les interfaces réseau qui utilisent ce groupe de sécurité
+              ENIS=$(aws ec2 describe-network-interfaces --filters "Name=group-id,Values=$SG_ID" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text 2>/dev/null)
+              if [ ! -z "$ENIS" ]; then
+                echo "Interfaces réseau utilisant ce groupe de sécurité: $ENIS"
+                for ENI in $ENIS; do
+                  echo "Détachement et suppression de l'interface réseau $ENI..."
+                  # Vérifier si l'interface est attachée
+                  ATTACHMENT=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI --query "NetworkInterfaces[0].Attachment.AttachmentId" --output text 2>/dev/null)
+                  if [ "$ATTACHMENT" != "None" ] && [ ! -z "$ATTACHMENT" ]; then
+                    echo "Détachement de l'interface réseau $ENI (attachment: $ATTACHMENT)..."
+                    aws ec2 detach-network-interface --attachment-id $ATTACHMENT --force
+                    # Attendre que l'interface soit détachée
+                    sleep 10
+                  fi
+                  # Supprimer l'interface réseau
+                  echo "Suppression de l'interface réseau $ENI..."
+                  aws ec2 delete-network-interface --network-interface-id $ENI || true
+                done
+              fi
+
               # Supprimer toutes les règles de trafic entrant
               echo "Suppression des règles de trafic entrant..."
-              aws ec2 revoke-security-group-ingress --group-id $SG_ID --ip-permissions "$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissions' --output json)" 2>/dev/null || true
+              INGRESS_RULES=$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissions' --output json 2>/dev/null)
+              if [ "$INGRESS_RULES" != "[]" ] && [ "$INGRESS_RULES" != "null" ]; then
+                aws ec2 revoke-security-group-ingress --group-id $SG_ID --ip-permissions "$INGRESS_RULES" 2>/dev/null || true
+              fi
 
               # Supprimer toutes les règles de trafic sortant
               echo "Suppression des règles de trafic sortant..."
-              aws ec2 revoke-security-group-egress --group-id $SG_ID --ip-permissions "$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissionsEgress' --output json)" 2>/dev/null || true
+              EGRESS_RULES=$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissionsEgress' --output json 2>/dev/null)
+              if [ "$EGRESS_RULES" != "[]" ] && [ "$EGRESS_RULES" != "null" ]; then
+                aws ec2 revoke-security-group-egress --group-id $SG_ID --ip-permissions "$EGRESS_RULES" 2>/dev/null || true
+              fi
+
+              # Attendre un peu pour s'assurer que toutes les dépendances sont supprimées
+              echo "Attente de 15 secondes pour s'assurer que toutes les dépendances sont supprimées..."
+              sleep 15
 
               # Supprimer le groupe de sécurité
               echo "Suppression du groupe de sécurité..."
-              aws ec2 delete-security-group --group-id $SG_ID
+              aws ec2 delete-security-group --group-id $SG_ID || true
               echo "Groupe de sécurité $sg_name supprimé avec succès."
             else
               echo "Le groupe de sécurité $sg_name n'existe pas ou n'a pas pu être trouvé."
