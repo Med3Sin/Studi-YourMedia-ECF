@@ -84,7 +84,7 @@ variable "use_existing_sg" {
 }
 
 variable "monitoring_security_group_id" {
-  description = "ID du groupe de sécurité pour l'instance EC2 de monitoring (utilisé uniquement si use_existing_sg = true)."
+  description = "ID du groupe de sécurité pour l'instance EC2 de monitoring (obligatoire si use_existing_sg = true)."
   type        = string
   default     = ""
 }

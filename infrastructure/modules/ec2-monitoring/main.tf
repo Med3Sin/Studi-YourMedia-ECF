@@ -10,12 +10,7 @@
 # -----------------------------------------------------------------------------
 
 # Utiliser un groupe de sécurité existant ou en créer un nouveau
-# Data source pour récupérer le groupe de sécurité existant s'il existe
-data "aws_security_group" "existing_monitoring_sg" {
-  count  = var.use_existing_sg && var.monitoring_security_group_id == "" ? 1 : 0
-  name   = "${var.project_name}-${var.environment}-monitoring-sg"
-  vpc_id = var.vpc_id
-}
+# Note: Nous utilisons directement la variable monitoring_security_group_id au lieu de récupérer le groupe de sécurité par son nom
 
 # Groupe de sécurité pour l'instance EC2 de monitoring (créé uniquement si use_existing_sg = false)
 resource "aws_security_group" "monitoring_sg" {
@@ -105,7 +100,7 @@ resource "aws_security_group" "monitoring_sg" {
 
 # ID du groupe de sécurité à utiliser (existant ou nouveau)
 locals {
-  monitoring_sg_id = var.use_existing_sg ? (var.monitoring_security_group_id != "" ? var.monitoring_security_group_id : data.aws_security_group.existing_monitoring_sg[0].id) : aws_security_group.monitoring_sg[0].id
+  monitoring_sg_id = var.use_existing_sg ? var.monitoring_security_group_id : aws_security_group.monitoring_sg[0].id
 }
 
 # Rôle IAM pour l'instance EC2 de monitoring
