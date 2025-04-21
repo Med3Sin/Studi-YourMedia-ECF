@@ -198,33 +198,33 @@ module "ec2-java-tomcat" {
 module "ec2-monitoring" {
   source = "./modules/ec2-monitoring"
 
-  project_name                 = var.project_name
-  environment                  = var.environment
-  aws_region                   = var.aws_region
-  vpc_id                       = aws_vpc.main.id
-  subnet_ids                   = [aws_subnet.main_az1.id, aws_subnet.main_az1_secondary.id]
-  monitoring_security_group_id = module.network.monitoring_security_group_id
-  ec2_instance_private_ip      = module.ec2-java-tomcat.private_ip
+  project_name            = var.project_name
+  environment             = var.environment
+  aws_region              = var.aws_region
+  vpc_id                  = aws_vpc.main.id
+  subnet_ids              = [aws_subnet.main_az1.id, aws_subnet.main_az1_secondary.id]
+  subnet_id               = aws_subnet.main_az1.id # Utilisation du premier sous-réseau
+  ec2_instance_private_ip = module.ec2-java-tomcat.private_ip
   # Note: Les variables monitoring_task_cpu et monitoring_task_memory ont été supprimées
   # car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
-  monitoring_ami_id            = "ami-0925eac45db11fef2"
-  use_latest_ami               = var.use_latest_ami
-  key_pair_name                = var.ec2_key_pair_name
-  ssh_private_key_path         = var.ssh_private_key_path
-  ssh_private_key_content      = var.ssh_private_key_content
-  ssh_public_key               = var.ssh_public_key
-  enable_provisioning          = false
-  s3_bucket_name               = module.s3.bucket_name
-  s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
-  db_username                  = var.db_username
-  db_password                  = var.db_password
-  rds_endpoint                 = module.rds-mysql.rds_endpoint
-  sonar_jdbc_username          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
-  sonar_jdbc_password          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
-  sonar_jdbc_url               = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
-  grafana_admin_password       = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
-  tf_api_token                 = var.tf_api_token
-  tf_workspace_id              = var.tf_workspace_id
+  ami_id                  = "ami-0925eac45db11fef2" # Remplacé monitoring_ami_id par ami_id
+  use_latest_ami          = var.use_latest_ami
+  key_name                = var.ec2_key_pair_name # Remplacé key_pair_name par key_name
+  ssh_private_key_path    = var.ssh_private_key_path
+  ssh_private_key_content = var.ssh_private_key_content
+  ssh_public_key          = var.ssh_public_key
+  enable_provisioning     = false
+  s3_bucket_name          = module.s3.bucket_name
+  s3_config_policy_arn    = module.s3.monitoring_s3_access_policy_arn
+  db_username             = var.db_username
+  db_password             = var.db_password
+  rds_endpoint            = module.rds-mysql.rds_endpoint
+  sonar_jdbc_username     = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
+  sonar_jdbc_password     = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
+  sonar_jdbc_url          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
+  grafana_admin_password  = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
+  tf_api_token            = var.tf_api_token
+  tf_workspace_id         = var.tf_workspace_id
 }
 
 # -----------------------------------------------------------------------------

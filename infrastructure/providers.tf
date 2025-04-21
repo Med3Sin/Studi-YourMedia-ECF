@@ -1,10 +1,11 @@
 terraform {
-  cloud {
-    organization = "Med3Sin"
-    workspaces {
-      name = "Med3Sin-CLI"
-    }
-  }
+  # Commenté pour permettre l'exécution en mode local
+  # cloud {
+  #   organization = "Med3Sin"
+  #   workspaces {
+  #     name = "Med3Sin-CLI"
+  #   }
+  # }
 
   required_providers {
     aws = {

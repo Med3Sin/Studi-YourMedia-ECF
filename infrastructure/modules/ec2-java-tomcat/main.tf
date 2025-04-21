@@ -108,13 +108,61 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Récupère le contenu du script d'installation pour l'user_data
-data "template_file" "install_script" {
-  template = file("${path.module}/../../scripts/ec2-java-tomcat/install_java_tomcat.sh")
-  vars = {
-    TOMCAT_VERSION = "9.0.102"          # Définir la version de Tomcat ici
-    ssh_public_key = var.ssh_public_key # Clé SSH publique depuis GitHub
-  }
+# Script d'installation inline pour l'user_data
+locals {
+  install_script = <<-EOF
+#!/bin/bash
+
+# Mettre à jour le système
+yum update -y
+
+# Installer Java 11
+yum install -y java-11-amazon-corretto
+
+# Créer l'utilisateur tomcat
+useradd -m -d /opt/tomcat -U -s /bin/false tomcat
+
+# Télécharger et installer Tomcat
+cd /tmp
+wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.102/bin/apache-tomcat-9.0.102.tar.gz
+tar -xf apache-tomcat-9.0.102.tar.gz
+mv apache-tomcat-9.0.102/* /opt/tomcat/
+chown -R tomcat:tomcat /opt/tomcat
+
+# Configurer le service systemd pour Tomcat
+cat > /etc/systemd/system/tomcat.service << 'EOT'
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+Environment="JAVA_HOME=/usr/lib/jvm/jre"
+Environment="CATALINA_PID=/opt/tomcat/temp/tomcat.pid"
+Environment="CATALINA_HOME=/opt/tomcat"
+Environment="CATALINA_BASE=/opt/tomcat"
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/opt/tomcat/bin/shutdown.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+# Activer et démarrer Tomcat
+systemctl daemon-reload
+systemctl enable tomcat
+systemctl start tomcat
+
+# Configurer la clé SSH
+mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
+chmod 700 /home/ec2-user/.ssh
+chmod 600 /home/ec2-user/.ssh/authorized_keys
+chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+EOF
 }
 
 resource "aws_instance" "app_server" {
@@ -126,7 +174,7 @@ resource "aws_instance" "app_server" {
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
   # Script exécuté au premier démarrage de l'instance
-  user_data = data.template_file.install_script.rendered
+  user_data = local.install_script
 
   # S'assurer que le profil IAM est créé avant l'instance
   depends_on = [aws_iam_instance_profile.ec2_profile]
