@@ -130,14 +130,14 @@ variable "aws_access_key" {
   description = "Clé d'accès AWS pour l'authentification."
   type        = string
   sensitive   = true
-  # Sera fourni via les secrets GitHub Actions.
+  default     = "" # Valeur vide par défaut, sera fournie via les secrets GitHub Actions ou les variables d'environnement
 }
 
 variable "aws_secret_key" {
   description = "Clé secrète AWS pour l'authentification."
   type        = string
   sensitive   = true
-  # Sera fourni via les secrets GitHub Actions.
+  default     = "" # Valeur vide par défaut, sera fournie via les secrets GitHub Actions ou les variables d'environnement
 }
 
 variable "tf_api_token" {
