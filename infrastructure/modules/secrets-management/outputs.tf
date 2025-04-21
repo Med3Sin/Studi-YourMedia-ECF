@@ -32,8 +32,8 @@ output "secret_rotation_info" {
 output "notification_info" {
   value = {
     notifications_enabled = var.enable_rotation_notifications
-    notification_email   = var.notification_email != "" ? var.notification_email : "Non configuré"
-    sns_topic_arn        = var.enable_rotation_notifications ? try(aws_sns_topic.secret_rotation_notification[0].arn, "Non créé") : "Désactivé"
+    notification_email    = var.notification_email != "" ? var.notification_email : "Non configuré"
+    sns_topic_arn         = var.enable_rotation_notifications ? try(aws_sns_topic.secret_rotation_notification[0].arn, "Non créé") : "Désactivé"
   }
   description = "Informations sur les notifications de rotation des secrets"
 }

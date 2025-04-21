@@ -159,7 +159,7 @@ resource "aws_cloudwatch_event_target" "sns" {
   rule      = aws_cloudwatch_event_rule.secret_rotation[0].name
   target_id = "SendToSNS"
   arn       = aws_sns_topic.secret_rotation_notification[0].arn
-  input     = jsonencode({
+  input = jsonencode({
     message = "Les secrets de l'application YourMedia ont été automatiquement rotés. Veuillez vérifier que tous les services fonctionnent correctement."
     time    = "$${aws:time}"
   })
