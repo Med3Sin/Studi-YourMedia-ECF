@@ -124,6 +124,8 @@ Le projet utilise Terraform Cloud pour stocker l'état de l'infrastructure (tfst
 3. **Type de workflow** : Nous utilisons un workflow basé sur CLI (Command Line Interface) plutôt qu'un workflow basé sur VCS
 4. **Intégration avec GitHub Actions** : Le workflow d'infrastructure utilise le token `TF_API_TOKEN` pour s'authentifier auprès de Terraform Cloud
 
+> **Note importante** : Pour plus de détails sur la gestion de l'état Terraform et comment les workflows de déploiement (`apply`) et de destruction (`destroy`) utilisent le même état, consultez le document [TERRAFORM-CLOUD-TFSTATE.md](./TERRAFORM-CLOUD-TFSTATE.md).
+
 ### Étapes pour configurer Terraform Cloud
 
 1. **Créer un compte Terraform Cloud** sur [app.terraform.io](https://app.terraform.io/)
