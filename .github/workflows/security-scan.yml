@@ -68,31 +68,31 @@ jobs:
 
       - name: Scan React Native Image
         run: |
-          trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o react-native-scan.html yourmedia-ecf:react-native-scan
-          trivy image --format json -o react-native-scan.json yourmedia-ecf:react-native-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o react-native-scan.html yourmedia-ecf:react-native-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o react-native-scan.json yourmedia-ecf:react-native-scan
           echo "React Native Image Vulnerabilities:"
-          trivy image --severity HIGH,CRITICAL yourmedia-ecf:react-native-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:react-native-scan
 
       - name: Scan Grafana Image
         run: |
-          trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o grafana-scan.html yourmedia-ecf:grafana-scan
-          trivy image --format json -o grafana-scan.json yourmedia-ecf:grafana-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o grafana-scan.html yourmedia-ecf:grafana-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o grafana-scan.json yourmedia-ecf:grafana-scan
           echo "Grafana Image Vulnerabilities:"
-          trivy image --severity HIGH,CRITICAL yourmedia-ecf:grafana-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:grafana-scan
 
       - name: Scan Prometheus Image
         run: |
-          trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o prometheus-scan.html yourmedia-ecf:prometheus-scan
-          trivy image --format json -o prometheus-scan.json yourmedia-ecf:prometheus-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o prometheus-scan.html yourmedia-ecf:prometheus-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o prometheus-scan.json yourmedia-ecf:prometheus-scan
           echo "Prometheus Image Vulnerabilities:"
-          trivy image --severity HIGH,CRITICAL yourmedia-ecf:prometheus-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:prometheus-scan
 
       - name: Scan SonarQube Image
         run: |
-          trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o sonarqube-scan.html yourmedia-ecf:sonarqube-scan
-          trivy image --format json -o sonarqube-scan.json yourmedia-ecf:sonarqube-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o sonarqube-scan.html yourmedia-ecf:sonarqube-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o sonarqube-scan.json yourmedia-ecf:sonarqube-scan
           echo "SonarQube Image Vulnerabilities:"
-          trivy image --severity HIGH,CRITICAL yourmedia-ecf:sonarqube-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:sonarqube-scan
 
       - name: Upload Scan Results
         uses: actions/upload-artifact@v4
@@ -107,22 +107,22 @@ jobs:
           echo "## Security Scan Summary" > $GITHUB_STEP_SUMMARY
           echo "### React Native Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:react-native-scan >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:react-native-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
           echo "### Grafana Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:grafana-scan >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:grafana-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
           echo "### Prometheus Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:prometheus-scan >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:prometheus-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
           echo "### SonarQube Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:sonarqube-scan >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:sonarqube-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   scan-code:

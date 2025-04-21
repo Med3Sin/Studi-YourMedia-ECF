@@ -26,6 +26,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
 - [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
+- [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md) : Guide des bonnes pratiques de sécurité pour les images Docker
 - [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
 - [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
 - [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
@@ -52,12 +53,13 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 10. [Gestion de l'état Terraform (tfstate)](docs/TERRAFORM-CLOUD-TFSTATE.md)
 11. [Consultation sécurisée des secrets GitHub](docs/CONSULTER-SECRETS-GITHUB.md)
 12. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
-13. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
-14. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
-15. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+13. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
+14. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
+15. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
+16. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-16. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
-17. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
+17. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
+18. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
 
