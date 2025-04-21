@@ -80,7 +80,7 @@ variable "ami_id" {
 variable "use_existing_sg" {
   description = "Utiliser un groupe de sécurité existant au lieu d'en créer un nouveau."
   type        = bool
-  default     = true
+  default     = false # Modifié de true à false pour éviter la dépendance circulaire
 }
 
 variable "use_latest_ami" {

@@ -209,6 +209,7 @@ module "ec2-monitoring" {
   # car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
   ami_id                  = "ami-0925eac45db11fef2" # Remplacé monitoring_ami_id par ami_id
   use_latest_ami          = var.use_latest_ami
+  use_existing_sg         = false # Définir explicitement à false pour éviter la dépendance circulaire
   key_name                = var.ec2_key_pair_name # Remplacé key_pair_name par key_name
   ssh_private_key_path    = var.ssh_private_key_path
   ssh_private_key_content = var.ssh_private_key_content
