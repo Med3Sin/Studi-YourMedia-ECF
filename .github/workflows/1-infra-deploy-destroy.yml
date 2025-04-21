@@ -86,134 +86,8 @@ jobs:
           }
           EOF
 
-          # Définir les variables AWS dans Terraform Cloud via l'API
-          # 1. Définir AWS_ACCESS_KEY_ID comme variable d'environnement
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "AWS_ACCESS_KEY_ID",
-                  "value": "${{ secrets.AWS_ACCESS_KEY_ID }}",
-                  "category": "env",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 2. Définir AWS_SECRET_ACCESS_KEY comme variable d'environnement
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "AWS_SECRET_ACCESS_KEY",
-                  "value": "${{ secrets.AWS_SECRET_ACCESS_KEY }}",
-                  "category": "env",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 3. Définir AWS_DEFAULT_REGION comme variable d'environnement
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "AWS_DEFAULT_REGION",
-                  "value": "${{ env.AWS_REGION }}",
-                  "category": "env",
-                  "sensitive": false
-                }
-              }
-            }'
-
-          # 4. Définir aws_access_key comme variable Terraform
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "aws_access_key",
-                  "value": "${{ secrets.AWS_ACCESS_KEY_ID }}",
-                  "category": "terraform",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 5. Définir aws_secret_key comme variable Terraform
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "aws_secret_key",
-                  "value": "${{ secrets.AWS_SECRET_ACCESS_KEY }}",
-                  "category": "terraform",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 6. Définir dockerhub_username comme variable Terraform
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "dockerhub_username",
-                  "value": "${{ secrets.DOCKERHUB_USERNAME }}",
-                  "category": "terraform",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 7. Définir dockerhub_token comme variable Terraform
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "dockerhub_token",
-                  "value": "${{ secrets.DOCKERHUB_TOKEN }}",
-                  "category": "terraform",
-                  "sensitive": true
-                }
-              }
-            }'
-
-          # 8. Définir dockerhub_repo comme variable Terraform
-          curl -s -X POST https://app.terraform.io/api/v2/workspaces/ws-${{ secrets.TF_WORKSPACE_ID }}/vars \
-            -H "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
-              "data": {
-                "type": "vars",
-                "attributes": {
-                  "key": "dockerhub_repo",
-                  "value": "${{ secrets.DOCKERHUB_REPO }}",
-                  "category": "terraform",
-                  "sensitive": true
-                }
-              }
-            }'
+          # Définir la date de dernière rotation
+          echo "last_rotation_date=$(date +%Y-%m-%d)" >> $GITHUB_ENV
 
       # Étape 5: Initialisation de Terraform
       - name: Terraform Init
@@ -263,6 +137,7 @@ jobs:
             -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
             -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
+            -var="last_rotation_date=${{ env.last_rotation_date }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -409,7 +284,8 @@ jobs:
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
             -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
+            -var="last_rotation_date=${{ env.last_rotation_date }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
 

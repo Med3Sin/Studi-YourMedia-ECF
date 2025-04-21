@@ -20,7 +20,5 @@ terraform {
 provider "aws" {
   region = var.aws_region # La région AWS sera définie via une variable
   # Les clés d'accès AWS sont fournies via les variables d'environnement AWS_ACCESS_KEY_ID et AWS_SECRET_ACCESS_KEY
-  # ou via les variables Terraform aws_access_key et aws_secret_key
-  access_key = var.aws_access_key != "" ? var.aws_access_key : null
-  secret_key = var.aws_secret_key != "" ? var.aws_secret_key : null
+  # Nous utilisons les variables d'environnement pour l'authentification AWS
 }
