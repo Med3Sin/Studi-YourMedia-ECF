@@ -21,6 +21,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
 - [Consultation sécurisée des secrets GitHub](docs/CONSULTER-SECRETS-GITHUB.md) : Guide pour consulter les secrets GitHub en toute sécurité
+- [Consultation des secrets via Terraform Cloud](docs/CONSULTER-SECRETS-TERRAFORM.md) : Guide pour consulter les secrets GitHub via Terraform Cloud
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
@@ -52,14 +53,15 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 9.  [Utilisation des Secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md)
 10. [Gestion de l'état Terraform (tfstate)](docs/TERRAFORM-CLOUD-TFSTATE.md)
 11. [Consultation sécurisée des secrets GitHub](docs/CONSULTER-SECRETS-GITHUB.md)
-12. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
-13. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
-14. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
-15. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
-16. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+12. [Consultation des secrets via Terraform Cloud](docs/CONSULTER-SECRETS-TERRAFORM.md)
+13. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
+14. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
+15. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
+16. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
+17. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-17. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
-18. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
+18. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
+19. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
 
