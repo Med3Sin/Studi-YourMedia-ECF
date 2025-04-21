@@ -50,7 +50,7 @@ Vous pouvez utiliser le fichier docker-compose.yml préconfiguré dans le réper
 
 ```bash
 # Copier le fichier docker-compose.yml depuis le bucket S3 ou le dépôt Git
-aws s3 cp s3://<NOM_DU_BUCKET>/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
+aws s3 cp s3://<NOM_DU_BUCKET>/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
 
 # Ou si vous avez cloné le dépôt Git
 cp /chemin/vers/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
@@ -64,7 +64,7 @@ Vous pouvez utiliser le fichier prometheus.yml préconfiguré dans le répertoir
 
 ```bash
 # Copier le fichier prometheus.yml depuis le bucket S3 ou le dépôt Git
-aws s3 cp s3://<NOM_DU_BUCKET>/monitoring/prometheus.yml /opt/monitoring/prometheus.yml
+aws s3 cp s3://<NOM_DU_BUCKET>/scripts/ec2-monitoring/prometheus.yml /opt/monitoring/prometheus.yml
 
 # Ou si vous avez cloné le dépôt Git
 cp /chemin/vers/scripts/ec2-monitoring/prometheus.yml /opt/monitoring/prometheus.yml

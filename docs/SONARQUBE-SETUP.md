@@ -49,7 +49,7 @@ sudo sysctl -p
 
 ### Déploiement avec Docker
 
-SonarQube est déployé en tant que conteneur Docker sur l'instance EC2 de monitoring. Le déploiement est géré par le script `scripts/docker/docker-manager.sh`.
+SonarQube est déployé en tant que conteneur Docker sur l'instance EC2 de monitoring. Le déploiement est géré par le script `scripts/docker/docker-manager.sh` et la configuration se trouve dans le dossier `scripts/docker/sonarqube/`.
 
 ## Configuration des projets
 

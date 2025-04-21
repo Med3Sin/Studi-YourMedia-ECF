@@ -72,14 +72,15 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 Les diagrammes d'architecture sont disponibles dans le dossier `docs/diagrams/v2023-12/` :
 
-- **Infrastructure globale** (`yourmedia-infrastructure-globale.drawio`) - Présente tous les services AWS et leurs connexions
-- **Services externes** (`yourmedia-services-externes.drawio`) - Montre les services externes comme GitHub, Docker Hub, etc.
-- **Instance de monitoring** (`yourmedia-instance-monitoring.drawio`) - Détaille les conteneurs et services sur l'instance EC2 de monitoring
-- **Flux de données** (`yourmedia-flux-donnees.drawio`) - Présente clairement les flux de données entre les différents composants
+- [Vue d'ensemble de l'architecture](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer1.drawio) - Vue globale de l'architecture
+- [Couche réseau](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer2.drawio) - VPC, sous-réseaux, groupes de sécurité
+- [Couche calcul](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer3.drawio) - EC2, conteneurs Docker
+- [Couche stockage](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer4.drawio) - S3, RDS
+- [Couche CI/CD](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer5.drawio) - GitHub Actions, Terraform Cloud
+- [Couche monitoring](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer6.drawio) - Prometheus, Grafana, SonarQube
+- [Organisation des scripts](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer7.drawio) - Structure des scripts
 
-**Note :** Ces diagrammes sont disponibles localement mais ne sont pas inclus dans le dépôt Git (ignorés via .gitignore).
-
-![Schéma d'Architecture YourMédia](YourMedia_AWS_Architecture.drawio.png)
+![Schéma d'Architecture YourMédia](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer1.drawio)
 
 ## Prérequis
 
@@ -247,29 +248,31 @@ Le système de monitoring est basé sur Prometheus et Grafana, exécutés dans d
 
 ### Structure des fichiers de configuration
 
-Les fichiers de configuration pour le monitoring sont maintenant centralisés dans le répertoire `scripts/ec2-monitoring/`. Ces fichiers sont :
+Tous les scripts et fichiers de configuration sont maintenant centralisés dans le répertoire `scripts/` pour une meilleure organisation et maintenance. Voici la structure :
 
--   `docker-compose.yml` : Configuration des conteneurs Docker pour Prometheus, Grafana, et les exportateurs
--   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
--   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter pour collecter les métriques AWS
+**Scripts de monitoring (`scripts/ec2-monitoring/`) :**
+
 -   `setup.sh` : Script principal d'installation et de configuration
 -   `fix_permissions.sh` : Script pour corriger les permissions des volumes
 -   `generate_sonar_token.sh` : Script de génération du token SonarQube
 -   `init-instance.sh` : Script d'initialisation de l'instance
+-   `docker-compose.yml` : Configuration des conteneurs Docker
+-   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
+-   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter
 
-Les scripts Docker sont centralisés dans le répertoire `scripts/docker/` :
+**Scripts Docker (`scripts/docker/`) :**
 
--   `docker-manager.sh` : Script pour gérer les conteneurs Docker (construction, publication, déploiement)
--   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs Docker
--   `cleanup-containers.sh` : Script pour nettoyer les conteneurs Docker
+-   `docker-manager.sh` : Script pour gérer les conteneurs Docker
+-   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs
+-   `cleanup-containers.sh` : Script pour nettoyer les conteneurs
 
-Les Dockerfiles et fichiers de configuration pour les conteneurs sont organisés dans les sous-répertoires de `scripts/docker/` :
+**Configurations des conteneurs :**
 
--   `prometheus/` : Dockerfile et configuration pour Prometheus
--   `grafana/` : Dockerfile et configuration pour Grafana
--   `sonarqube/` : Dockerfile et configuration pour SonarQube
+-   `scripts/docker/prometheus/` : Configuration pour Prometheus
+-   `scripts/docker/grafana/` : Configuration pour Grafana
+-   `scripts/docker/sonarqube/` : Configuration pour SonarQube
 
-Les scripts utilitaires génériques sont dans le répertoire `scripts/utils/` :
+**Scripts utilitaires (`scripts/utils/`) :**
 
 -   `fix-ssh-keys.sh` : Script pour corriger les clés SSH
 -   `ssh-key-checker.service` : Service systemd pour vérifier les clés SSH

@@ -218,7 +218,7 @@ chmod 600 /home/ec2-user/.ssh/authorized_keys
 chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Télécharger et exécuter le script d'initialisation depuis S3
-aws s3 cp s3://${var.s3_bucket_name}/monitoring/init-instance.sh /tmp/init-instance.sh
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance.sh /tmp/init-instance.sh
 chmod +x /tmp/init-instance.sh
 
 # Remplacer les variables dans le script d'initialisation
