@@ -32,7 +32,7 @@ RUN npm install -g serve && \
 WORKDIR /app
 
 # Copier les fichiers de build depuis l'étape précédente
-COPY --from=builder /app/build /app/build
+COPY --from=builder /app/dist /app/build
 
 # Créer un utilisateur non-root pour des raisons de sécurité
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
