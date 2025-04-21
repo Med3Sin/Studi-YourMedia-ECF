@@ -165,3 +165,23 @@ variable "grafana_admin_password" {
   default     = "admin"
   sensitive   = true
 }
+
+variable "sonar_jdbc_username" {
+  description = "Nom d'utilisateur pour la base de données SonarQube."
+  type        = string
+  default     = "sonar"
+  sensitive   = true
+}
+
+variable "sonar_jdbc_password" {
+  description = "Mot de passe pour la base de données SonarQube."
+  type        = string
+  default     = "admin"
+  sensitive   = true
+}
+
+variable "sonar_jdbc_url" {
+  description = "URL de connexion à la base de données SonarQube."
+  type        = string
+  default     = "jdbc:postgresql://sonarqube-db:5432/sonar"
+}
