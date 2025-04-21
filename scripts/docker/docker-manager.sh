@@ -23,11 +23,20 @@ GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
 if [ "$GF_SECURITY_ADMIN_PASSWORD" = "admin" ]; then
     echo "[WARNING] Le mot de passe administrateur Grafana est défini sur la valeur par défaut 'admin'."
     echo "[WARNING] Il est fortement recommandé de définir un mot de passe plus sécurisé via la variable GF_SECURITY_ADMIN_PASSWORD."
-    read -p "Voulez-vous continuer avec ce mot de passe par défaut? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "[INFO] Opération annulée. Veuillez définir un mot de passe plus sécurisé."
-        exit 1
+
+    # Vérifier si le script est exécuté en mode interactif
+    if [ -t 0 ]; then
+        # Mode interactif
+        read -p "Voulez-vous continuer avec ce mot de passe par défaut? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "[INFO] Opération annulée. Veuillez définir un mot de passe plus sécurisé."
+            exit 1
+        fi
+    else
+        # Mode non interactif (CI/CD)
+        echo "[WARNING] Exécution en mode non interactif. Continuation avec le mot de passe par défaut."
+        echo "[WARNING] Pensez à changer le mot de passe après le déploiement."
     fi
 fi
 
