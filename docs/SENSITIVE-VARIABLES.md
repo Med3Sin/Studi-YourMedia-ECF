@@ -136,7 +136,7 @@ export SECRET_VALUE=${{ secrets.SECRET_VALUE }}
 Pour sécuriser la base de données MySQL, un script a été créé pour révoquer les privilèges de l'utilisateur root et créer un utilisateur dédié pour l'application :
 
 ```bash
-./scripts/secure-database.sh [DB_HOST] [DB_PORT] [DB_ROOT_USER] [DB_ROOT_PASSWORD] [NEW_DB_USER] [NEW_DB_PASSWORD]
+./scripts/database/secure-database.sh [DB_HOST] [DB_PORT] [DB_ROOT_USER] [DB_ROOT_PASSWORD] [NEW_DB_USER] [NEW_DB_PASSWORD]
 ```
 
 Ce script :
@@ -145,3 +145,32 @@ Ce script :
 3. Génère un mot de passe fort si aucun n'est fourni
 4. Met à jour les secrets dans Terraform Cloud (si les variables d'environnement nécessaires sont définies)
 5. Affiche des instructions pour mettre à jour manuellement les secrets dans GitHub Actions
+
+## Génération du token SonarQube
+
+Pour générer un token SonarQube et le stocker dans Terraform Cloud, un script a été créé :
+
+```bash
+./scripts/ec2-monitoring/generate_sonar_token.sh [SONAR_HOST] [TF_API_TOKEN] [TF_WORKSPACE_ID] [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
+```
+
+Ce script :
+1. Attend que SonarQube soit opérationnel
+2. Génère un token SonarQube avec un nom unique
+3. Stocke le token dans Terraform Cloud comme variable sensible
+4. Affiche des instructions pour ajouter le token comme secret GitHub
+
+## Correction des clés SSH
+
+Pour corriger les problèmes de format des clés SSH dans le fichier authorized_keys, un script a été créé :
+
+```bash
+./scripts/utils/fix-ssh-keys.sh [--force]
+```
+
+Ce script :
+1. Vérifie le format des clés SSH dans le fichier authorized_keys
+2. Supprime les guillemets simples qui entourent les clés SSH
+3. Extrait les clés SSH valides des lignes mal formatées
+4. Sauvegarde le fichier original avant de le modifier
+5. Peut être exécuté périodiquement via un service systemd

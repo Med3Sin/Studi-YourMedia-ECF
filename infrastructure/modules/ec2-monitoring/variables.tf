@@ -29,9 +29,27 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "monitoring_security_group_id" {
-  description = "ID du groupe de sécurité à attacher à l'instance EC2 de monitoring."
+variable "subnet_id" {
+  description = "ID du sous-réseau pour l'instance EC2 de monitoring."
   type        = string
+}
+
+variable "instance_type" {
+  description = "Type d'instance EC2 pour le monitoring."
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "root_volume_size" {
+  description = "Taille du volume racine en Go."
+  type        = number
+  default     = 20
+}
+
+variable "allowed_cidr_blocks" {
+  description = "Liste des blocs CIDR autorisés à accéder à l'instance EC2 de monitoring."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
 variable "ec2_instance_private_ip" {
@@ -39,22 +57,24 @@ variable "ec2_instance_private_ip" {
   type        = string
 }
 
+# Ces variables ne sont plus utilisées car nous utilisons des conteneurs Docker sur EC2 au lieu de ECS Fargate
+# Elles sont conservées pour la compatibilité avec les anciens scripts
 variable "monitoring_task_cpu" {
-  description = "CPU alloué aux conteneurs Docker sur l'instance EC2 de monitoring."
+  description = "CPU alloué aux conteneurs Docker sur l'instance EC2 de monitoring (non utilisé)."
   type        = number
   default     = 256 # Valeur par défaut pour la compatibilité avec les anciens scripts
 }
 
 variable "monitoring_task_memory" {
-  description = "Mémoire allouée aux conteneurs Docker sur l'instance EC2 de monitoring."
+  description = "Mémoire allouée aux conteneurs Docker sur l'instance EC2 de monitoring (non utilisé)."
   type        = number
   default     = 512 # Valeur par défaut pour la compatibilité avec les anciens scripts
 }
 
-variable "monitoring_ami_id" {
+variable "ami_id" {
   description = "ID de l'AMI Amazon Linux 2 pour l'instance EC2 de monitoring."
   type        = string
-  default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 dans eu-west-3 (Paris)
+  default     = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
 }
 
 variable "use_latest_ami" {
@@ -63,7 +83,7 @@ variable "use_latest_ami" {
   default     = true
 }
 
-variable "key_pair_name" {
+variable "key_name" {
   description = "Nom de la paire de clés SSH pour l'instance EC2 de monitoring."
   type        = string
 }

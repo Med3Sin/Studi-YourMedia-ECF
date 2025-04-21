@@ -94,12 +94,23 @@ Les applications sont conteneurisées avec Docker et déployées sur des instanc
 L'infrastructure est définie en code avec Terraform, ce qui permet une gestion cohérente et reproductible.
 
 **Modules Terraform :**
-- **ec2** : Instances EC2
-- **ec2-monitoring** : Instance EC2 pour le monitoring
-- **rds** : Base de données MySQL
-- **s3** : Buckets S3
-- **vpc** : Réseau virtuel
-- **secrets-management** : Gestion des secrets
+- **ec2-java-tomcat** : Instance EC2 pour le backend Java/Tomcat
+- **ec2-monitoring** : Instance EC2 pour le monitoring (Prometheus, Grafana, SonarQube)
+- **rds-mysql** : Base de données MySQL
+- **s3** : Buckets S3 pour le stockage des médias et des artefacts
+- **network** : Configuration du VPC, des sous-réseaux et des groupes de sécurité
+- **secrets-management** : Gestion des secrets via Terraform Cloud
+
+### Scripts
+
+Les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication.
+
+**Catégories de scripts :**
+- **database** : Scripts liés à la base de données (sécurisation, migration, etc.)
+- **docker** : Scripts de gestion des conteneurs Docker (construction, déploiement, nettoyage)
+- **ec2-java-tomcat** : Scripts d'installation et de configuration de Java et Tomcat
+- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana, SonarQube)
+- **utils** : Scripts utilitaires génériques (correction des clés SSH, etc.)
 
 ## Sécurité
 
