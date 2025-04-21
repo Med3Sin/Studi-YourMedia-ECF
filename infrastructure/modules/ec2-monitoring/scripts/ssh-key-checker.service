@@ -1,0 +1,9 @@
+[Unit]
+Description=SSH Key Format Checker
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fix-ssh-keys.sh
+User=ec2-user
+Group=ec2-user

@@ -131,15 +131,15 @@ resource "aws_s3_object" "docker_manager_sh" {
 resource "aws_s3_object" "fix_permissions_sh" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/fix_permissions.sh"
-  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/fix_permissions.sh" : "${path.module}/files/fix_permissions.sh"
-  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/fix_permissions.sh") : filemd5("${path.module}/files/fix_permissions.sh")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/fix_permissions.sh" : "${path.module}/../ec2-monitoring/scripts/fix_permissions.sh"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/fix_permissions.sh") : filemd5("${path.module}/../ec2-monitoring/scripts/fix_permissions.sh")
 }
 
 resource "aws_s3_object" "cloudwatch_config_yml" {
   bucket = aws_s3_bucket.media_storage.id
   key    = "monitoring/cloudwatch-config.yml"
-  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/cloudwatch-config.yml" : "${path.module}/files/cloudwatch-config.yml"
-  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/cloudwatch-config.yml") : filemd5("${path.module}/files/cloudwatch-config.yml")
+  source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/cloudwatch-config.yml" : "${path.module}/../ec2-monitoring/scripts/cloudwatch-config.yml"
+  etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/cloudwatch-config.yml") : filemd5("${path.module}/../ec2-monitoring/scripts/cloudwatch-config.yml")
 }
 
 # Téléchargement du script d'installation principal
@@ -148,6 +148,36 @@ resource "aws_s3_object" "setup_sh" {
   key    = "monitoring/setup.sh"
   source = var.monitoring_scripts_path != "" ? "${var.monitoring_scripts_path}/setup.sh" : "${path.module}/../ec2-monitoring/scripts/setup.sh"
   etag   = var.monitoring_scripts_path != "" ? filemd5("${var.monitoring_scripts_path}/setup.sh") : filemd5("${path.module}/../ec2-monitoring/scripts/setup.sh")
+}
+
+# Téléchargement des scripts de correction des clés SSH
+resource "aws_s3_object" "fix_ssh_keys_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/fix-ssh-keys.sh"
+  source = "${path.module}/files/fix-ssh-keys.sh"
+  etag   = filemd5("${path.module}/files/fix-ssh-keys.sh")
+}
+
+resource "aws_s3_object" "ssh_key_checker_service" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/ssh-key-checker.service"
+  source = "${path.module}/files/ssh-key-checker.service"
+  etag   = filemd5("${path.module}/files/ssh-key-checker.service")
+}
+
+resource "aws_s3_object" "ssh_key_checker_timer" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/ssh-key-checker.timer"
+  source = "${path.module}/files/ssh-key-checker.timer"
+  etag   = filemd5("${path.module}/files/ssh-key-checker.timer")
+}
+
+# Téléchargement du script d'initialisation
+resource "aws_s3_object" "init_instance_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "monitoring/init-instance.sh"
+  source = "${path.module}/files/init-instance.sh"
+  etag   = filemd5("${path.module}/files/init-instance.sh")
 }
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration
