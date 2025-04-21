@@ -138,7 +138,7 @@ build_push_mobile() {
 # Fonction pour construire et pousser les images de monitoring
 build_push_monitoring() {
     echo "[INFO] Construction de l'image Docker pour Grafana..."
-    cd ../infrastructure/modules/ec2-monitoring/docker/grafana
+    cd ../scripts/docker/grafana
     docker build -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest .
 
     echo "[INFO] Publication de l'image Grafana sur Docker Hub..."

@@ -107,77 +107,78 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
 
 # Téléchargement des fichiers de configuration de monitoring dans le bucket S3
 # Les fichiers sont maintenant centralisés dans le dossier scripts
+
+# Scripts EC2 Monitoring
 resource "aws_s3_object" "docker_compose_yml" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/docker-compose.yml"
+  key    = "scripts/ec2-monitoring/docker-compose.yml"
   source = "${path.module}/../../scripts/ec2-monitoring/docker-compose.yml"
   etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/docker-compose.yml")
 }
 
 resource "aws_s3_object" "prometheus_yml" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/prometheus.yml"
+  key    = "scripts/ec2-monitoring/prometheus.yml"
   source = "${path.module}/../../scripts/ec2-monitoring/prometheus.yml"
   etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/prometheus.yml")
 }
 
-resource "aws_s3_object" "docker_manager_sh" {
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/docker-manager.sh"
-  source = "${path.module}/../../scripts/docker/docker-manager.sh"
-  etag   = filemd5("${path.module}/../../scripts/docker/docker-manager.sh")
-}
-
 resource "aws_s3_object" "fix_permissions_sh" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/fix_permissions.sh"
+  key    = "scripts/ec2-monitoring/fix_permissions.sh"
   source = "${path.module}/../../scripts/ec2-monitoring/fix_permissions.sh"
   etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/fix_permissions.sh")
 }
 
 resource "aws_s3_object" "cloudwatch_config_yml" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/cloudwatch-config.yml"
+  key    = "scripts/ec2-monitoring/cloudwatch-config.yml"
   source = "${path.module}/../../scripts/ec2-monitoring/cloudwatch-config.yml"
   etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/cloudwatch-config.yml")
 }
 
-# Téléchargement du script d'installation principal
 resource "aws_s3_object" "setup_sh" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/setup.sh"
+  key    = "scripts/ec2-monitoring/setup.sh"
   source = "${path.module}/../../scripts/ec2-monitoring/setup.sh"
   etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/setup.sh")
 }
 
-# Téléchargement des scripts de correction des clés SSH
+resource "aws_s3_object" "init_instance_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-monitoring/init-instance.sh"
+  source = "${path.module}/../../scripts/ec2-monitoring/init-instance.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/init-instance.sh")
+}
+
+# Scripts Docker
+resource "aws_s3_object" "docker_manager_sh" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/docker/docker-manager.sh"
+  source = "${path.module}/../../scripts/docker/docker-manager.sh"
+  etag   = filemd5("${path.module}/../../scripts/docker/docker-manager.sh")
+}
+
+# Scripts Utils
 resource "aws_s3_object" "fix_ssh_keys_sh" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/fix-ssh-keys.sh"
+  key    = "scripts/utils/fix-ssh-keys.sh"
   source = "${path.module}/../../scripts/utils/fix-ssh-keys.sh"
   etag   = filemd5("${path.module}/../../scripts/utils/fix-ssh-keys.sh")
 }
 
 resource "aws_s3_object" "ssh_key_checker_service" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/ssh-key-checker.service"
+  key    = "scripts/utils/ssh-key-checker.service"
   source = "${path.module}/../../scripts/utils/ssh-key-checker.service"
   etag   = filemd5("${path.module}/../../scripts/utils/ssh-key-checker.service")
 }
 
 resource "aws_s3_object" "ssh_key_checker_timer" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/ssh-key-checker.timer"
+  key    = "scripts/utils/ssh-key-checker.timer"
   source = "${path.module}/../../scripts/utils/ssh-key-checker.timer"
   etag   = filemd5("${path.module}/../../scripts/utils/ssh-key-checker.timer")
-}
-
-# Téléchargement du script d'initialisation
-resource "aws_s3_object" "init_instance_sh" {
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "monitoring/init-instance.sh"
-  source = "${path.module}/../../scripts/ec2-monitoring/init-instance.sh"
-  etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/init-instance.sh")
 }
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration
@@ -189,7 +190,7 @@ data "aws_iam_policy_document" "monitoring_s3_access" {
     ]
     resources = [
       aws_s3_bucket.media_storage.arn,
-      "${aws_s3_bucket.media_storage.arn}/monitoring/*"
+      "${aws_s3_bucket.media_storage.arn}/scripts/*"
     ]
   }
 }

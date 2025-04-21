@@ -273,10 +273,9 @@ if [ "$RUNNING_CONTAINERS" -gt 0 ]; then
 fi
 
 # Utiliser docker-manager.sh si disponible, sinon utiliser docker-compose directement
-if [ -f "/tmp/docker-manager.sh" ]; then
+if [ -f "/usr/local/bin/docker-manager.sh" ]; then
     log "Utilisation de docker-manager.sh pour déployer les conteneurs..."
-    chmod +x /tmp/docker-manager.sh
-    /tmp/docker-manager.sh deploy monitoring
+    /usr/local/bin/docker-manager.sh deploy monitoring
 
     # Vérifier si le déploiement a réussi
     if [ $? -ne 0 ]; then
