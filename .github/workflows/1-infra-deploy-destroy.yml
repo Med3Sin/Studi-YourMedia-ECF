@@ -346,6 +346,58 @@ jobs:
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si le nettoyage échoue
 
+      # Étape 9.2: Nettoyage des groupes de sécurité persistants
+      - name: Cleanup Security Groups
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          echo "::group::Nettoyage des groupes de sécurité persistants"
+
+          # Définir les noms des groupes de sécurité à nettoyer
+          PROJECT_NAME="yourmedia"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          MONITORING_SG="${PROJECT_NAME}-${ENVIRONMENT}-monitoring-sg"
+          APP_SG="${PROJECT_NAME}-${ENVIRONMENT}-app-sg"
+          RDS_SG="${PROJECT_NAME}-${ENVIRONMENT}-rds-sg"
+
+          echo "Nettoyage des groupes de sécurité pour le projet ${PROJECT_NAME} et l'environnement ${ENVIRONMENT}..."
+
+          # Fonction pour supprimer un groupe de sécurité
+          delete_security_group() {
+            local sg_name=$1
+            echo "Recherche du groupe de sécurité $sg_name..."
+
+            # Récupérer l'ID du groupe de sécurité par son nom
+            SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$sg_name" --query "SecurityGroups[0].GroupId" --output text 2>/dev/null)
+
+            if [ "$SG_ID" != "None" ] && [ ! -z "$SG_ID" ]; then
+              echo "Suppression du groupe de sécurité $sg_name (ID: $SG_ID)..."
+
+              # Supprimer toutes les règles de trafic entrant
+              echo "Suppression des règles de trafic entrant..."
+              aws ec2 revoke-security-group-ingress --group-id $SG_ID --ip-permissions "$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissions' --output json)" 2>/dev/null || true
+
+              # Supprimer toutes les règles de trafic sortant
+              echo "Suppression des règles de trafic sortant..."
+              aws ec2 revoke-security-group-egress --group-id $SG_ID --ip-permissions "$(aws ec2 describe-security-groups --group-ids $SG_ID --query 'SecurityGroups[0].IpPermissionsEgress' --output json)" 2>/dev/null || true
+
+              # Supprimer le groupe de sécurité
+              echo "Suppression du groupe de sécurité..."
+              aws ec2 delete-security-group --group-id $SG_ID
+              echo "Groupe de sécurité $sg_name supprimé avec succès."
+            else
+              echo "Le groupe de sécurité $sg_name n'existe pas ou n'a pas pu être trouvé."
+            fi
+          }
+
+          # Supprimer les groupes de sécurité
+          delete_security_group $MONITORING_SG
+          delete_security_group $APP_SG
+          delete_security_group $RDS_SG
+
+          echo "Nettoyage des groupes de sécurité terminé."
+          echo "::endgroup::"
+        continue-on-error: true  # Continuer même si le nettoyage échoue
+
       # Étape 10: Création des secrets GitHub à partir des outputs Terraform
       - name: Update GitHub Secrets
         if: github.event.inputs.action == 'apply'
