@@ -46,93 +46,36 @@ sudo chown -R ec2-user:ec2-user /opt/monitoring
 
 #### 3.1. Créer le fichier docker-compose.yml
 
+Vous pouvez utiliser le fichier docker-compose.yml préconfiguré dans le répertoire `scripts/ec2-monitoring/` :
+
 ```bash
-cat > /opt/monitoring/docker-compose.yml << 'EOL'
-version: '3'
+# Copier le fichier docker-compose.yml depuis le bucket S3 ou le dépôt Git
+aws s3 cp s3://<NOM_DU_BUCKET>/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
 
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /opt/monitoring/prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--storage.tsdb.retention.size=1GB'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - /opt/monitoring/grafana-data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-    depends_on:
-      - prometheus
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-EOL
+# Ou si vous avez cloné le dépôt Git
+cp /chemin/vers/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
 ```
+
+Le fichier docker-compose.yml contient la configuration pour Prometheus, Grafana, et d'autres exportateurs :
 
 #### 3.2. Créer le fichier prometheus.yml
 
+Vous pouvez utiliser le fichier prometheus.yml préconfiguré dans le répertoire `scripts/ec2-monitoring/` :
+
 ```bash
-cat > /opt/monitoring/prometheus.yml << 'EOL'
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+# Copier le fichier prometheus.yml depuis le bucket S3 ou le dépôt Git
+aws s3 cp s3://<NOM_DU_BUCKET>/monitoring/prometheus.yml /opt/monitoring/prometheus.yml
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-          # - alertmanager:9093
-
-rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
-
-scrape_configs:
-  - job_name: "prometheus"
-    static_configs:
-      - targets: ["localhost:9090"]
-
-  - job_name: "node_exporter"
-    static_configs:
-      - targets: ["localhost:9100"]
-
-  - job_name: "spring_boot"
-    metrics_path: "/actuator/prometheus"
-    static_configs:
-      - targets: ["backend:8080"]
-EOL
+# Ou si vous avez cloné le dépôt Git
+cp /chemin/vers/scripts/ec2-monitoring/prometheus.yml /opt/monitoring/prometheus.yml
 ```
+
+Le fichier prometheus.yml contient la configuration pour collecter les métriques de différentes sources, notamment :
+- Prometheus lui-même
+- Node Exporter (métriques système)
+- MySQL Exporter (métriques de base de données)
+- CloudWatch Exporter (métriques AWS)
+- Application backend (via Spring Boot Actuator)
 
 ### 4. Démarrer les conteneurs
 

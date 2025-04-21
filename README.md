@@ -70,7 +70,17 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 **Schéma d'Architecture :**
 
-![Schéma d'Architecture YourMédia](YourMedia_AWS_Architecture.drawio.png)
+Les diagrammes d'architecture sont disponibles dans le dossier `docs/diagrams/v2023-12/` :
+
+- [Vue d'ensemble de l'architecture](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer1.drawio) - Vue globale de l'architecture
+- [Couche réseau](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer2.drawio) - VPC, sous-réseaux, groupes de sécurité
+- [Couche calcul](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer3.drawio) - EC2, conteneurs Docker
+- [Couche stockage](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer4.drawio) - S3, RDS
+- [Couche CI/CD](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer5.drawio) - GitHub Actions, Terraform Cloud
+- [Couche monitoring](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer6.drawio) - Prometheus, Grafana, SonarQube
+- [Organisation des scripts](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer7.drawio) - Structure des scripts
+
+![Schéma d'Architecture YourMédia](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer1.drawio)
 
 ## Prérequis
 

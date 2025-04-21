@@ -47,7 +47,7 @@ Les images suivantes sont disponibles :
 
 ## Script de gestion Docker
 
-Le script `docker-manager.sh` est l'outil principal pour gérer les conteneurs Docker dans le projet. Il permet de :
+Le script `scripts/docker/docker-manager.sh` est l'outil principal pour gérer les conteneurs Docker dans le projet. Il permet de :
 
 - Construire et pousser les images Docker vers Docker Hub
 - Déployer les conteneurs sur les instances EC2
@@ -56,7 +56,7 @@ Le script `docker-manager.sh` est l'outil principal pour gérer les conteneurs D
 ### Utilisation
 
 ```bash
-./scripts/docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
+./scripts/docker/docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
 ```
 
 ### Options
@@ -75,18 +75,18 @@ Le script `docker-manager.sh` est l'outil principal pour gérer les conteneurs D
 
 ```bash
 # Construire et pousser l'image de l'application mobile
-./scripts/docker-manager.sh build mobile
+./scripts/docker/docker-manager.sh build mobile
 
 # Déployer les services de monitoring
-./scripts/docker-manager.sh deploy monitoring
+./scripts/docker/docker-manager.sh deploy monitoring
 
 # Construire, pousser et déployer toutes les images
-./scripts/docker-manager.sh all all
+./scripts/docker/docker-manager.sh all all
 ```
 
 ## Construction des images Docker
 
-La construction des images Docker est gérée par le script `docker-manager.sh` avec l'action `build`. Le script :
+La construction des images Docker est gérée par le script `scripts/docker/docker-manager.sh` avec l'action `build`. Le script :
 
 1. Se connecte à Docker Hub avec les identifiants fournis
 2. Construit les images Docker pour les cibles spécifiées
@@ -101,7 +101,7 @@ La construction des images Docker est gérée par le script `docker-manager.sh` 
 
 ## Déploiement des conteneurs
 
-Le déploiement des conteneurs est géré par le script `docker-manager.sh` avec l'action `deploy`. Le script :
+Le déploiement des conteneurs est géré par le script `scripts/docker/docker-manager.sh` avec l'action `deploy`. Le script :
 
 1. Se connecte aux instances EC2 via SSH
 2. Crée les répertoires nécessaires pour les volumes Docker
@@ -125,7 +125,7 @@ Le déploiement des conteneurs est géré par le script `docker-manager.sh` avec
 
 ## Nettoyage des conteneurs
 
-Le nettoyage des conteneurs est géré par le script `cleanup-containers.sh`. Ce script permet de :
+Le nettoyage des conteneurs est géré par le script `scripts/docker/cleanup-containers.sh`. Ce script permet de :
 
 1. Arrêter et supprimer les conteneurs Docker
 2. Supprimer les images Docker
@@ -136,7 +136,7 @@ Le nettoyage des conteneurs est géré par le script `cleanup-containers.sh`. Ce
 ### Utilisation
 
 ```bash
-./scripts/cleanup-containers.sh <EC2_MONITORING_IP> <EC2_APP_IP> <SSH_KEY_PATH> [CLEANUP_TYPE]
+./scripts/docker/cleanup-containers.sh <EC2_MONITORING_IP> <EC2_APP_IP> <SSH_KEY_PATH> [CLEANUP_TYPE]
 ```
 
 ### Options de nettoyage
@@ -152,10 +152,10 @@ Le nettoyage des conteneurs est géré par le script `cleanup-containers.sh`. Ce
 
 ```bash
 # Nettoyer tous les conteneurs, images, volumes, etc.
-./scripts/cleanup-containers.sh 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa all
+./scripts/docker/cleanup-containers.sh 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa all
 
 # Nettoyer uniquement les conteneurs
-./scripts/cleanup-containers.sh 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa containers
+./scripts/docker/cleanup-containers.sh 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa containers
 ```
 
 ## Variables d'environnement

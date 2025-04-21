@@ -12,11 +12,6 @@ on:
           - all
           - backend
           - mobile
-  push:
-    branches: [ main ]
-    paths:
-      - 'app-java/**'
-      - 'app-react/**'
 
 jobs:
   analyze-backend:

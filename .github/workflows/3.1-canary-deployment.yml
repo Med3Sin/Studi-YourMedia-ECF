@@ -118,7 +118,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'monitoring' }}
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/grafana
+          context: ./scripts/docker/grafana
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ needs.prepare-canary.outputs.version }}
@@ -130,7 +130,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'monitoring' }}
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/prometheus
+          context: ./scripts/docker/prometheus
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ needs.prepare-canary.outputs.version }}
@@ -142,7 +142,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'monitoring' }}
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/sonarqube
+          context: ./scripts/docker/sonarqube
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:sonarqube-${{ needs.prepare-canary.outputs.version }}

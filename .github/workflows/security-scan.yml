@@ -1,17 +1,7 @@
 name: Security Scan
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'  # Exécution hebdomadaire (dimanche à minuit)
-  workflow_dispatch:     # Permet l'exécution manuelle
-  push:
-    branches:
-      - main
-    paths:
-      - 'app-react/**'
-      - 'app-java/**'
-      - 'infrastructure/modules/ec2-monitoring/docker/**'
-      - '.github/workflows/security-scan.yml'
+  workflow_dispatch:     # Permet l'exécution manuelle uniquement
 
 jobs:
   scan-docker-images:
@@ -49,7 +39,7 @@ jobs:
       - name: Build Grafana Image
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/grafana
+          context: ./scripts/docker/grafana
           push: false
           load: true
           tags: yourmedia-ecf:grafana-scan
@@ -59,7 +49,7 @@ jobs:
       - name: Build Prometheus Image
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/prometheus
+          context: ./scripts/docker/prometheus
           push: false
           load: true
           tags: yourmedia-ecf:prometheus-scan
@@ -69,7 +59,7 @@ jobs:
       - name: Build SonarQube Image
         uses: docker/build-push-action@v4
         with:
-          context: ./infrastructure/modules/ec2-monitoring/docker/sonarqube
+          context: ./scripts/docker/sonarqube
           push: false
           load: true
           tags: yourmedia-ecf:sonarqube-scan
@@ -119,17 +109,17 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:react-native-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Grafana Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:grafana-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Prometheus Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:prometheus-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### SonarQube Image" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           trivy image --severity HIGH,CRITICAL --no-progress yourmedia-ecf:sonarqube-scan >> $GITHUB_STEP_SUMMARY
@@ -253,12 +243,12 @@ jobs:
           else
             echo "✅ **PASSED**: No critical security issues detected" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
           echo "- Docker Images Scan: ${{ needs.scan-docker-images.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Code Scan: ${{ needs.scan-code.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Infrastructure Scan: ${{ needs.scan-infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Download the artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
           echo "2. Address any critical or high severity issues" >> $GITHUB_STEP_SUMMARY

@@ -1,21 +1,6 @@
 name: 2.1 - Application Tests
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'app-react/**'
-      - 'app-java/**'
-      - '.github/workflows/2.1-application-tests.yml'
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - 'app-react/**'
-      - 'app-java/**'
   workflow_dispatch:
     inputs:
       target:
@@ -71,7 +56,7 @@ jobs:
             setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect']
           };
           EOF
-          
+
           # Créer un fichier de test de base
           mkdir -p __tests__
           cat > __tests__/App.test.js << 'EOF'
@@ -90,7 +75,7 @@ jobs:
             });
           });
           EOF
-          
+
           # Ajouter les dépendances de test
           npm install --save-dev jest jest-expo @testing-library/react-native @testing-library/jest-native react-test-renderer
 
@@ -148,7 +133,7 @@ jobs:
               }
           }
           EOF
-          
+
           # Créer un fichier de test pour le contrôleur de santé
           mkdir -p src/test/java/com/yourmedia/backend/controller
           cat > src/test/java/com/yourmedia/backend/controller/HealthControllerTests.java << 'EOF'
@@ -177,7 +162,7 @@ jobs:
               }
           }
           EOF
-          
+
           # Créer un fichier de configuration de test
           mkdir -p src/test/resources
           cat > src/test/resources/application-test.properties << 'EOF'
@@ -189,7 +174,7 @@ jobs:
           spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
           spring.jpa.hibernate.ddl-auto=create-drop
           EOF
-          
+
           # Ajouter la dépendance H2 pour les tests
           sed -i '/<dependencies>/a \
               <!-- H2 Database for testing --> \
@@ -242,7 +227,7 @@ jobs:
           # Créer un fichier docker-compose pour les tests d'intégration
           cat > docker-compose.test.yml << 'EOF'
           version: '3.8'
-          
+
           services:
             backend:
               build:
@@ -256,7 +241,7 @@ jobs:
                 - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
               depends_on:
                 - db
-            
+
             frontend:
               build:
                 context: ./app-react
@@ -266,7 +251,7 @@ jobs:
                 - API_URL=http://backend:8080
               depends_on:
                 - backend
-            
+
             db:
               image: mysql:8.0
               ports:
@@ -276,7 +261,7 @@ jobs:
                 - MYSQL_DATABASE=yourmedia_test
               volumes:
                 - db-data:/var/lib/mysql
-          
+
           volumes:
             db-data:
           EOF
@@ -285,19 +270,19 @@ jobs:
         run: |
           # Démarrer les services
           docker-compose -f docker-compose.test.yml up -d
-          
+
           # Attendre que les services soient prêts
           echo "Waiting for services to be ready..."
           sleep 30
-          
+
           # Vérifier que le backend répond
           echo "Testing backend health endpoint..."
           curl -f http://localhost:8080/health || (echo "Backend health check failed" && exit 1)
-          
+
           # Vérifier que le frontend répond
           echo "Testing frontend..."
           curl -f http://localhost:3000/ || (echo "Frontend check failed" && exit 1)
-          
+
           # Arrêter les services
           docker-compose -f docker-compose.test.yml down -v
 
@@ -331,7 +316,7 @@ jobs:
           else
             echo "✅ **PASSED**: All tests have passed" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "## Job Results" >> $GITHUB_STEP_SUMMARY
           echo "- React Native Tests: ${{ needs.test-react.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Java Tests: ${{ needs.test-java.result }}" >> $GITHUB_STEP_SUMMARY
