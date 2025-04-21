@@ -67,3 +67,4 @@ logs/
 *.local
 Errors.txt
 diagrams/
+*.bak
