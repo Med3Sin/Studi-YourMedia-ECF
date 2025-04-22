@@ -1,20 +1,19 @@
 #!/bin/bash
-# Script pour générer un token SonarQube et le stocker dans Terraform Cloud
+# Script simplifié pour générer un token SonarQube et le stocker dans Terraform Cloud
 #
-# Usage: ./generate_sonar_token.sh <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
-#
-# Exemple: ./generate_sonar_token.sh 10.0.0.1 tfp_1234567890abcdef ws-1234567890abcdef admin admin
-#
-# Ce script:
-# 1. Attend que SonarQube soit opérationnel
-# 2. Génère un token SonarQube avec un nom unique
-# 3. Stocke le token dans Terraform Cloud comme variable sensible
-# 4. Affiche des instructions pour ajouter le token comme secret GitHub
+# Usage: sudo ./generate_sonar_token.sh <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
 
 # Vérification des arguments
 if [ $# -lt 3 ]; then
     echo "Erreur: Arguments insuffisants."
-    echo "Usage: $0 <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]"
+    echo "Usage: sudo $0 <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]"
+    exit 1
+fi
+
+# Vérifier si l'utilisateur a les droits sudo
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Ce script doit être exécuté avec sudo"
+    echo "Exemple: sudo $0 $*"
     exit 1
 fi
 
@@ -24,32 +23,26 @@ TF_API_TOKEN=$2
 TF_WORKSPACE_ID=$3
 SONAR_ADMIN_USER=${4:-admin}
 SONAR_ADMIN_PASSWORD=${5:-admin}
-MAX_RETRIES=30
-RETRY_INTERVAL=10
 TOKEN_NAME="terraform-cloud-$(date +%Y%m%d%H%M%S)"
 
-# Fonction pour vérifier si SonarQube est opérationnel
-check_sonarqube() {
-    curl --output /dev/null --silent --head --fail "http://$SONAR_HOST:9000"
-    return $?
-}
-
 # Attendre que SonarQube soit opérationnel
-echo "Attente du démarrage de SonarQube..."
-RETRY_COUNT=0
-while ! check_sonarqube; do
-    RETRY_COUNT=$((RETRY_COUNT+1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo "Erreur: SonarQube n'est pas disponible après $MAX_RETRIES tentatives."
+echo "Vérification de l'accès à SonarQube..."
+for i in {1..5}; do
+    if curl --output /dev/null --silent --head --fail "http://$SONAR_HOST:9000"; then
+        echo "SonarQube est accessible."
+        break
+    fi
+
+    if [ $i -eq 5 ]; then
+        echo "Erreur: SonarQube n'est pas accessible après 5 tentatives."
         exit 1
     fi
-    echo "SonarQube n'est pas encore disponible. Nouvelle tentative dans $RETRY_INTERVAL secondes..."
-    sleep $RETRY_INTERVAL
+
+    echo "SonarQube n'est pas encore accessible. Nouvelle tentative dans 10 secondes..."
+    sleep 10
 done
 
-echo "SonarQube est opérationnel."
-
-# Générer un token SonarQube
+# Générer un token SonarQube de façon simplifiée
 echo "Génération d'un token SonarQube..."
 TOKEN_RESPONSE=$(curl -s -X POST -u "$SONAR_ADMIN_USER:$SONAR_ADMIN_PASSWORD" \
     "http://$SONAR_HOST:9000/api/user_tokens/generate" \
@@ -69,54 +62,36 @@ echo "Token SonarQube généré avec succès."
 # Stocker le token dans Terraform Cloud
 echo "Stockage du token dans Terraform Cloud..."
 
-# Vérifier si le workspace ID est au format correct
-if [[ "$TF_WORKSPACE_ID" == ws-* ]]; then
-    # Si le workspace ID commence déjà par 'ws-', l'utiliser tel quel
-    FULL_WORKSPACE_ID="$TF_WORKSPACE_ID"
-else
-    # Sinon, ajouter le préfixe 'ws-'
+# Ajouter le préfixe 'ws-' si nécessaire
+FULL_WORKSPACE_ID="$TF_WORKSPACE_ID"
+if [[ ! "$TF_WORKSPACE_ID" == ws-* ]]; then
     FULL_WORKSPACE_ID="ws-$TF_WORKSPACE_ID"
 fi
 
+# Créer le JSON pour la requête
+JSON_DATA='{"data":{"type":"vars","attributes":{"key":"sonar_token","value":"'"$TOKEN"'","category":"terraform","sensitive":true,"description":"Token SonarQube généré le '"$(date +'%Y-%m-%d')"'"}}'
+
+# Envoyer la requête à Terraform Cloud
 STORE_RESPONSE=$(curl -s -X POST "https://app.terraform.io/api/v2/workspaces/$FULL_WORKSPACE_ID/vars" \
     -H "Authorization: Bearer $TF_API_TOKEN" \
     -H "Content-Type: application/vnd.api+json" \
-    -d '{
-        "data": {
-            "type": "vars",
-            "attributes": {
-                "key": "sonar_token",
-                "value": "'"$TOKEN"'",
-                "category": "terraform",
-                "sensitive": true,
-                "description": "Token SonarQube généré automatiquement le '"$(date +'%Y-%m-%d %H:%M:%S')"'"
-            }
-        }
-    }')
+    -d "$JSON_DATA")
+
+# Afficher le token pour permettre à l'utilisateur de le sauvegarder
+echo "\nToken SonarQube généré: $TOKEN"
+echo "Veuillez sauvegarder ce token en lieu sûr."
 
 # Vérifier si le stockage a réussi
-if echo $STORE_RESPONSE | grep -q "errors"; then
+if ! echo $STORE_RESPONSE | grep -q "errors"; then
+    echo "Token SonarQube stocké avec succès dans Terraform Cloud."
+else
     echo "Erreur: Impossible de stocker le token dans Terraform Cloud."
-    echo "Réponse: $STORE_RESPONSE"
-
-    # Afficher des informations de débogage
-    echo "\nInformations de débogage:"
-    echo "Workspace ID utilisé: $FULL_WORKSPACE_ID"
-    echo "URL de l'API: https://app.terraform.io/api/v2/workspaces/$FULL_WORKSPACE_ID/vars"
-
-    # Afficher le token quand même pour permettre à l'utilisateur de le sauvegarder manuellement
-    echo "\nLe token SonarQube a été généré mais n'a pas pu être stocké dans Terraform Cloud."
-    echo "Veuillez ajouter manuellement la variable 'sonar_token' dans Terraform Cloud avec la valeur suivante:"
-    echo "$TOKEN"
-
-    exit 1
+    echo "Veuillez ajouter manuellement la variable 'sonar_token' dans Terraform Cloud."
 fi
 
-echo "Token SonarQube stocké avec succès dans Terraform Cloud."
-
-# Créer également un secret GitHub
-echo "Le token SonarQube a été généré et stocké dans Terraform Cloud."
-echo "Pour l'utiliser dans GitHub Actions, ajoutez manuellement le secret SONAR_TOKEN avec la valeur suivante:"
-echo "$TOKEN"
+# Instructions pour GitHub Actions
+echo "\nPour utiliser ce token dans GitHub Actions:"
+echo "1. Ajoutez le secret SONAR_TOKEN dans votre dépôt GitHub"
+echo "2. Configurez votre workflow pour utiliser ce token avec SonarQube"
 
 exit 0

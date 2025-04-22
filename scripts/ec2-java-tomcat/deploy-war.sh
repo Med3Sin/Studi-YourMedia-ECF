@@ -1,15 +1,13 @@
 #!/bin/bash
-# Script pour déployer un fichier WAR dans Tomcat
-# Ce script doit être exécuté avec sudo
+# Script simplifié pour déployer un fichier WAR dans Tomcat
 
 # Vérifier si un argument a été fourni
 if [ $# -ne 1 ]; then
-  echo "Usage: $0 <chemin_vers_war>"
+  echo "Usage: sudo $0 <chemin_vers_war>"
   exit 1
 fi
 
 WAR_PATH=$1
-WAR_NAME=$(basename $WAR_PATH)
 TARGET_NAME="yourmedia-backend.war"
 
 echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
@@ -20,32 +18,23 @@ if [ ! -f "$WAR_PATH" ]; then
   exit 1
 fi
 
-# Copier le fichier WAR dans webapps
-cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
-
-# Vérifier si la copie a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec de la copie du fichier WAR dans /opt/tomcat/webapps/"
+# Vérifier si l'utilisateur a les droits sudo
+if [ "$(id -u)" -ne 0 ]; then
+  echo "ERREUR: Ce script doit être exécuté avec sudo"
+  echo "Exemple: sudo $0 $WAR_PATH"
   exit 1
 fi
 
-# Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
-
-# Vérifier si le changement de propriétaire a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec du changement de propriétaire du fichier WAR"
-  exit 1
-fi
-
-# Redémarrer Tomcat
+# Copier le fichier WAR dans webapps et changer le propriétaire
+cp "$WAR_PATH" /opt/tomcat/webapps/$TARGET_NAME && \
+chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME && \
 systemctl restart tomcat
 
-# Vérifier si le redémarrage a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec du redémarrage de Tomcat"
+# Vérifier si tout s'est bien passé
+if [ $? -eq 0 ]; then
+  echo "Déploiement terminé avec succès"
+  echo "L'application sera accessible à l'adresse: http://$(hostname -I | awk '{print $1}'):8080/$TARGET_NAME"
+else
+  echo "ERREUR: Le déploiement a échoué"
   exit 1
 fi
-
-echo "Déploiement terminé avec succès"
-exit 0
