@@ -128,7 +128,7 @@ sudo chmod -R 755 /opt/monitoring
 
 # Création du fichier docker-compose.yml
 log "Création du fichier docker-compose.yml..."
-cat > /opt/monitoring/docker-compose.yml << 'EOL'
+sudo bash -c 'cat > /opt/monitoring/docker-compose.yml << "EOL"'
 version: '3.8'
 
 services:
@@ -236,7 +236,7 @@ EOL
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml..."
-cat > /opt/monitoring/prometheus.yml << EOL
+sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOL"'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -272,58 +272,58 @@ EOL
 
 # Remplacement des variables dans le fichier docker-compose.yml
 log "Remplacement des variables dans le fichier docker-compose.yml..."
-sed -i "s/MYSQL_USER/${db_username}/g" /opt/monitoring/docker-compose.yml
-sed -i "s/MYSQL_PASSWORD/${db_password}/g" /opt/monitoring/docker-compose.yml
-sed -i "s/MYSQL_HOST/${db_endpoint}/g" /opt/monitoring/docker-compose.yml
-sed -i "s/GRAFANA_PASSWORD/${grafana_admin_password}/g" /opt/monitoring/docker-compose.yml
-sed -i "s/SONAR_DB_USER/${sonar_jdbc_username}/g" /opt/monitoring/docker-compose.yml
-sed -i "s/SONAR_DB_PASSWORD/${sonar_jdbc_password}/g" /opt/monitoring/docker-compose.yml
-sed -i "s|SONAR_JDBC_URL|${sonar_jdbc_url}|g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/MYSQL_USER/${db_username}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/MYSQL_PASSWORD/${db_password}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/MYSQL_HOST/${db_endpoint}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/GRAFANA_PASSWORD/${grafana_admin_password}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/SONAR_DB_USER/${sonar_jdbc_username}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s/SONAR_DB_PASSWORD/${sonar_jdbc_password}/g" /opt/monitoring/docker-compose.yml
+sudo sed -i "s|SONAR_JDBC_URL|${sonar_jdbc_url}|g" /opt/monitoring/docker-compose.yml
 
 # Démarrage des conteneurs
 log "Démarrage des conteneurs..."
 
 # Vérifier si des conteneurs sont déjà en cours d'exécution
-RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)
+RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)
 if [ "$RUNNING_CONTAINERS" -gt 0 ]; then
     log "Des conteneurs sont déjà en cours d'exécution. Arrêt des conteneurs existants..."
     cd /opt/monitoring
-    docker-compose down || log "Erreur lors de l'arrêt des conteneurs. Tentative de continuer..."
+    sudo docker-compose down || log "Erreur lors de l'arrêt des conteneurs. Tentative de continuer..."
 fi
 
 # Utiliser docker-manager.sh si disponible, sinon utiliser docker-compose directement
 if [ -f "/usr/local/bin/docker-manager.sh" ]; then
     log "Utilisation de docker-manager.sh pour déployer les conteneurs..."
-    /usr/local/bin/docker-manager.sh deploy monitoring
+    sudo /usr/local/bin/docker-manager.sh deploy monitoring
 
     # Vérifier si le déploiement a réussi
     if [ $? -ne 0 ]; then
         log "Erreur lors du déploiement avec docker-manager.sh. Tentative avec docker-compose..."
         cd /opt/monitoring
-        docker-compose up -d
+        sudo docker-compose up -d
     fi
 else
     log "Le script docker-manager.sh n'est pas disponible. Utilisation de docker-compose..."
     cd /opt/monitoring
-    docker-compose up -d
+    sudo docker-compose up -d
 fi
 
 # Vérification du statut des conteneurs
 log "Vérification du statut des conteneurs..."
-docker ps
+sudo docker ps
 
 # Vérifier si tous les conteneurs sont en cours d'exécution
 EXPECTED_CONTAINERS=6  # prometheus, node-exporter, mysql-exporter, grafana, sonarqube-db, sonarqube
-RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|sonarqube|node-exporter|mysql-exporter" --format "{{.Names}}" | wc -l)
+RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana|sonarqube|node-exporter|mysql-exporter" --format "{{.Names}}" | wc -l)
 
 if [ "$RUNNING_CONTAINERS" -lt "$EXPECTED_CONTAINERS" ]; then
     log "AVERTISSEMENT: Certains conteneurs ne sont pas en cours d'exécution. Vérifiez les logs pour plus d'informations."
-    docker ps -a
+    sudo docker ps -a
     log "Logs des conteneurs qui ont échoué:"
     for container in prometheus grafana sonarqube sonarqube-db node-exporter mysql-exporter; do
-        if ! docker ps --filter "name=$container" --format "{{.Names}}" | grep -q "$container"; then
+        if ! sudo docker ps --filter "name=$container" --format "{{.Names}}" | grep -q "$container"; then
             log "Logs du conteneur $container:"
-            docker logs $container 2>&1 | tail -n 20
+            sudo docker logs $container 2>&1 | tail -n 20
         fi
     done
 else
