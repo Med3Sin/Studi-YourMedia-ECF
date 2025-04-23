@@ -72,7 +72,7 @@ variable "monitoring_task_memory" {
 }
 
 variable "ami_id" {
-  description = "ID de l'AMI Amazon Linux 2 pour l'instance EC2 de monitoring."
+  description = "ID de l'AMI Amazon Linux 2023 pour l'instance EC2 de monitoring."
   type        = string
   default     = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
 }
@@ -90,7 +90,7 @@ variable "monitoring_security_group_id" {
 }
 
 variable "use_latest_ami" {
-  description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
+  description = "Utiliser l'AMI Amazon Linux 2023 la plus récente au lieu de l'AMI spécifiée."
   type        = bool
   default     = true
 }

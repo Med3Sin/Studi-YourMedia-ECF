@@ -15,13 +15,13 @@ variable "environment" {
 }
 
 variable "ami_id" {
-  description = "ID de l'AMI Amazon Linux 2 à utiliser pour l'EC2."
+  description = "ID de l'AMI Amazon Linux 2023 à utiliser pour l'EC2."
   type        = string
-  default     = "ami-0f4982c2ea2a68de5" # AMI Amazon Linux 2 dans eu-west-3 (Paris)
+  default     = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
 }
 
 variable "use_latest_ami" {
-  description = "Utiliser l'AMI Amazon Linux 2 la plus récente au lieu de l'AMI spécifiée."
+  description = "Utiliser l'AMI Amazon Linux 2023 la plus récente au lieu de l'AMI spécifiée."
   type        = bool
   default     = true
 }
