@@ -82,14 +82,14 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 # Instance EC2
 # -----------------------------------------------------------------------------
 
-# Récupération automatique de l'AMI Amazon Linux 2 la plus récente
-data "aws_ami" "amazon_linux_2" {
+# Récupération automatique de l'AMI Amazon Linux 2023 la plus récente
+data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["al2023-ami-2023*-x86_64"]
   }
 
   filter {
@@ -114,10 +114,10 @@ locals {
 #!/bin/bash
 
 # Mettre à jour le système
-yum update -y
+dnf update -y
 
 # Installer Java 11
-yum install -y java-11-amazon-corretto
+dnf install -y java-11-amazon-corretto
 
 # Créer l'utilisateur tomcat
 useradd -m -d /opt/tomcat -U -s /bin/false tomcat
@@ -166,7 +166,7 @@ EOF
 }
 
 resource "aws_instance" "app_server" {
-  ami                    = var.use_latest_ami ? data.aws_ami.amazon_linux_2.id : var.ami_id
+  ami                    = var.use_latest_ami ? data.aws_ami.amazon_linux_2023.id : var.ami_id
   instance_type          = var.instance_type_ec2
   key_name               = var.key_pair_name
   subnet_id              = var.subnet_id

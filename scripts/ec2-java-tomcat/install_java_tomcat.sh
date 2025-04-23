@@ -1,12 +1,12 @@
 #!/bin/bash -xe
-# Script d'installation pour Java (OpenJDK 17) et Tomcat 9 sur Amazon Linux 2
+# Script d'installation pour Java (OpenJDK 17) et Tomcat 9 sur Amazon Linux 2023
 # Exécuté en tant que root via user_data
 
 # Rediriger stdout et stderr vers un fichier log pour le débogage
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 
 echo "--- Mise à jour des paquets ---"
-sudo yum update -y
+sudo dnf update -y
 
 echo "--- Configuration des clés SSH ---"
 # Créer le répertoire .ssh pour ec2-user
@@ -143,7 +143,7 @@ echo "--- Installation d'AWS CLI ---"
 if ! command -v aws &> /dev/null; then
     echo "Installation d'AWS CLI v2..."
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    sudo yum install -y unzip
+    sudo dnf install -y unzip
     unzip -q awscliv2.zip
     sudo ./aws/install
     rm -rf aws awscliv2.zip
@@ -152,8 +152,7 @@ if ! command -v aws &> /dev/null; then
 fi
 
 echo "--- Installation de Java (Amazon Corretto 17) ---"
-sudo amazon-linux-extras enable corretto17
-sudo yum install -y java-17-amazon-corretto-devel
+sudo dnf install -y java-17-amazon-corretto-devel
 
 # Vérifier l'installation de Java
 java -version

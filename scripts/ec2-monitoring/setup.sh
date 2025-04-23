@@ -43,7 +43,7 @@ fi
 
 # Installation des dépendances
 log "Installation des dépendances..."
-sudo yum update -y
+sudo dnf update -y
 
 # Vérification si Docker est déjà installé
 if ! command -v docker &> /dev/null; then
@@ -60,9 +60,9 @@ if ! command -v docker &> /dev/null; then
             sudo amazon-linux-extras install docker -y
         elif grep -q "Amazon Linux 2023" /etc/os-release; then
             log "Système détecté: Amazon Linux 2023"
-            sudo yum install -y yum-utils
-            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            sudo yum install -y docker-ce docker-ce-cli containerd.io
+            sudo dnf install -y dnf-utils
+            sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            sudo dnf install -y docker-ce docker-ce-cli containerd.io
         else
             log "AVERTISSEMENT: Système non reconnu. Tentative d'installation avec amazon-linux-extras..."
             sudo amazon-linux-extras install docker -y

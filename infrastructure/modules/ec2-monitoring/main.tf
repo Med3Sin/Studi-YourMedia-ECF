@@ -196,7 +196,7 @@ resource "aws_iam_instance_profile" "monitoring_profile" {
 
 # Instance EC2 pour le monitoring
 resource "aws_instance" "monitoring_instance" {
-  ami                    = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux_2.id
+  ami                    = var.ami_id != "" ? var.ami_id : data.aws_ami.amazon_linux_2023.id
   instance_type          = var.instance_type
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [local.monitoring_sg_id]
@@ -214,8 +214,8 @@ resource "aws_instance" "monitoring_instance" {
 #!/bin/bash
 
 # Mettre à jour le système et installer les dépendances
-sudo yum update -y
-sudo yum install -y amazon-cloudwatch-agent
+sudo dnf update -y
+sudo dnf install -y amazon-cloudwatch-agent
 
 # Créer le répertoire .ssh s'il n'existe pas
 sudo mkdir -p /home/ec2-user/.ssh
@@ -386,18 +386,28 @@ resource "null_resource" "generate_sonar_token" {
 # Data Sources
 # -----------------------------------------------------------------------------
 
-# Récupération de l'AMI Amazon Linux 2 la plus récente
-data "aws_ami" "amazon_linux_2" {
+# Récupération de l'AMI Amazon Linux 2023 la plus récente
+data "aws_ami" "amazon_linux_2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["al2023-ami-2023*-x86_64"]
   }
 
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
   }
 }

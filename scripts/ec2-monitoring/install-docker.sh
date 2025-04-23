@@ -26,15 +26,15 @@ if grep -q "Amazon Linux 2" /etc/os-release; then
 elif grep -q "Amazon Linux 2023" /etc/os-release; then
   log "Système détecté: Amazon Linux 2023"
   # Installation pour Amazon Linux 2023
-  yum install -y yum-utils
-  yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-  yum install -y docker-ce docker-ce-cli containerd.io
+  dnf install -y dnf-utils
+  dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  dnf install -y docker-ce docker-ce-cli containerd.io
   systemctl start docker
   systemctl enable docker
 else
   log "Système non reconnu: $(cat /etc/os-release | grep PRETTY_NAME)"
   log "Tentative d'installation avec la méthode standard..."
-  yum install -y docker
+  dnf install -y docker
   systemctl start docker
   systemctl enable docker
 fi
