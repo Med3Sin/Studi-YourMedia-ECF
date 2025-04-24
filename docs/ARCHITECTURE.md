@@ -112,6 +112,12 @@ Les scripts sont centralisés dans un dossier unique et organisés par module ou
 - **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana, SonarQube)
 - **utils** : Scripts utilitaires génériques (correction des clés SSH, etc.)
 
+**Ordre d'exécution des scripts :**
+1. Les scripts sont téléchargés dans S3 par le workflow GitHub Actions avant le déploiement de l'infrastructure
+2. Les instances EC2 téléchargent les scripts depuis S3 lors de leur initialisation
+3. Les scripts vérifient les dépendances nécessaires avant leur exécution
+4. Les scripts de configuration sont exécutés dans un ordre précis pour garantir le bon fonctionnement de l'infrastructure
+
 ## Sécurité
 
 ### Authentification et autorisation

@@ -17,6 +17,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 ### Documentation spécifique
 
 - [Architecture détaillée](docs/ARCHITECTURE.md) : Description détaillée de l'architecture technique
+- [Migration vers Amazon Linux 2023](docs/AMAZON-LINUX-2023-MIGRATION.md) : Documentation de la migration vers Amazon Linux 2023
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
 - [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
@@ -621,6 +622,15 @@ Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](doc
 
 ## Corrections et Améliorations Récentes
 
+### Amélioration de l'ordre d'exécution des scripts
+
+L'ordre d'exécution des scripts a été amélioré pour garantir un déploiement plus fiable :
+
+- Ajout d'une étape explicite pour télécharger les scripts dans S3 avant le déploiement de l'infrastructure
+- Modification de `init-instance.sh` pour télécharger `docker-manager.sh` depuis S3 et le copier dans `/usr/local/bin/`
+- Ajout d'un appel à `fix_permissions.sh` à la fin de `setup.sh` pour s'assurer que les permissions sont correctement configurées
+- Ajout de vérifications de dépendances dans les scripts pour s'assurer que toutes les dépendances nécessaires sont disponibles
+
 ### Correction de la vulnérabilité MySQL Connector/J
 
 Le connecteur MySQL a été mis à jour pour corriger une vulnérabilité de sécurité critique :
@@ -655,13 +665,17 @@ La configuration SSH a été entièrement automatisée :
 - Mise à jour des workflows GitHub Actions pour passer les clés SSH à Terraform
 - Utilisation de l'utilisateur `ec2-user` pour toutes les instances Amazon Linux 2 (harmonisation)
 
-### Harmonisation des instances EC2
+### Migration vers Amazon Linux 2023
 
-Les instances EC2 ont été harmonisées pour utiliser la même AMI Amazon Linux 2 (amzn2-ami-kernel-5.10-hvm-2.0) pour les raisons suivantes :
+Les instances EC2 ont été migrées vers Amazon Linux 2023 pour les raisons suivantes :
 
-- Cohérence entre les environnements de production et de monitoring
-- Meilleure compatibilité avec les outils de monitoring
-- Simplification de la maintenance et des mises à jour
+- Mises à jour de sécurité plus fréquentes
+- Versions plus récentes des paquets
+- Support à long terme (5 ans)
+- Meilleure compatibilité avec les applications modernes
+- Performances améliorées
+
+Pour plus de détails, consultez la [documentation de migration vers Amazon Linux 2023](docs/AMAZON-LINUX-2023-MIGRATION.md).
 
 ### Mise à jour du type d'instance RDS
 

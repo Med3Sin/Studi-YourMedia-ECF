@@ -369,10 +369,10 @@ Les mises à jour du système d'exploitation sont gérées manuellement. Pour ap
 
 ```bash
 # Sur l'instance EC2 Java/Tomcat
-sudo yum update -y
+sudo dnf update -y
 
 # Sur l'instance EC2 Monitoring
-sudo yum update -y
+sudo dnf update -y
 ```
 
 #### Applications

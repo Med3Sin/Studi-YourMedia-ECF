@@ -126,7 +126,7 @@ Cette instance EC2 héberge l'application backend Java sur un serveur Tomcat.
 #### Caractéristiques
 
 * **Type d'instance** : t2.micro (Free Tier)
-* **AMI** : Amazon Linux 2
+* **AMI** : Amazon Linux 2023 (détection automatique de la dernière version)
 * **Stockage** : 8 Go gp2
 * **Zone de disponibilité** : eu-west-3a
 * **Accès SSH** : Via clé SSH configurée dans les secrets GitHub
@@ -134,8 +134,8 @@ Cette instance EC2 héberge l'application backend Java sur un serveur Tomcat.
 #### Configuration
 
 L'instance est configurée via un script `user_data` qui :
-1. Met à jour le système
-2. Installe Java 11 via Amazon Linux Extras
+1. Met à jour le système avec `dnf update`
+2. Installe Java 11 avec `dnf install java-11-amazon-corretto`
 3. Installe et configure Tomcat
 4. Configure les permissions pour le répertoire webapps
 5. Installe l'AWS CLI pour interagir avec S3
@@ -153,7 +153,7 @@ Cette instance EC2 héberge Prometheus et Grafana dans des conteneurs Docker pou
 #### Caractéristiques
 
 * **Type d'instance** : t2.micro (Free Tier)
-* **AMI** : Amazon Linux 2
+* **AMI** : Amazon Linux 2023 (détection automatique de la dernière version)
 * **Stockage** : 8 Go gp2
 * **Zone de disponibilité** : eu-west-3a
 * **Accès SSH** : Via clé SSH configurée dans les secrets GitHub
