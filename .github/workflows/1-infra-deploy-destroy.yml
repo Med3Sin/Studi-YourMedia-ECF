@@ -165,6 +165,64 @@ jobs:
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si le plan échoue
 
+      # Étape 7.5: Téléchargement des scripts dans S3 (uniquement pour l'application)
+      - name: Upload Scripts to S3
+        id: upload_scripts
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "::group::Téléchargement des scripts dans S3"
+          # Créer le fichier de clé SSH si le secret est disponible
+          if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "Clé SSH privée configurée."
+          fi
+
+          # Exporter les variables d'environnement AWS
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          export AWS_DEFAULT_REGION="${{ env.AWS_REGION }}"
+
+          # Récupérer le nom du bucket S3 depuis les outputs Terraform
+          S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+
+          if [ -z "$S3_BUCKET_NAME" ]; then
+            echo "Aucun bucket S3 trouvé dans les outputs Terraform. Création de l'infrastructure nécessaire..."
+            # Appliquer uniquement le module S3
+            terraform apply -auto-approve -target=module.s3 \
+              -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+              -var="db_username=${{ secrets.DB_USERNAME }}" \
+              -var="db_password=${{ secrets.DB_PASSWORD }}" \
+              -var="environment=${{ github.event.inputs.environment }}"
+
+            # Récupérer le nom du bucket S3 après la création
+            S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+          fi
+
+          if [ ! -z "$S3_BUCKET_NAME" ]; then
+            echo "Téléchargement des scripts dans le bucket S3: $S3_BUCKET_NAME"
+
+            # Télécharger les scripts de monitoring
+            echo "Téléchargement des scripts de monitoring..."
+            aws s3 cp --recursive ./scripts/ec2-monitoring/ s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/
+
+            # Télécharger les scripts Java/Tomcat
+            echo "Téléchargement des scripts Java/Tomcat..."
+            aws s3 cp --recursive ./scripts/ec2-java-tomcat/ s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/
+
+            # Télécharger les scripts Docker
+            echo "Téléchargement des scripts Docker..."
+            aws s3 cp --recursive ./scripts/docker/ s3://$S3_BUCKET_NAME/scripts/docker/
+
+            echo "Scripts téléchargés avec succès dans le bucket S3: $S3_BUCKET_NAME"
+          else
+            echo "ERREUR: Impossible de récupérer le nom du bucket S3. Les scripts ne seront pas téléchargés."
+            exit 1
+          fi
+          echo "::endgroup::"
+
       # Étape 8: Application des changements Terraform
       - name: Terraform Apply
         id: apply

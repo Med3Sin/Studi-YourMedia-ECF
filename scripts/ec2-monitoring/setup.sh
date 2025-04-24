@@ -31,6 +31,17 @@ if [ "$sonar_jdbc_password" = "sonar123" ]; then
     log "AVERTISSEMENT: Mot de passe SonarQube par défaut détecté. Il est recommandé de le changer."
 fi
 
+# Vérification des dépendances
+check_dependency() {
+    local cmd=$1
+    local pkg=$2
+
+    if ! command -v $cmd &> /dev/null; then
+        log "Dépendance manquante: $cmd. Installation de $pkg..."
+        sudo dnf install -y $pkg || error_exit "Impossible d'installer $pkg"
+    fi
+}
+
 # Vérification des prérequis
 log "Vérification des prérequis..."
 if [ ! -f "/etc/os-release" ] || ! grep -q "Amazon Linux" /etc/os-release; then
@@ -40,6 +51,11 @@ fi
 if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
     error_exit "Ce script nécessite des privilèges sudo. Veuillez l'exécuter avec sudo ou en tant que root."
 fi
+
+# Vérification des dépendances essentielles
+log "Vérification des dépendances essentielles"
+check_dependency curl curl
+check_dependency sed sed
 
 # Installation des dépendances
 log "Installation des dépendances..."
@@ -328,6 +344,17 @@ if [ "$RUNNING_CONTAINERS" -lt "$EXPECTED_CONTAINERS" ]; then
     done
 else
     log "Tous les conteneurs sont en cours d'exécution."
+fi
+
+# Exécution du script de correction des permissions
+log "Exécution du script de correction des permissions..."
+if [ -f "/opt/monitoring/fix_permissions.sh" ]; then
+    sudo /opt/monitoring/fix_permissions.sh
+else
+    log "AVERTISSEMENT: Le script fix_permissions.sh n'est pas disponible."
+    # Correction manuelle des permissions
+    sudo chown -R ec2-user:ec2-user /opt/monitoring
+    sudo chmod -R 755 /opt/monitoring
 fi
 
 log "Installation et configuration terminées avec succès."
