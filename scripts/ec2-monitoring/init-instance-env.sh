@@ -12,6 +12,11 @@ error_exit() {
     exit 1
 }
 
+# Vérification des variables d'environnement requises
+if [ -z "$S3_BUCKET_NAME" ]; then
+    error_exit "La variable d'environnement S3_BUCKET_NAME n'est pas définie."
+fi
+
 # Vérification des dépendances
 check_dependency() {
     local cmd=$1
@@ -46,12 +51,17 @@ check_dependency aws aws-cli
 check_dependency curl curl
 check_dependency sed sed
 
+# Afficher les variables d'environnement pour le débogage
+log "Variables d'environnement:"
+log "S3_BUCKET_NAME=$S3_BUCKET_NAME"
+log "EC2_INSTANCE_PRIVATE_IP=$EC2_INSTANCE_PRIVATE_IP"
+
 # Téléchargement des scripts depuis S3
 log "Téléchargement des scripts depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh || error_exit "Impossible de télécharger setup.sh depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh || error_exit "Impossible de télécharger install-docker.sh depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/monitoring/install-docker.sh
@@ -83,10 +93,33 @@ sudo chmod +x /opt/monitoring/env.sh
 
 # Modification du script setup.sh pour utiliser les variables d'environnement
 log "Modification du script setup.sh pour utiliser les variables d'environnement"
-sudo sed -i '1s/^/#!/bin\/bash\nsource \/opt\/monitoring\/env.sh\n\n/' /opt/monitoring/setup.sh
+sudo sed -i '1s|^|#!/bin/bash\nsource /opt/monitoring/env.sh\n\n|' /opt/monitoring/setup.sh
+
+# Installation manuelle de Docker si le script échoue
+log "Installation de Docker"
+if ! command -v docker &> /dev/null; then
+    log "Docker n'est pas installé. Installation via le script..."
+    sudo /opt/monitoring/install-docker.sh || {
+        log "Installation manuelle de Docker..."
+        sudo dnf update -y
+        sudo dnf install -y dnf-utils
+        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io
+        sudo systemctl start docker
+        sudo systemctl enable docker
+    }
+fi
+
+# Vérification de l'installation de Docker
+if command -v docker &> /dev/null; then
+    log "Docker est installé avec succès."
+    sudo docker --version
+else
+    error_exit "L'installation de Docker a échoué."
+fi
 
 # Exécution du script d'installation
 log "Exécution du script d'installation"
-sudo /opt/monitoring/setup.sh
+sudo /opt/monitoring/setup.sh || error_exit "L'exécution du script setup.sh a échoué."
 
 log "Initialisation terminée avec succès"

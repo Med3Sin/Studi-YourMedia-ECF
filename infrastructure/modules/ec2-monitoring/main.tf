@@ -226,23 +226,41 @@ echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys
 sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
+# Définir les variables d'environnement pour le script
+# Utiliser des valeurs par défaut si les variables ne sont pas définies
+S3_BUCKET_NAME="${var.s3_bucket_name}"
+EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+DB_USERNAME="${var.db_username}"
+DB_PASSWORD="${var.db_password}"
+RDS_ENDPOINT="${var.rds_endpoint}"
+SONAR_JDBC_USERNAME="${var.sonar_jdbc_username}"
+SONAR_JDBC_PASSWORD="${var.sonar_jdbc_password}"
+SONAR_JDBC_URL="${var.sonar_jdbc_url}"
+GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
+
+# Vérifier que le nom du bucket S3 est défini
+if [ -z "$S3_BUCKET_NAME" ]; then
+  echo "ERREUR: La variable S3_BUCKET_NAME n'est pas définie."
+  exit 1
+fi
+
 # Télécharger et exécuter le script d'initialisation depuis S3
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance-env.sh /tmp/init-instance.sh
+sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/init-instance-env.sh /tmp/init-instance.sh
 sudo chmod +x /tmp/init-instance.sh
 
-# Définir les variables d'environnement pour le script
-export EC2_INSTANCE_PRIVATE_IP="${var.ec2_instance_private_ip}"
-export DB_USERNAME="${var.db_username}"
-export DB_PASSWORD="${var.db_password}"
-export RDS_ENDPOINT="${var.rds_endpoint}"
-export SONAR_JDBC_USERNAME="${var.sonar_jdbc_username}"
-export SONAR_JDBC_PASSWORD="${var.sonar_jdbc_password}"
-export SONAR_JDBC_URL="${var.sonar_jdbc_url}"
-export GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
-export S3_BUCKET_NAME="${var.s3_bucket_name}"
+# Exporter les variables d'environnement pour le script
+export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
+export DB_USERNAME="$DB_USERNAME"
+export DB_PASSWORD="$DB_PASSWORD"
+export RDS_ENDPOINT="$RDS_ENDPOINT"
+export SONAR_JDBC_USERNAME="$SONAR_JDBC_USERNAME"
+export SONAR_JDBC_PASSWORD="$SONAR_JDBC_PASSWORD"
+export SONAR_JDBC_URL="$SONAR_JDBC_URL"
+export GRAFANA_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
+export S3_BUCKET_NAME="$S3_BUCKET_NAME"
 
-# Exécuter le script d'initialisation
-sudo /tmp/init-instance.sh
+# Exécuter le script d'initialisation avec les variables d'environnement
+sudo -E /tmp/init-instance.sh
 EOF
 
   tags = {

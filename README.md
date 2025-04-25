@@ -19,6 +19,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Architecture détaillée](docs/ARCHITECTURE.md) : Description détaillée de l'architecture technique
 - [Migration vers Amazon Linux 2023](docs/AMAZON-LINUX-2023-MIGRATION.md) : Documentation de la migration vers Amazon Linux 2023
 - [Gestion du Bucket S3 dans les Workflows](docs/WORKFLOW-S3-BUCKET-MANAGEMENT.md) : Documentation de la gestion du bucket S3 dans les workflows GitHub Actions
+- [Initialisation des Instances EC2](docs/INSTANCE-INITIALIZATION.md) : Documentation du processus d'initialisation des instances EC2
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
 - [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
