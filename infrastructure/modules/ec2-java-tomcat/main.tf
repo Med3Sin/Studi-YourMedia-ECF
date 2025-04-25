@@ -116,45 +116,25 @@ locals {
 # Mettre à jour le système
 dnf update -y
 
-# Installer Java 11
-dnf install -y java-11-amazon-corretto
+# Installer les dépendances nécessaires
+dnf install -y aws-cli
 
-# Créer l'utilisateur tomcat
-useradd -m -d /opt/tomcat -U -s /bin/false tomcat
+# Télécharger le script d'initialisation depuis S3
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-instance-env.sh /tmp/init-instance.sh
+chmod +x /tmp/init-instance.sh
 
-# Télécharger et installer Tomcat
-cd /tmp
-wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.102/bin/apache-tomcat-9.0.102.tar.gz
-tar -xf apache-tomcat-9.0.102.tar.gz
-mv apache-tomcat-9.0.102/* /opt/tomcat/
-chown -R tomcat:tomcat /opt/tomcat
+# Définir les variables d'environnement pour le script
+export EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+export DB_USERNAME="${var.db_username}"
+export DB_PASSWORD="${var.db_password}"
+export RDS_ENDPOINT="${var.rds_endpoint}"
+export S3_BUCKET_NAME="${var.s3_bucket_name}"
+export DOCKERHUB_USERNAME="${var.dockerhub_username}"
+export DOCKERHUB_TOKEN="${var.dockerhub_token}"
+export DOCKERHUB_REPO="${var.dockerhub_repo}"
 
-# Configurer le service systemd pour Tomcat
-cat > /etc/systemd/system/tomcat.service << 'EOT'
-[Unit]
-Description=Apache Tomcat Web Application Container
-After=network.target
-
-[Service]
-Type=forking
-User=tomcat
-Group=tomcat
-Environment="JAVA_HOME=/usr/lib/jvm/jre"
-Environment="CATALINA_PID=/opt/tomcat/temp/tomcat.pid"
-Environment="CATALINA_HOME=/opt/tomcat"
-Environment="CATALINA_BASE=/opt/tomcat"
-ExecStart=/opt/tomcat/bin/startup.sh
-ExecStop=/opt/tomcat/bin/shutdown.sh
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOT
-
-# Activer et démarrer Tomcat
-systemctl daemon-reload
-systemctl enable tomcat
-systemctl start tomcat
+# Exécuter le script d'initialisation
+/tmp/init-instance.sh
 
 # Configurer la clé SSH
 mkdir -p /home/ec2-user/.ssh

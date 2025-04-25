@@ -227,19 +227,19 @@ sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Télécharger et exécuter le script d'initialisation depuis S3
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance.sh /tmp/init-instance.sh
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-instance-env.sh /tmp/init-instance.sh
 sudo chmod +x /tmp/init-instance.sh
 
-# Remplacer les variables dans le script d'initialisation
-sudo sed -i "s/PLACEHOLDER_IP/${var.ec2_instance_private_ip}/g" /tmp/init-instance.sh
-sudo sed -i "s/PLACEHOLDER_USERNAME/${var.db_username}/g" /tmp/init-instance.sh
-sudo sed -i "s/PLACEHOLDER_PASSWORD/${var.db_password}/g" /tmp/init-instance.sh
-sudo sed -i "s/PLACEHOLDER_ENDPOINT/${var.rds_endpoint}/g" /tmp/init-instance.sh
-sudo sed -i "s/SONAR_JDBC_USERNAME/${var.sonar_jdbc_username}/g" /tmp/init-instance.sh
-sudo sed -i "s/SONAR_JDBC_PASSWORD/${var.sonar_jdbc_password}/g" /tmp/init-instance.sh
-sudo sed -i "s|SONAR_JDBC_URL|${var.sonar_jdbc_url}|g" /tmp/init-instance.sh
-sudo sed -i "s/GRAFANA_ADMIN_PASSWORD/${var.grafana_admin_password}/g" /tmp/init-instance.sh
-sudo sed -i "s/PLACEHOLDER_BUCKET/${var.s3_bucket_name}/g" /tmp/init-instance.sh
+# Définir les variables d'environnement pour le script
+export EC2_INSTANCE_PRIVATE_IP="${var.ec2_instance_private_ip}"
+export DB_USERNAME="${var.db_username}"
+export DB_PASSWORD="${var.db_password}"
+export RDS_ENDPOINT="${var.rds_endpoint}"
+export SONAR_JDBC_USERNAME="${var.sonar_jdbc_username}"
+export SONAR_JDBC_PASSWORD="${var.sonar_jdbc_password}"
+export SONAR_JDBC_URL="${var.sonar_jdbc_url}"
+export GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
+export S3_BUCKET_NAME="${var.s3_bucket_name}"
 
 # Exécuter le script d'initialisation
 sudo /tmp/init-instance.sh
