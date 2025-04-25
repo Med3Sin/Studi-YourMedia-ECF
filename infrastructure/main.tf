@@ -186,17 +186,17 @@ module "ec2-java-tomcat" {
   ssh_public_key        = var.ssh_public_key   # Clé SSH publique pour l'accès à l'instance
 
   # Variables pour le bucket S3
-  s3_bucket_name        = module.s3.bucket_name
+  s3_bucket_name = module.s3.bucket_name
 
   # Variables pour la base de données
-  db_username           = var.db_username
-  db_password           = var.db_password
-  rds_endpoint          = module.rds-mysql.rds_endpoint
+  db_username  = var.db_username
+  db_password  = var.db_password
+  rds_endpoint = module.rds-mysql.rds_endpoint
 
   # Variables pour Docker Hub
-  dockerhub_username    = var.dockerhub_username
-  dockerhub_token       = var.dockerhub_token
-  dockerhub_repo        = var.dockerhub_repo
+  dockerhub_username = var.dockerhub_username
+  dockerhub_token    = var.dockerhub_token
+  dockerhub_repo     = var.dockerhub_repo
 }
 
 # Le module S3 existant est utilisé pour stocker les fichiers de configuration de monitoring
