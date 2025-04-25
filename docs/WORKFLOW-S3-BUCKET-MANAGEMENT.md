@@ -78,7 +78,21 @@ La solution implémentée consiste en une approche en trois étapes :
         -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
         -var="db_username=${{ secrets.DB_USERNAME }}" \
         -var="db_password=${{ secrets.DB_PASSWORD }}" \
-        -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+        -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
+        -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
+        -var="github_token=${{ secrets.GH_PAT || '' }}" \
+        -var="repo_owner=${{ github.repository_owner }}" \
+        -var="repo_name=${{ github.repository }}" \
+        -var="ssh_private_key_path=~/.ssh/id_rsa" \
+        -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
+        -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
+        -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
+        -var="environment=${{ github.event.inputs.environment || 'dev' }}" \
+        -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
+        -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
+        -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME || '' }}" \
+        -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN || '' }}" \
+        -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO || '' }}"
 
       # Récupérer le nom du bucket S3 après la création
       S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
@@ -175,6 +189,31 @@ Pour mettre à jour le secret GitHub, le workflow utilise l'action `gliech/creat
 3. **Persistance** : Met à jour le secret GitHub pour les futures exécutions
 4. **Conditionnalité** : Télécharge les scripts uniquement si le bucket existe
 5. **Traçabilité** : Utilise des groupes de logs pour une meilleure lisibilité
+
+## Note importante sur les variables Terraform
+
+Lors de la création du bucket S3 via Terraform, il est essentiel de fournir toutes les variables requises par le module, même si elles ne sont pas directement utilisées par le module S3. Cela est dû au fait que Terraform charge l'ensemble de la configuration et vérifie toutes les variables requises, même si seul un module spécifique est ciblé avec `-target=module.s3`.
+
+C'est pourquoi la commande `terraform apply` inclut toutes les variables suivantes :
+- Variables AWS : `aws_access_key`, `aws_secret_key`
+- Variables de base de données : `db_username`, `db_password`, `db_name`
+- Variables EC2 : `ec2_key_pair_name`, `ssh_private_key_path`, `ssh_private_key_content`, `ssh_public_key`, `enable_provisioning`
+- Variables GitHub : `github_token`, `repo_owner`, `repo_name`
+- Variables Terraform Cloud : `tf_api_token`, `tf_workspace_id`
+- Variables Docker Hub : `dockerhub_username`, `dockerhub_token`, `dockerhub_repo`
+- Variable d'environnement : `environment`
+
+L'omission de l'une de ces variables entraînerait une erreur comme celle-ci :
+```
+Error: No value for required variable
+
+  on variables.tf line X:
+   X: variable "variable_name" {
+
+The root module input variable "variable_name" is not set, and has no
+default value. Use a -var or -var-file command line argument to provide a
+value for this variable.
+```
 
 ## Dépannage
 
