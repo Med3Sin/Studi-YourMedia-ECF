@@ -51,12 +51,12 @@ La solution implémentée consiste en une approche en trois étapes :
     export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
     export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
     export AWS_DEFAULT_REGION="${{ env.AWS_REGION }}"
-    
+
     # Vérifier si le secret TF_S3_BUCKET_NAME est disponible
     if [ ! -z "${{ secrets.TF_S3_BUCKET_NAME }}" ]; then
       echo "Secret TF_S3_BUCKET_NAME trouvé: ${{ secrets.TF_S3_BUCKET_NAME }}"
       S3_BUCKET_NAME="${{ secrets.TF_S3_BUCKET_NAME }}"
-      
+
       # Vérifier si le bucket existe réellement
       if aws s3api head-bucket --bucket $S3_BUCKET_NAME 2>/dev/null; then
         echo "Le bucket S3 existe: $S3_BUCKET_NAME"
@@ -68,7 +68,7 @@ La solution implémentée consiste en une approche en trois étapes :
       echo "Secret TF_S3_BUCKET_NAME non trouvé. Création nécessaire..."
       S3_BUCKET_NAME=""
     fi
-    
+
     # Si le bucket n'existe pas, le créer via Terraform
     if [ -z "$S3_BUCKET_NAME" ]; then
       echo "Création du bucket S3 via Terraform..."
@@ -79,30 +79,47 @@ La solution implémentée consiste en une approche en trois étapes :
         -var="db_username=${{ secrets.DB_USERNAME }}" \
         -var="db_password=${{ secrets.DB_PASSWORD }}" \
         -var="environment=${{ github.event.inputs.environment || 'dev' }}"
-      
+
       # Récupérer le nom du bucket S3 après la création
       S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
-      
+
       if [ -z "$S3_BUCKET_NAME" ]; then
         echo "ERREUR: Impossible de récupérer le nom du bucket S3 après création."
         exit 1
       fi
-      
+
       echo "Bucket S3 créé avec succès: $S3_BUCKET_NAME"
     fi
-    
+
     # Stocker le nom du bucket pour les étapes suivantes
     echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
     echo "::endgroup::"
 ```
 
-### 2. Mise à jour du secret GitHub
+### 2. Vérification et mise à jour du secret GitHub
 
 ```yaml
-# Étape 7.6: Mise à jour du secret GitHub avec le nom du bucket S3
+# Étape 7.6: Vérifier si le secret doit être mis à jour
+- name: Check if Secret Needs Update
+  id: check_secret
+  if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
+  run: |
+    # Stocker la valeur du secret dans une variable
+    SECRET_VALUE="${{ secrets.TF_S3_BUCKET_NAME }}"
+
+    # Comparer avec la valeur actuelle du bucket S3
+    if [ "$SECRET_VALUE" != "${{ env.S3_BUCKET_NAME }}" ]; then
+      echo "UPDATE_SECRET=true" >> $GITHUB_ENV
+      echo "Le secret TF_S3_BUCKET_NAME doit être mis à jour."
+    else
+      echo "UPDATE_SECRET=false" >> $GITHUB_ENV
+      echo "Le secret TF_S3_BUCKET_NAME est déjà à jour."
+    fi
+
+# Étape 7.7: Mise à jour du secret GitHub avec le nom du bucket S3
 - name: Update S3 Bucket Name Secret
   id: update_secret
-  if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != '' && env.S3_BUCKET_NAME != secrets.TF_S3_BUCKET_NAME
+  if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != '' && env.UPDATE_SECRET == 'true'
   uses: gliech/create-github-secret-action@v1
   with:
     name: TF_S3_BUCKET_NAME
@@ -113,7 +130,7 @@ La solution implémentée consiste en une approche en trois étapes :
 ### 3. Téléchargement des scripts dans S3
 
 ```yaml
-# Étape 7.7: Téléchargement des scripts dans S3
+# Étape 7.8: Téléchargement des scripts dans S3
 - name: Upload Scripts to S3
   id: upload_scripts
   if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
@@ -126,21 +143,21 @@ La solution implémentée consiste en une approche en trois étapes :
       chmod 600 ~/.ssh/id_rsa
       echo "Clé SSH privée configurée."
     fi
-    
+
     echo "Téléchargement des scripts dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
-    
+
     # Télécharger les scripts de monitoring
     echo "Téléchargement des scripts de monitoring..."
     aws s3 cp --recursive ./scripts/ec2-monitoring/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-monitoring/
-    
+
     # Télécharger les scripts Java/Tomcat
     echo "Téléchargement des scripts Java/Tomcat..."
     aws s3 cp --recursive ./scripts/ec2-java-tomcat/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-java-tomcat/
-    
+
     # Télécharger les scripts Docker
     echo "Téléchargement des scripts Docker..."
     aws s3 cp --recursive ./scripts/docker/ s3://${{ env.S3_BUCKET_NAME }}/scripts/docker/
-    
+
     echo "Scripts téléchargés avec succès dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
     echo "::endgroup::"
 ```

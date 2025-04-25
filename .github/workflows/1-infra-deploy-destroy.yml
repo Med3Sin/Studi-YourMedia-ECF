@@ -219,17 +219,34 @@ jobs:
           echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
           echo "::endgroup::"
 
-      # Étape 7.6: Mise à jour du secret GitHub avec le nom du bucket S3
+      # Étape 7.6: Vérifier si le secret doit être mis à jour
+      - name: Check if Secret Needs Update
+        id: check_secret
+        if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
+        run: |
+          # Stocker la valeur du secret dans une variable
+          SECRET_VALUE="${{ secrets.TF_S3_BUCKET_NAME }}"
+
+          # Comparer avec la valeur actuelle du bucket S3
+          if [ "$SECRET_VALUE" != "${{ env.S3_BUCKET_NAME }}" ]; then
+            echo "UPDATE_SECRET=true" >> $GITHUB_ENV
+            echo "Le secret TF_S3_BUCKET_NAME doit être mis à jour."
+          else
+            echo "UPDATE_SECRET=false" >> $GITHUB_ENV
+            echo "Le secret TF_S3_BUCKET_NAME est déjà à jour."
+          fi
+
+      # Étape 7.7: Mise à jour du secret GitHub avec le nom du bucket S3
       - name: Update S3 Bucket Name Secret
         id: update_secret
-        if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != '' && env.S3_BUCKET_NAME != secrets.TF_S3_BUCKET_NAME
+        if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != '' && env.UPDATE_SECRET == 'true'
         uses: gliech/create-github-secret-action@v1
         with:
           name: TF_S3_BUCKET_NAME
           value: ${{ env.S3_BUCKET_NAME }}
           pa_token: ${{ secrets.GH_PAT }}
 
-      # Étape 7.7: Téléchargement des scripts dans S3
+      # Étape 7.8: Téléchargement des scripts dans S3
       - name: Upload Scripts to S3
         id: upload_scripts
         if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != ''
