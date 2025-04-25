@@ -275,7 +275,7 @@ jobs:
 
           # Réinitialiser Terraform pour s'assurer que l'état est à jour
           echo "Réinitialisation de Terraform..."
-          terraform init -reconfigure
+          terraform init
 
           # Phase 1: Créer uniquement le bucket S3
           echo "Phase 1: Création du bucket S3..."
@@ -402,7 +402,7 @@ jobs:
 
           # Réinitialiser Terraform pour s'assurer que l'état est à jour
           echo "Réinitialisation de Terraform..."
-          terraform init -reconfigure
+          terraform init
 
           # Phase 2: Déployer le reste de l'infrastructure
           echo "Phase 2: Déploiement du reste de l'infrastructure..."
