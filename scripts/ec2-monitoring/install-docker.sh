@@ -25,73 +25,29 @@ fi
 log "Informations du système:"
 cat /etc/os-release
 
-# Déterminer la version d'Amazon Linux
-if grep -q "Amazon Linux 2023" /etc/os-release; then
-  log "Système détecté: Amazon Linux 2023"
+# Installation pour Amazon Linux 2023
+log "Système détecté: Amazon Linux 2023"
 
-  # Installation pour Amazon Linux 2023
-  log "Mise à jour des paquets"
-  dnf update -y || error_exit "Impossible de mettre à jour les paquets"
+log "Mise à jour des paquets"
+dnf update -y || error_exit "Impossible de mettre à jour les paquets"
 
-  log "Installation de dnf-utils"
-  dnf install -y dnf-utils || error_exit "Impossible d'installer dnf-utils"
+log "Installation de dnf-utils"
+dnf install -y dnf-utils || error_exit "Impossible d'installer dnf-utils"
 
-  log "Ajout du dépôt Docker"
-  dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || error_exit "Impossible d'ajouter le dépôt Docker"
+log "Ajout du dépôt Docker"
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || error_exit "Impossible d'ajouter le dépôt Docker"
 
-  log "Installation de Docker"
-  dnf install -y docker-ce docker-ce-cli containerd.io || error_exit "Impossible d'installer Docker"
+log "Installation de Docker"
+dnf install -y docker-ce docker-ce-cli containerd.io || error_exit "Impossible d'installer Docker"
 
-  log "Démarrage du service Docker"
-  systemctl start docker || error_exit "Impossible de démarrer le service Docker"
+log "Démarrage du service Docker"
+systemctl start docker || error_exit "Impossible de démarrer le service Docker"
 
-  log "Activation du service Docker au démarrage"
-  systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
+log "Activation du service Docker au démarrage"
+systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
 
-  log "Vérification du statut du service Docker"
-  systemctl status docker
-elif grep -q "Amazon Linux 2" /etc/os-release; then
-  log "Système détecté: Amazon Linux 2"
-
-  # Installation pour Amazon Linux 2
-  log "Installation de Docker via amazon-linux-extras"
-  amazon-linux-extras install docker -y || error_exit "Impossible d'installer Docker via amazon-linux-extras"
-
-  log "Démarrage du service Docker"
-  systemctl start docker || error_exit "Impossible de démarrer le service Docker"
-
-  log "Activation du service Docker au démarrage"
-  systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
-
-  log "Vérification du statut du service Docker"
-  systemctl status docker
-else
-  log "Système non reconnu: $(cat /etc/os-release | grep PRETTY_NAME)"
-  log "Tentative d'installation avec la méthode standard..."
-
-  # Tentative d'installation générique
-  if command -v dnf &> /dev/null; then
-    log "Utilisation de dnf pour l'installation"
-    dnf update -y
-    dnf install -y dnf-utils
-    dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    dnf install -y docker-ce docker-ce-cli containerd.io
-  elif command -v yum &> /dev/null; then
-    log "Utilisation de yum pour l'installation"
-    yum update -y
-    yum install -y yum-utils
-    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    yum install -y docker-ce docker-ce-cli containerd.io
-  else
-    error_exit "Aucun gestionnaire de paquets reconnu (dnf/yum) n'a été trouvé"
-  fi
-
-  log "Démarrage du service Docker"
-  systemctl start docker || error_exit "Impossible de démarrer le service Docker"
-
-  log "Activation du service Docker au démarrage"
-  systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
-fi
+log "Vérification du statut du service Docker"
+systemctl status docker
 
 # Créer le groupe docker s'il n'existe pas
 getent group docker &>/dev/null || groupadd docker

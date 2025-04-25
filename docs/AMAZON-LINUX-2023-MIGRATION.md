@@ -255,7 +255,7 @@ En avril 2025, tous les scripts ont été standardisés pour utiliser exclusivem
 
 Les scripts suivants ont été adaptés pour fonctionner exclusivement avec Amazon Linux 2023 :
 
-1. **`scripts/ec2-monitoring/install-docker.sh`** : Ce script a été modifié pour installer Docker spécifiquement sur Amazon Linux 2023, en supprimant les références à Amazon Linux 2.
+1. **`scripts/ec2-monitoring/install-docker.sh`** : Ce script a été modifié pour installer Docker spécifiquement sur Amazon Linux 2023 uniquement. Toutes les références à Amazon Linux 2 et les méthodes d'installation alternatives ont été supprimées pour simplifier le script et le rendre plus robuste.
 
 2. **`scripts/ec2-monitoring/setup.sh`** : Ce script a été modifié pour installer Docker sur Amazon Linux 2023 uniquement, en supprimant les références à Amazon Linux 2 et en utilisant les commandes spécifiques à Amazon Linux 2023.
 
@@ -263,7 +263,7 @@ Les scripts suivants ont été adaptés pour fonctionner exclusivement avec Amaz
 
 Les scripts suivants ont été supprimés car ils étaient redondants ou obsolètes :
 
-1. **`scripts/ec2-monitoring/init-instance.sh`** : Ce script a été remplacé par `scripts/ec2-monitoring/init-instance-env.sh`, qui utilise des variables d'environnement pour une meilleure flexibilité et sécurité.
+1. **`scripts/ec2-monitoring/init-instance.sh`** : Ce script a été remplacé par `scripts/ec2-monitoring/init-instance-env.sh`, qui utilise des variables d'environnement pour une meilleure flexibilité et sécurité. Nous utilisons maintenant exclusivement `init-instance-env.sh` pour l'initialisation des instances EC2.
 
 ### Workflows GitHub Actions supprimés
 
