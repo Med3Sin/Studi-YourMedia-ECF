@@ -1,6 +1,6 @@
 # Migration vers Amazon Linux 2023 - YourMédia
 
-Ce document décrit la migration de l'infrastructure YourMédia d'Amazon Linux 2 vers Amazon Linux 2023, ainsi que les améliorations apportées à l'ordre d'exécution des scripts.
+Ce document décrit la migration de l'infrastructure YourMédia d'Amazon Linux 2 vers Amazon Linux 2023, ainsi que les améliorations apportées à l'ordre d'exécution des scripts. Il inclut également les modifications récentes pour standardiser tous les scripts sur Amazon Linux 2023 et supprimer les scripts et workflows inutiles.
 
 ## Table des matières
 
@@ -13,8 +13,12 @@ Ce document décrit la migration de l'infrastructure YourMédia d'Amazon Linux 2
    - [Téléchargement des scripts dans S3](#téléchargement-des-scripts-dans-s3)
    - [Gestion des permissions](#gestion-des-permissions)
    - [Vérification des dépendances](#vérification-des-dépendances)
-4. [Tests et validation](#tests-et-validation)
-5. [Rollback en cas de problème](#rollback-en-cas-de-problème)
+4. [Standardisation sur Amazon Linux 2023](#standardisation-sur-amazon-linux-2023)
+   - [Scripts adaptés](#scripts-adaptés)
+   - [Scripts supprimés](#scripts-supprimés)
+   - [Workflows GitHub Actions supprimés](#workflows-github-actions-supprimés)
+5. [Tests et validation](#tests-et-validation)
+6. [Rollback en cas de problème](#rollback-en-cas-de-problème)
 
 ## Vue d'ensemble
 
@@ -227,7 +231,7 @@ error_exit() {
 check_dependency() {
     local cmd=$1
     local pkg=$2
-    
+
     if ! command -v $cmd &> /dev/null; then
         log "Dépendance manquante: $cmd. Installation de $pkg..."
         sudo dnf install -y $pkg || error_exit "Impossible d'installer $pkg"
@@ -242,6 +246,32 @@ check_dependency sed sed
 ```
 
 Ces vérifications garantissent que les scripts ne rencontreront pas d'erreurs dues à des dépendances manquantes.
+
+## Standardisation sur Amazon Linux 2023
+
+En avril 2025, tous les scripts ont été standardisés pour utiliser exclusivement Amazon Linux 2023, et les scripts et workflows inutiles ont été supprimés.
+
+### Scripts adaptés
+
+Les scripts suivants ont été adaptés pour fonctionner exclusivement avec Amazon Linux 2023 :
+
+1. **`scripts/ec2-monitoring/install-docker.sh`** : Ce script a été modifié pour installer Docker spécifiquement sur Amazon Linux 2023, en supprimant les références à Amazon Linux 2.
+
+2. **`scripts/ec2-monitoring/setup.sh`** : Ce script a été modifié pour installer Docker sur Amazon Linux 2023 uniquement, en supprimant les références à Amazon Linux 2 et en utilisant les commandes spécifiques à Amazon Linux 2023.
+
+### Scripts supprimés
+
+Les scripts suivants ont été supprimés car ils étaient redondants ou obsolètes :
+
+1. **`scripts/ec2-monitoring/init-instance.sh`** : Ce script a été remplacé par `scripts/ec2-monitoring/init-instance-env.sh`, qui utilise des variables d'environnement pour une meilleure flexibilité et sécurité.
+
+### Workflows GitHub Actions supprimés
+
+Les workflows GitHub Actions suivants ont été supprimés car ils étaient inutiles ou présentaient des risques de sécurité :
+
+1. **`view-secret-securely.yml`** : Ce workflow permettait de consulter les secrets GitHub, mais présentait un risque de sécurité car il affichait les secrets en clair dans les logs. Il a été supprimé pour améliorer la sécurité du projet.
+
+2. **`3.1-canary-deployment.yml`** : Ce workflow complexe pour le déploiement canary semblait inutile pour un projet simple. Il a été supprimé pour simplifier le projet.
 
 ## Tests et validation
 

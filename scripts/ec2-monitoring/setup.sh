@@ -70,19 +70,11 @@ if ! command -v docker &> /dev/null; then
         sudo /opt/monitoring/install-docker.sh
     else
         log "Le script install-docker.sh n'est pas disponible. Tentative d'installation standard..."
-        # Déterminer la version d'Amazon Linux
-        if grep -q "Amazon Linux 2" /etc/os-release; then
-            log "Système détecté: Amazon Linux 2"
-            sudo amazon-linux-extras install docker -y
-        elif grep -q "Amazon Linux 2023" /etc/os-release; then
-            log "Système détecté: Amazon Linux 2023"
-            sudo dnf install -y dnf-utils
-            sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            sudo dnf install -y docker-ce docker-ce-cli containerd.io
-        else
-            log "AVERTISSEMENT: Système non reconnu. Tentative d'installation avec amazon-linux-extras..."
-            sudo amazon-linux-extras install docker -y
-        fi
+        # Installation pour Amazon Linux 2023
+        log "Système détecté: Amazon Linux 2023"
+        sudo dnf install -y dnf-utils
+        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -a -G docker ec2-user
