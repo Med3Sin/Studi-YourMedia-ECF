@@ -267,11 +267,15 @@ Les scripts suivants ont été supprimés car ils étaient redondants ou obsolè
 
 ### Workflows GitHub Actions supprimés
 
-Les workflows GitHub Actions suivants ont été supprimés car ils étaient inutiles ou présentaient des risques de sécurité :
+Les workflows GitHub Actions suivants ont été supprimés car ils étaient inutiles, redondants ou présentaient des risques de sécurité :
 
 1. **`view-secret-securely.yml`** : Ce workflow permettait de consulter les secrets GitHub, mais présentait un risque de sécurité car il affichait les secrets en clair dans les logs. Il a été supprimé pour améliorer la sécurité du projet.
 
 2. **`3.1-canary-deployment.yml`** : Ce workflow complexe pour le déploiement canary semblait inutile pour un projet simple. Il a été supprimé pour simplifier le projet.
+
+3. **`sync-secrets-to-terraform.yml`** : Ce workflow était redondant car le workflow principal `1-infra-deploy-destroy.yml` gère déjà la synchronisation des secrets avec Terraform Cloud. Il a été supprimé pour simplifier le projet.
+
+4. **`upload-scripts-to-s3.yml`** : Ce workflow était redondant car le workflow principal `1-infra-deploy-destroy.yml` inclut déjà une étape pour télécharger les scripts dans S3. Il a été supprimé pour simplifier le projet.
 
 ## Tests et validation
 
