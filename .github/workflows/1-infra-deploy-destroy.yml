@@ -276,17 +276,38 @@ jobs:
 
           echo "Téléchargement des scripts dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
 
+          # Définir le chemin absolu vers le répertoire de travail
+          WORKSPACE_DIR="${GITHUB_WORKSPACE}"
+          echo "Répertoire de travail: ${WORKSPACE_DIR}"
+
+          # Vérifier que les répertoires existent
+          echo "Vérification des répertoires de scripts..."
+          ls -la ${WORKSPACE_DIR}
+          ls -la ${WORKSPACE_DIR}/scripts || echo "Répertoire scripts non trouvé"
+
           # Télécharger les scripts de monitoring
-          echo "Téléchargement des scripts de monitoring..."
-          aws s3 cp --recursive ./scripts/ec2-monitoring/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-monitoring/
+          if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring" ]; then
+            echo "Téléchargement des scripts de monitoring..."
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-monitoring/
+          else
+            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-monitoring n'existe pas."
+          fi
 
           # Télécharger les scripts Java/Tomcat
-          echo "Téléchargement des scripts Java/Tomcat..."
-          aws s3 cp --recursive ./scripts/ec2-java-tomcat/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-java-tomcat/
+          if [ -d "${WORKSPACE_DIR}/scripts/ec2-java-tomcat" ]; then
+            echo "Téléchargement des scripts Java/Tomcat..."
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-java-tomcat/
+          else
+            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-java-tomcat n'existe pas."
+          fi
 
           # Télécharger les scripts Docker
-          echo "Téléchargement des scripts Docker..."
-          aws s3 cp --recursive ./scripts/docker/ s3://${{ env.S3_BUCKET_NAME }}/scripts/docker/
+          if [ -d "${WORKSPACE_DIR}/scripts/docker" ]; then
+            echo "Téléchargement des scripts Docker..."
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/docker/ s3://${{ env.S3_BUCKET_NAME }}/scripts/docker/
+          else
+            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/docker n'existe pas."
+          fi
 
           echo "Scripts téléchargés avec succès dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
           echo "::endgroup::"
