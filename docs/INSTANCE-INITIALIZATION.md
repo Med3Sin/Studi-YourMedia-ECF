@@ -273,6 +273,38 @@ L'installation de Docker est renforcée de la manière suivante :
 
 4. **Vérification finale** : Le script vérifie si Docker est correctement installé et affiche sa version.
 
+### Installation de Docker sur Amazon Linux 2023
+
+Le script `install-docker.sh` a été amélioré pour prendre en charge Amazon Linux 2023. Voici les étapes d'installation de Docker sur Amazon Linux 2023 :
+
+```bash
+# Mise à jour des paquets
+dnf update -y
+
+# Installation de dnf-utils
+dnf install -y dnf-utils
+
+# Ajout du dépôt Docker
+dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# Installation de Docker
+dnf install -y docker-ce docker-ce-cli containerd.io
+
+# Démarrage du service Docker
+systemctl start docker
+
+# Activation du service Docker au démarrage
+systemctl enable docker
+
+# Créer le groupe docker s'il n'existe pas
+getent group docker &>/dev/null || groupadd docker
+
+# Ajouter l'utilisateur ec2-user au groupe docker
+usermod -aG docker ec2-user
+```
+
+Si vous devez installer Docker manuellement sur une instance Amazon Linux 2023, vous pouvez utiliser le script `scripts/utils/install-docker-al2023.sh` :
+
 ## Dépannage
 
 Si vous rencontrez des problèmes avec l'initialisation des instances EC2, voici quelques étapes de dépannage :
