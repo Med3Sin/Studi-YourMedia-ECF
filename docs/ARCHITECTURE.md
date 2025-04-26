@@ -78,16 +78,26 @@ L'infrastructure est déployée sur AWS et comprend les services suivants :
 - **VPC** : Réseau virtuel isolé
 - **Route 53** : Gestion DNS
 
-### Conteneurisation
+### Instances EC2 et conteneurisation
 
-Les applications sont conteneurisées avec Docker et déployées sur des instances EC2.
+L'infrastructure utilise deux types d'instances EC2 distinctes, chacune avec un rôle spécifique :
 
-**Images Docker :**
+1. **Instance EC2 Java Tomcat** : Dédiée à l'exécution de l'application Java backend via Tomcat
+   - Exécute Java 17 (Amazon Corretto) et Tomcat 9.0.87
+   - Ne contient pas Docker et n'exécute pas de conteneurs
+   - Déploie les applications sous forme de fichiers WAR
+
+2. **Instance EC2 Monitoring** : Dédiée à l'exécution des services de monitoring via Docker
+   - Exécute Docker et Docker Compose
+   - Contient les conteneurs pour les services de monitoring
+
+**Images Docker** (uniquement sur l'instance EC2 Monitoring) :
 - **app-react** : Application mobile React Native
-- **app-java** : Backend Java Spring Boot
 - **grafana** : Visualisation des métriques
 - **prometheus** : Collecte des métriques
 - **sonarqube** : Analyse de la qualité du code
+- **mysql-exporter** : Collecte des métriques MySQL
+- **cloudwatch-exporter** : Collecte des métriques CloudWatch
 
 ### Terraform
 
@@ -103,14 +113,25 @@ L'infrastructure est définie en code avec Terraform, ce qui permet une gestion 
 
 ### Scripts
 
-Les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication.
+Les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication. Chaque instance EC2 utilise uniquement les scripts qui lui sont spécifiques.
 
 **Catégories de scripts :**
 - **database** : Scripts liés à la base de données (sécurisation, migration, etc.)
-- **docker** : Scripts de gestion des conteneurs Docker (construction, déploiement, nettoyage)
-- **ec2-java-tomcat** : Scripts d'installation et de configuration de Java et Tomcat
-- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana, SonarQube)
-- **utils** : Scripts utilitaires génériques (correction des clés SSH, etc.)
+- **docker** : Scripts de gestion des conteneurs Docker (construction, déploiement, nettoyage) - *utilisés uniquement sur l'instance EC2 Monitoring*
+- **ec2-java-tomcat** : Scripts d'installation et de configuration de Java et Tomcat - *utilisés uniquement sur l'instance EC2 Java Tomcat*
+- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana, SonarQube) - *utilisés uniquement sur l'instance EC2 Monitoring*
+- **utils** : Scripts utilitaires génériques (correction des clés SSH, installation de dépendances, etc.)
+
+**Scripts spécifiques à l'instance EC2 Java Tomcat :**
+- `init-instance-env.sh` : Initialisation de l'environnement
+- `install_java_tomcat.sh` : Installation de Java et Tomcat
+- `deploy-war.sh` : Déploiement d'applications WAR
+
+**Scripts spécifiques à l'instance EC2 Monitoring :**
+- `init-instance-env.sh` : Initialisation de l'environnement
+- `install-docker.sh` : Installation de Docker
+- `docker-manager.sh` : Gestion des conteneurs Docker
+- `setup.sh` : Configuration des services de monitoring
 
 **Ordre d'exécution des scripts :**
 1. Les scripts sont téléchargés dans S3 par le workflow GitHub Actions avant le déploiement de l'infrastructure

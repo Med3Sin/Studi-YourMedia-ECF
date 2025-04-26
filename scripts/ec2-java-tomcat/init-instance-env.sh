@@ -50,29 +50,26 @@ check_dependency sed sed
 log "Téléchargement des scripts depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/install_java_tomcat.sh /opt/yourmedia/install_java_tomcat.sh
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/deploy-war.sh /opt/yourmedia/deploy-war.sh
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/yourmedia/docker-manager.sh
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
 sudo chmod +x /opt/yourmedia/deploy-war.sh
-sudo chmod +x /opt/yourmedia/docker-manager.sh
-
-# Copier docker-manager.sh dans /usr/local/bin/
-log "Copie de docker-manager.sh dans /usr/local/bin/"
-sudo cp /opt/yourmedia/docker-manager.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/docker-manager.sh
 
 # Création d'un fichier de variables d'environnement pour les scripts
 log "Création du fichier de variables d'environnement"
 cat > /tmp/yourmedia-env.sh << EOF
 export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
-export DB_USERNAME="${DB_USERNAME}"
-export DB_PASSWORD="${DB_PASSWORD}"
+# Variables RDS standardisées
+export RDS_USERNAME="${RDS_USERNAME}"
+export RDS_PASSWORD="${RDS_PASSWORD}"
 export RDS_ENDPOINT="${RDS_ENDPOINT}"
+# Variables de compatibilité (pour les scripts existants)
+export DB_USERNAME="${RDS_USERNAME}"
+export DB_PASSWORD="${RDS_PASSWORD}"
+# Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
-export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME}"
-export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
-export DOCKERHUB_REPO="${DOCKERHUB_REPO}"
+# Variable Tomcat
+export TOMCAT_VERSION="9.0.87"
 EOF
 
 sudo mv /tmp/yourmedia-env.sh /opt/yourmedia/env.sh

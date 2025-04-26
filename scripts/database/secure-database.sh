@@ -31,7 +31,7 @@ fi
 if [ "$NEW_DB_PASSWORD" = "$(openssl rand -base64 12)" ]; then
     log "Génération d'un mot de passe fort pour l'utilisateur $NEW_DB_USER..."
     NEW_DB_PASSWORD=$(openssl rand -base64 12)
-    log "Mot de passe généré: $NEW_DB_PASSWORD"
+    log "Mot de passe généré avec succès (non affiché pour des raisons de sécurité)"
     log "IMPORTANT: Notez ce mot de passe dans un gestionnaire de mots de passe sécurisé."
 fi
 

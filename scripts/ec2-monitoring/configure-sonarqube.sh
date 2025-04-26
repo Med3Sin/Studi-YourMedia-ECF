@@ -13,8 +13,16 @@ fi
 SONAR_HOME="/opt/sonarqube"
 SONAR_PORT=9000
 SONAR_ADMIN_USER="admin"
-SONAR_ADMIN_PASSWORD="admin"
-SONAR_NEW_PASSWORD=${1:-"YourMedia2024!"}
+# Utiliser les variables d'environnement si disponibles, sinon utiliser des valeurs par défaut
+SONAR_ADMIN_PASSWORD=${SONAR_ADMIN_PASSWORD:-"admin"}
+# Générer un mot de passe fort si non fourni en paramètre
+if [ -z "$1" ]; then
+  SONAR_NEW_PASSWORD=$(openssl rand -base64 12)
+  echo "Mot de passe administrateur généré aléatoirement (non affiché pour des raisons de sécurité)"
+else
+  SONAR_NEW_PASSWORD="$1"
+  echo "Utilisation du mot de passe fourni en paramètre"
+fi
 
 # Vérifier si SonarQube est installé
 if [ ! -d "$SONAR_HOME" ]; then
@@ -72,8 +80,11 @@ TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
 if [ -n "$TOKEN" ]; then
   echo "Token créé avec succès"
-  echo "Veuillez ajouter ce token comme secret GitHub avec le nom SONAR_TOKEN :"
-  echo "$TOKEN"
+  echo "Veuillez ajouter ce token comme secret GitHub avec le nom SONAR_TOKEN"
+  # Écrire le token dans un fichier sécurisé plutôt que de l'afficher dans les logs
+  echo "$TOKEN" > /tmp/sonar_token.txt
+  chmod 600 /tmp/sonar_token.txt
+  echo "Le token a été enregistré dans /tmp/sonar_token.txt (accessible uniquement par l'utilisateur actuel)"
 else
   echo "Impossible de créer un token. Un token 'github-actions' existe peut-être déjà."
 fi
@@ -86,8 +97,8 @@ curl -s -X "POST" -u "$SONAR_ADMIN_USER:$SONAR_ADMIN_PASSWORD" "http://localhost
 echo "Configuration de SonarQube terminée"
 echo "URL de SonarQube : http://localhost:$SONAR_PORT"
 echo "Utilisateur : $SONAR_ADMIN_USER"
-echo "Mot de passe : $SONAR_NEW_PASSWORD"
-echo "Token API : $TOKEN"
+echo "Mot de passe : [MASQUÉ]"
+echo "Token API : [MASQUÉ] (disponible dans /tmp/sonar_token.txt)"
 
 # Instructions pour GitHub Actions
 echo ""

@@ -1,6 +1,12 @@
 # Initialisation des Instances EC2
 
-Ce document décrit le processus d'initialisation des instances EC2 dans le projet YourMédia, en particulier les améliorations apportées pour résoudre les problèmes de transmission des variables d'environnement et d'installation de Docker.
+Ce document décrit le processus d'initialisation des instances EC2 dans le projet YourMédia, en particulier les améliorations apportées pour résoudre les problèmes de transmission des variables d'environnement et d'installation des composants nécessaires.
+
+> **Note importante** : L'infrastructure YourMedia utilise deux types d'instances EC2 distinctes :
+> - **Instance EC2 Java Tomcat** : Dédiée à l'exécution de l'application Java backend via Tomcat (sans Docker)
+> - **Instance EC2 Monitoring** : Dédiée à l'exécution des services de monitoring via Docker
+>
+> Pour plus de détails sur cette séparation, consultez le document [INSTANCE-ROLES-SEPARATION.md](INSTANCE-ROLES-SEPARATION.md).
 
 ## Table des matières
 

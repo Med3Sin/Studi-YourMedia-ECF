@@ -265,7 +265,7 @@ Le système de monitoring est basé sur Prometheus et Grafana, exécutés dans d
 
 ### Structure des fichiers de configuration
 
-Tous les scripts et fichiers de configuration sont maintenant centralisés dans le répertoire `scripts/` pour une meilleure organisation et maintenance. Voici la structure :
+Tous les scripts et fichiers de configuration sont maintenant centralisés dans le répertoire `scripts/` pour une meilleure organisation et maintenance. Cette centralisation évite la duplication de code et facilite la maintenance. Voici la structure :
 
 **Scripts de monitoring (`scripts/ec2-monitoring/`) :**
 
@@ -273,6 +273,9 @@ Tous les scripts et fichiers de configuration sont maintenant centralisés dans 
 -   `fix_permissions.sh` : Script pour corriger les permissions des volumes
 -   `generate_sonar_token.sh` : Script de génération du token SonarQube
 -   `init-instance.sh` : Script d'initialisation de l'instance
+-   `get-aws-resources-info.sh` : Script pour récupérer automatiquement les informations RDS et S3
+-   `restart-containers.sh` : Script pour redémarrer les conteneurs Docker
+-   `check-containers.sh` : Script pour vérifier l'état des conteneurs et afficher les informations de connexion
 -   `docker-compose.yml` : Configuration des conteneurs Docker
 -   `prometheus.yml` : Configuration de Prometheus pour collecter les métriques
 -   `cloudwatch-config.yml` : Configuration de CloudWatch Exporter
@@ -283,11 +286,13 @@ Tous les scripts et fichiers de configuration sont maintenant centralisés dans 
 -   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs
 -   `cleanup-containers.sh` : Script pour nettoyer les conteneurs
 
-**Configurations des conteneurs :**
+**Configurations des conteneurs (centralisées dans `scripts/docker/`) :**
 
--   `scripts/docker/prometheus/` : Configuration pour Prometheus
--   `scripts/docker/grafana/` : Configuration pour Grafana
--   `scripts/docker/sonarqube/` : Configuration pour SonarQube
+-   `scripts/docker/prometheus/` : Configuration pour Prometheus (Dockerfile, prometheus.yml, règles d'alerte)
+-   `scripts/docker/grafana/` : Configuration pour Grafana (Dockerfile, tableaux de bord, provisionnement)
+-   `scripts/docker/sonarqube/` : Configuration pour SonarQube (Dockerfile, configuration)
+
+**Note importante :** Tous les fichiers Docker ont été centralisés dans le dossier `scripts/docker/` pour éviter la duplication et faciliter la maintenance. Le dossier `infrastructure/modules/ec2-monitoring/docker` a été supprimé, et toutes les références ont été mises à jour pour pointer vers le dossier centralisé.
 
 **Scripts utilitaires (`scripts/utils/`) :**
 
@@ -623,6 +628,15 @@ Un plan détaillé d'amélioration de l'architecture a été élaboré pour opti
 Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md).
 
 ## Corrections et Améliorations Récentes
+
+### Centralisation des fichiers Docker
+
+Les fichiers Docker ont été centralisés dans le dossier `scripts/docker/` pour améliorer la maintenance et éviter la duplication :
+
+- Suppression du dossier `infrastructure/modules/ec2-monitoring/docker` qui dupliquait les fichiers
+- Mise à jour des références dans le code Terraform pour pointer vers le dossier centralisé
+- Vérification de la cohérence des fichiers entre les deux dossiers avant la suppression
+- Mise à jour de la documentation pour refléter cette centralisation
 
 ### Amélioration de l'ordre d'exécution des scripts
 

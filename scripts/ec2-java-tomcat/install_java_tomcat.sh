@@ -163,8 +163,9 @@ sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat
 
 echo "--- Téléchargement et Extraction de Tomcat 9 ---"
 # La version de Tomcat est passée via la variable TOMCAT_VERSION depuis le template Terraform
-# Si non définie, utiliser une valeur par défaut
-TOMCAT_VERSION="${TOMCAT_VERSION}"
+# Si non définie, utiliser une valeur par défaut (9.0.87)
+TOMCAT_VERSION="${TOMCAT_VERSION:-9.0.87}"
+echo "Installation de Tomcat version: $TOMCAT_VERSION"
 TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
 
 cd /tmp

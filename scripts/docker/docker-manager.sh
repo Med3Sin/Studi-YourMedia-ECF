@@ -9,26 +9,52 @@
 #
 # Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
 
-# Variables
+# Variables avec noms standardisés
+# Variables Docker
 DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
 DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
-VERSION=$(date +%Y%m%d%H%M%S)
+DOCKER_VERSION=$(date +%Y%m%d%H%M%S)
+
+# Variables d'action
 ACTION=${1:-all}
 TARGET=${2:-all}
+
+# Variables EC2
 EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
 EC2_APP_IP=${TF_EC2_PUBLIC_IP}
-SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
-GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
-DB_USERNAME=${DB_USERNAME}
-DB_PASSWORD=${DB_PASSWORD}
+EC2_SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
+
+# Variables Grafana
+GRAFANA_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+
+# Variables RDS
+RDS_USERNAME=${DB_USERNAME}
+RDS_PASSWORD=${DB_PASSWORD}
 RDS_ENDPOINT=${TF_RDS_ENDPOINT}
+
+# Variables GitHub
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
 
+# Déterminer le chemin absolu du répertoire racine du projet
+# Obtenir le chemin absolu du répertoire contenant ce script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Remonter au répertoire racine du projet (2 niveaux au-dessus de scripts/docker)
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Afficher les variables pour le débogage
+log_info "Variables d'environnement utilisées:"
+log_info "- DOCKER_USERNAME: $DOCKER_USERNAME"
+log_info "- DOCKER_REPO: $DOCKER_REPO"
+log_info "- DOCKER_VERSION: $DOCKER_VERSION"
+log_info "- EC2_MONITORING_IP: $EC2_MONITORING_IP"
+log_info "- EC2_APP_IP: $EC2_APP_IP"
+log_info "- RDS_ENDPOINT: $RDS_ENDPOINT"
+
 # Vérification des mots de passe par défaut
-if [ "$GF_SECURITY_ADMIN_PASSWORD" = "admin" ]; then
-    echo "[WARNING] Le mot de passe administrateur Grafana est défini sur la valeur par défaut 'admin'."
-    echo "[WARNING] Il est fortement recommandé de définir un mot de passe plus sécurisé via la variable GF_SECURITY_ADMIN_PASSWORD."
+if [ "$GRAFANA_ADMIN_PASSWORD" = "admin" ]; then
+    log_warning "Le mot de passe administrateur Grafana est défini sur la valeur par défaut 'admin'."
+    log_warning "Il est fortement recommandé de définir un mot de passe plus sécurisé via la variable GF_SECURITY_ADMIN_PASSWORD."
 
     # Vérifier si le script est exécuté en mode interactif
     if [ -t 0 ]; then
@@ -36,13 +62,13 @@ if [ "$GF_SECURITY_ADMIN_PASSWORD" = "admin" ]; then
         read -p "Voulez-vous continuer avec ce mot de passe par défaut? (y/n) " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "[INFO] Opération annulée. Veuillez définir un mot de passe plus sécurisé."
+            log_info "Opération annulée. Veuillez définir un mot de passe plus sécurisé."
             exit 1
         fi
     else
         # Mode non interactif (CI/CD)
-        echo "[WARNING] Exécution en mode non interactif. Continuation avec le mot de passe par défaut."
-        echo "[WARNING] Pensez à changer le mot de passe après le déploiement."
+        log_warning "Exécution en mode non interactif. Continuation avec le mot de passe par défaut."
+        log_warning "Pensez à changer le mot de passe après le déploiement."
     fi
 fi
 
@@ -50,6 +76,45 @@ fi
 echo "========================================================="
 echo "=== Script de gestion Docker pour YourMedia ==="
 echo "========================================================="
+
+# Fonction pour afficher les messages d'information
+log_info() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [INFO] $1"
+}
+
+# Fonction pour afficher les messages d'avertissement
+log_warning() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [WARNING] $1" >&2
+}
+
+# Fonction pour afficher les messages d'erreur et quitter
+log_error() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [ERROR] $1" >&2
+    # Capturer la trace d'appel pour le débogage
+    if [ "${DEBUG:-false}" = "true" ]; then
+        echo "Trace d'appel:" >&2
+        local i=0
+        while caller $i; do
+            i=$((i+1))
+        done >&2
+    fi
+    exit 1
+}
+
+# Fonction pour afficher les messages de succès
+log_success() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [SUCCESS] $1"
+}
+
+# Fonction pour gérer les erreurs de commande
+handle_error() {
+    local exit_code=$1
+    local error_message=${2:-"Une erreur s'est produite"}
+
+    if [ $exit_code -ne 0 ]; then
+        log_error "$error_message (code: $exit_code)"
+    fi
+}
 
 # Fonction d'aide
 show_help() {
@@ -73,32 +138,54 @@ show_help() {
     exit 1
 }
 
+# Fonction pour vérifier si une commande est installée
+check_dependency() {
+    local cmd=$1
+    local pkg=${2:-$1}
+
+    if ! command -v $cmd &> /dev/null; then
+        log_warning "Dépendance manquante: $cmd"
+
+        # Vérifier si nous pouvons installer le package
+        if [ "$(id -u)" -eq 0 ] || sudo -n true 2>/dev/null; then
+            log_info "Installation de $pkg..."
+            if [ "$(id -u)" -eq 0 ]; then
+                dnf install -y $pkg || apt-get install -y $pkg || log_error "Impossible d'installer $pkg"
+            else
+                sudo dnf install -y $pkg || sudo apt-get install -y $pkg || log_error "Impossible d'installer $pkg"
+            fi
+        else
+            log_error "La commande $cmd n'est pas installée et nous n'avons pas les privilèges pour l'installer. Veuillez l'installer manuellement."
+        fi
+    fi
+}
+
 # Vérifier si Docker est installé et si l'utilisateur a les droits sudo
 check_docker() {
-    if ! command -v docker &> /dev/null; then
-        echo "[ERROR] Docker n'est pas installé. Veuillez l'installer avant d'exécuter ce script."
-        exit 1
-    fi
+    # Vérifier les dépendances requises
+    check_dependency docker docker-ce
+    check_dependency docker-compose docker-compose-plugin
+    check_dependency curl curl
+    check_dependency openssl openssl
 
     # Vérifier si l'utilisateur a les droits sudo
     if [ "$(id -u)" -ne 0 ]; then
-        echo "[WARNING] Ce script nécessite des privilèges sudo pour certaines opérations."
+        log_warning "Ce script nécessite des privilèges sudo pour certaines opérations."
 
         # Vérifier si sudo est disponible sans mot de passe
         if sudo -n true 2>/dev/null; then
-            echo "[INFO] Privilèges sudo disponibles sans mot de passe."
+            log_info "Privilèges sudo disponibles sans mot de passe."
         else
-            echo "[INFO] Tentative d'obtention des privilèges sudo..."
+            log_info "Tentative d'obtention des privilèges sudo..."
             if ! sudo -v; then
-                echo "[ERROR] Impossible d'obtenir les privilèges sudo. Certaines opérations pourraient échouer."
-                echo "[ERROR] Il est recommandé d'exécuter ce script avec sudo ou en tant que root."
+                log_error "Impossible d'obtenir les privilèges sudo. Certaines opérations pourraient échouer. Il est recommandé d'exécuter ce script avec sudo ou en tant que root."
 
                 # Demander à l'utilisateur s'il souhaite continuer
                 if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
                     read -p "Voulez-vous continuer quand même? (y/n) " -n 1 -r
                     echo
                     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                        echo "[INFO] Opération annulée."
+                        log_info "Opération annulée."
                         exit 1
                     fi
                 else
@@ -106,7 +193,7 @@ check_docker() {
                     exit 1
                 fi
             else
-                echo "[INFO] Privilèges sudo obtenus avec succès."
+                log_info "Privilèges sudo obtenus avec succès."
             fi
         fi
     fi
@@ -115,47 +202,46 @@ check_docker() {
 # Vérifier les variables requises pour le déploiement
 check_deploy_vars() {
     # Vérifier les variables essentielles
-    if [ -z "$SSH_KEY" ]; then
-        echo "[ERROR] La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
-        exit 1
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
     fi
 
     if [ -z "$DOCKERHUB_TOKEN" ]; then
-        echo "[ERROR] Le token Docker Hub n'est pas défini. Veuillez définir la variable DOCKERHUB_TOKEN."
-        exit 1
+        log_error "Le token Docker Hub n'est pas défini. Veuillez définir la variable DOCKERHUB_TOKEN."
     fi
 
     # Vérifier les variables spécifiques à la cible
     if [ "$TARGET" = "mobile" ] || [ "$TARGET" = "all" ]; then
         if [ -z "$EC2_APP_IP" ]; then
-            echo "[ERROR] L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
-            exit 1
+            log_error "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
         fi
     fi
 
     if [ "$TARGET" = "monitoring" ] || [ "$TARGET" = "all" ]; then
         if [ -z "$EC2_MONITORING_IP" ]; then
-            echo "[ERROR] L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
-            exit 1
+            log_error "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
         fi
 
         # Vérifier les variables de base de données pour le monitoring
-        if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ] || [ -z "$RDS_ENDPOINT" ]; then
-            echo "[ERROR] Les informations de connexion à la base de données ne sont pas complètes."
-            echo "[ERROR] Veuillez définir les variables DB_USERNAME, DB_PASSWORD et TF_RDS_ENDPOINT."
-            exit 1
+        if [ -z "$RDS_USERNAME" ] || [ -z "$RDS_PASSWORD" ] || [ -z "$RDS_ENDPOINT" ]; then
+            log_error "Les informations de connexion à la base de données ne sont pas complètes. Veuillez définir les variables RDS_USERNAME (DB_USERNAME), RDS_PASSWORD (DB_PASSWORD) et RDS_ENDPOINT (TF_RDS_ENDPOINT)."
         fi
 
         # Vérifier les variables GitHub pour SonarQube
         if [ -z "$GITHUB_CLIENT_ID" ] || [ -z "$GITHUB_CLIENT_SECRET" ]; then
-            echo "[WARNING] Les informations d'authentification GitHub pour SonarQube ne sont pas définies."
-            echo "[WARNING] L'intégration GitHub avec SonarQube ne sera pas disponible."
-            echo "[WARNING] Veuillez définir les variables GITHUB_CLIENT_ID et GITHUB_CLIENT_SECRET pour activer cette fonctionnalité."
-            read -p "Voulez-vous continuer sans l'intégration GitHub? (y/n) " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                echo "[INFO] Opération annulée. Veuillez définir les variables GitHub."
-                exit 1
+            log_warning "Les informations d'authentification GitHub pour SonarQube ne sont pas définies."
+            log_warning "L'intégration GitHub avec SonarQube ne sera pas disponible."
+            log_warning "Veuillez définir les variables GITHUB_CLIENT_ID et GITHUB_CLIENT_SECRET pour activer cette fonctionnalité."
+
+            if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
+                read -p "Voulez-vous continuer sans l'intégration GitHub? (y/n) " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    log_info "Opération annulée. Veuillez définir les variables GitHub."
+                    exit 1
+                fi
+            else
+                log_info "Mode non interactif. Continuation sans l'intégration GitHub."
             fi
         fi
     fi
@@ -163,66 +249,84 @@ check_deploy_vars() {
 
 # Connexion à Docker Hub
 docker_login() {
-    echo "[INFO] Connexion à Docker Hub..."
-    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    log_info "Connexion à Docker Hub..."
+    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin || log_error "Échec de la connexion à Docker Hub"
 }
 
 # Fonction pour construire et pousser l'image mobile
 build_push_mobile() {
-    echo "[INFO] Construction de l'image Docker pour l'application mobile..."
-    cd ../app-react
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest .
+    log_info "Construction de l'image Docker pour l'application mobile..."
+    # Utiliser le chemin absolu pour l'application mobile
+    APP_REACT_DIR="${PROJECT_ROOT}/app-react"
 
-    echo "[INFO] Publication de l'image mobile sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-$VERSION
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest
+    # Vérifier que le répertoire existe
+    if [ ! -d "$APP_REACT_DIR" ]; then
+        log_error "Le répertoire de l'application mobile n'existe pas: $APP_REACT_DIR"
+    fi
 
-    echo "[SUCCESS] Image mobile publiée avec succès!"
-    cd -
+    # Construire l'image depuis le répertoire de l'application
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest "$APP_REACT_DIR" || log_error "Échec de la construction de l'image mobile"
+
+    log_info "Publication de l'image mobile sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-$DOCKER_VERSION || log_error "Échec de la publication de l'image mobile (version)"
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest || log_error "Échec de la publication de l'image mobile (latest)"
+
+    log_success "Image mobile publiée avec succès!"
 }
 
 # Fonction pour construire et pousser les images de monitoring
 build_push_monitoring() {
-    echo "[INFO] Construction de l'image Docker pour Grafana..."
-    cd ../scripts/docker/grafana
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest .
+    # Définir les chemins absolus pour les répertoires Docker
+    GRAFANA_DIR="${PROJECT_ROOT}/scripts/docker/grafana"
+    PROMETHEUS_DIR="${PROJECT_ROOT}/scripts/docker/prometheus"
+    SONARQUBE_DIR="${PROJECT_ROOT}/scripts/docker/sonarqube"
 
-    echo "[INFO] Publication de l'image Grafana sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-$VERSION
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest
+    # Vérifier que les répertoires existent
+    for DIR in "$GRAFANA_DIR" "$PROMETHEUS_DIR" "$SONARQUBE_DIR"; do
+        if [ ! -d "$DIR" ]; then
+            log_error "Le répertoire n'existe pas: $DIR"
+        fi
+    done
 
-    echo "[INFO] Construction de l'image Docker pour Prometheus..."
-    cd ../prometheus
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest .
+    log_info "Construction de l'image Docker pour Grafana..."
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest "$GRAFANA_DIR" || log_error "Échec de la construction de l'image Grafana"
 
-    echo "[INFO] Publication de l'image Prometheus sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$VERSION
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest
+    log_info "Publication de l'image Grafana sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-$DOCKER_VERSION || log_error "Échec de la publication de l'image Grafana (version)"
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest || log_error "Échec de la publication de l'image Grafana (latest)"
 
-    echo "[INFO] Construction de l'image Docker pour SonarQube..."
-    cd ../sonarqube
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest .
+    log_info "Construction de l'image Docker pour Prometheus..."
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest "$PROMETHEUS_DIR" || log_error "Échec de la construction de l'image Prometheus"
 
-    echo "[INFO] Publication de l'image SonarQube sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$VERSION
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest
+    log_info "Publication de l'image Prometheus sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION || log_error "Échec de la publication de l'image Prometheus (version)"
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest || log_error "Échec de la publication de l'image Prometheus (latest)"
 
-    echo "[SUCCESS] Images de monitoring publiées avec succès!"
-    cd -
+    log_info "Construction de l'image Docker pour SonarQube..."
+    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest "$SONARQUBE_DIR" || log_error "Échec de la construction de l'image SonarQube"
+
+    log_info "Publication de l'image SonarQube sur Docker Hub..."
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$DOCKER_VERSION || log_error "Échec de la publication de l'image SonarQube (version)"
+    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest || log_error "Échec de la publication de l'image SonarQube (latest)"
+
+    log_success "Images de monitoring publiées avec succès!"
 }
 
 # Fonction pour déployer les conteneurs de monitoring
 deploy_monitoring() {
-    echo "[INFO] Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
+    log_info "Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
 
-    # Créer un fichier temporaire pour la clé SSH
+    # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
     # Supprimer les guillemets simples qui pourraient être présents dans la clé
-    CLEAN_SSH_KEY=$(echo "$SSH_KEY" | sed "s/'//g")
-    echo "$CLEAN_SSH_KEY" > ssh_key.pem
-    chmod 600 ssh_key.pem
+    CLEAN_SSH_KEY=$(echo "$EC2_SSH_KEY" | sed "s/'//g")
+    SSH_KEY_FILE=$(mktemp -p /tmp ssh_key_XXXXXXXX)
+    echo "$CLEAN_SSH_KEY" > "$SSH_KEY_FILE"
+    chmod 400 "$SSH_KEY_FILE" || log_error "Impossible de définir les permissions sur le fichier de clé SSH"
+    # Ajouter le fichier à la liste des fichiers à supprimer à la fin
+    trap "rm -f $SSH_KEY_FILE" EXIT
 
     # Se connecter à l'instance EC2 et déployer les conteneurs
-    ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
         echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
@@ -270,7 +374,7 @@ services:
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=$GF_SECURITY_ADMIN_PASSWORD
+      - GF_SECURITY_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -310,7 +414,7 @@ services:
     ports:
       - "9104:9104"
     environment:
-      - DATA_SOURCE_NAME=$DB_USERNAME:$DB_PASSWORD@($RDS_ENDPOINT:3306)/
+      - DATA_SOURCE_NAME=$RDS_USERNAME:$RDS_PASSWORD@($RDS_ENDPOINT:3306)/
     restart: always
     logging:
       driver: "json-file"
@@ -354,8 +458,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=sonar
-      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
+      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-$(openssl rand -base64 16)}
       - POSTGRES_DB=sonar
     volumes:
       - /opt/monitoring/sonarqube-db:/var/lib/postgresql/data
@@ -395,9 +499,9 @@ EOFINNER
         # Remplacer les variables dans le fichier docker-compose.yml
         sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /tmp/docker-compose.yml
         sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /tmp/docker-compose.yml
-        sed -i "s/\$GF_SECURITY_ADMIN_PASSWORD/$GF_SECURITY_ADMIN_PASSWORD/g" /tmp/docker-compose.yml
-        sed -i "s/\$DB_USERNAME/$DB_USERNAME/g" /tmp/docker-compose.yml
-        sed -i "s/\$DB_PASSWORD/$DB_PASSWORD/g" /tmp/docker-compose.yml
+        sed -i "s/\$GF_SECURITY_ADMIN_PASSWORD/$GRAFANA_ADMIN_PASSWORD/g" /tmp/docker-compose.yml
+        sed -i "s/\$DB_USERNAME/$RDS_USERNAME/g" /tmp/docker-compose.yml
+        sed -i "s/\$DB_PASSWORD/$RDS_PASSWORD/g" /tmp/docker-compose.yml
         sed -i "s/\$RDS_ENDPOINT/$RDS_ENDPOINT/g" /tmp/docker-compose.yml
         sed -i "s/\$GITHUB_CLIENT_ID/$GITHUB_CLIENT_ID/g" /tmp/docker-compose.yml
         sed -i "s/\$GITHUB_CLIENT_SECRET/$GITHUB_CLIENT_SECRET/g" /tmp/docker-compose.yml
@@ -414,24 +518,26 @@ EOFINNER
         sudo docker ps
 EOF
 
-    # Supprimer le fichier temporaire de la clé SSH
-    rm ssh_key.pem
+    # Le fichier temporaire de la clé SSH sera supprimé automatiquement grâce au trap EXIT
 
-    echo "[SUCCESS] Déploiement des conteneurs de monitoring terminé."
+    log_success "Déploiement des conteneurs de monitoring terminé."
 }
 
 # Fonction pour déployer l'application mobile
 deploy_mobile() {
-    echo "[INFO] Déploiement de l'application mobile sur $EC2_APP_IP..."
+    log_info "Déploiement de l'application mobile sur $EC2_APP_IP..."
 
-    # Créer un fichier temporaire pour la clé SSH
+    # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
     # Supprimer les guillemets simples qui pourraient être présents dans la clé
-    CLEAN_SSH_KEY=$(echo "$SSH_KEY" | sed "s/'//g")
-    echo "$CLEAN_SSH_KEY" > ssh_key.pem
-    chmod 600 ssh_key.pem
+    CLEAN_SSH_KEY=$(echo "$EC2_SSH_KEY" | sed "s/'//g")
+    SSH_KEY_FILE=$(mktemp -p /tmp ssh_key_XXXXXXXX)
+    echo "$CLEAN_SSH_KEY" > "$SSH_KEY_FILE"
+    chmod 400 "$SSH_KEY_FILE" || log_error "Impossible de définir les permissions sur le fichier de clé SSH"
+    # Ajouter le fichier à la liste des fichiers à supprimer à la fin
+    trap "rm -f $SSH_KEY_FILE" EXIT
 
     # Se connecter à l'instance EC2 et déployer les conteneurs
-    ssh -i ssh_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_APP_IP << EOF
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_APP_IP << EOF
         # Connexion à Docker Hub
         echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
@@ -479,20 +585,19 @@ EOFINNER
         sudo docker ps
 EOF
 
-    # Supprimer le fichier temporaire de la clé SSH
-    rm ssh_key.pem
+    # Le fichier temporaire de la clé SSH sera supprimé automatiquement grâce au trap EXIT
 
-    echo "[SUCCESS] Déploiement de l'application mobile terminé."
+    log_success "Déploiement de l'application mobile terminé."
 }
 
 # Vérifier les arguments
 if [ "$ACTION" != "build" ] && [ "$ACTION" != "deploy" ] && [ "$ACTION" != "all" ]; then
-    echo "[ERROR] Action inconnue: $ACTION"
+    log_error "Action inconnue: $ACTION"
     show_help
 fi
 
 if [ "$TARGET" != "mobile" ] && [ "$TARGET" != "monitoring" ] && [ "$TARGET" != "all" ]; then
-    echo "[ERROR] Cible inconnue: $TARGET"
+    log_error "Cible inconnue: $TARGET"
     show_help
 fi
 
@@ -552,4 +657,4 @@ case $ACTION in
         ;;
 esac
 
-echo "[SUCCESS] Opérations terminées avec succès!"
+log_success "Opérations terminées avec succès!"

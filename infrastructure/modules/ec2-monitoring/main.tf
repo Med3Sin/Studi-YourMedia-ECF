@@ -154,7 +154,8 @@ resource "aws_iam_policy" "monitoring_policy" {
           "cloudwatch:Describe*",
         ]
         Effect   = "Allow"
-        Resource = "*"
+        # Limiter l'accès aux métriques CloudWatch pour améliorer la sécurité
+        Resource = "arn:aws:cloudwatch:${var.aws_region}:*:*"
       },
       {
         Action = [
@@ -164,7 +165,8 @@ resource "aws_iam_policy" "monitoring_policy" {
           "logs:DescribeLogStreams",
         ]
         Effect   = "Allow"
-        Resource = "arn:aws:logs:*:*:*"
+        # Limiter l'accès aux logs pour améliorer la sécurité
+        Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/ec2/*"
       },
     ]
   })
@@ -173,6 +175,12 @@ resource "aws_iam_policy" "monitoring_policy" {
     Name        = "${var.project_name}-${var.environment}-monitoring-policy"
     Project     = var.project_name
     Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+
+  # Faciliter la suppression et recréation de la politique
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -267,6 +275,14 @@ EOF
     Name        = "${var.project_name}-${var.environment}-monitoring-instance"
     Project     = var.project_name
     Environment = var.environment
+    ManagedBy   = "Terraform"
+    Role        = "Monitoring"
+  }
+
+  # Protéger l'instance contre la suppression accidentelle
+  lifecycle {
+    prevent_destroy = false  # Mettre à true en production
+    ignore_changes  = [ami]  # Ignorer les changements d'AMI pour éviter les recréations inutiles
   }
 }
 

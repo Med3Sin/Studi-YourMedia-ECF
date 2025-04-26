@@ -44,7 +44,7 @@ Le provisionnement automatique est désactivé. Pour configurer manuellement l'i
 
 3. Copiez les fichiers de configuration depuis votre machine locale :
    - scp ${path.module}/scripts/docker-compose.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
-   - scp ${path.module}/docker/prometheus/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
+   - scp ${path.module}/../../scripts/docker/prometheus/prometheus.yml ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
    - scp ${path.module}/../../scripts/docker-manager.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
    - scp ${path.module}/scripts/fix_permissions.sh ec2-user@${aws_instance.monitoring_instance.public_ip}:/opt/monitoring/
 

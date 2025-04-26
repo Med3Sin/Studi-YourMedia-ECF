@@ -23,6 +23,13 @@ resource "aws_iam_policy" "ec2_s3_access_policy" {
   name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy-v2"
   description = "Politique autorisant l'EC2 à accéder au bucket S3 du projet"
   policy      = data.aws_iam_policy_document.ec2_s3_access_policy_doc.json
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy"
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
 }
 
 # Rôle IAM que l'instance EC2 assumera
@@ -129,9 +136,7 @@ export DB_USERNAME="${var.db_username}"
 export DB_PASSWORD="${var.db_password}"
 export RDS_ENDPOINT="${var.rds_endpoint}"
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
-export DOCKERHUB_USERNAME="${var.dockerhub_username}"
-export DOCKERHUB_TOKEN="${var.dockerhub_token}"
-export DOCKERHUB_REPO="${var.dockerhub_repo}"
+export TOMCAT_VERSION="9.0.87"
 
 # Exécuter le script d'initialisation
 /tmp/init-instance.sh

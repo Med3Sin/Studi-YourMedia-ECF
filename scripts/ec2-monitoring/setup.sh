@@ -9,12 +9,31 @@
 
 # Variables (peuvent être remplacées par des variables d'environnement)
 ec2_java_tomcat_ip="${EC2_JAVA_TOMCAT_IP:-PLACEHOLDER_IP}"
-db_username="${DB_USERNAME:-PLACEHOLDER_USERNAME}"
-db_password="${DB_PASSWORD:-PLACEHOLDER_PASSWORD}"
-db_endpoint="${DB_ENDPOINT:-PLACEHOLDER_ENDPOINT}"
+# Variables RDS standardisées
+rds_username="${RDS_USERNAME:-PLACEHOLDER_USERNAME}"
+rds_password="${RDS_PASSWORD:-PLACEHOLDER_PASSWORD}"
+rds_endpoint="${RDS_ENDPOINT:-PLACEHOLDER_ENDPOINT}"
+
+# Extraire l'hôte et le port de RDS_ENDPOINT
+if [[ "$rds_endpoint" == *":"* ]]; then
+    rds_host=$(echo "$rds_endpoint" | cut -d':' -f1)
+    rds_port=$(echo "$rds_endpoint" | cut -d':' -f2)
+else
+    rds_host="$rds_endpoint"
+    rds_port="3306"
+fi
+export RDS_HOST="$rds_host"
+export RDS_PORT="$rds_port"
+
+# Variables de compatibilité (pour les scripts existants)
+db_username="${DB_USERNAME:-$rds_username}"
+db_password="${DB_PASSWORD:-$rds_password}"
+db_endpoint="${DB_ENDPOINT:-$rds_endpoint}"
+# Variables SonarQube
 sonar_jdbc_username="${SONAR_JDBC_USERNAME:-sonar}"
 sonar_jdbc_password="${SONAR_JDBC_PASSWORD:-sonar123}"
 sonar_jdbc_url="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+# Variables Grafana
 grafana_admin_password="${GRAFANA_ADMIN_PASSWORD:-admin}"
 
 # Fonction pour afficher les messages
@@ -149,7 +168,7 @@ if [ ! -d "/opt/monitoring" ]; then
 fi
 
 # Créer les sous-répertoires nécessaires
-for dir in prometheus-data grafana-data sonarqube-data sonarqube-db-data; do
+for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db; do
     if [ ! -d "/opt/monitoring/$dir" ]; then
         log "Création du répertoire /opt/monitoring/$dir"
         sudo mkdir -p "/opt/monitoring/$dir"
@@ -160,113 +179,233 @@ done
 sudo chown -R ec2-user:ec2-user /opt/monitoring
 sudo chmod -R 755 /opt/monitoring
 
-# Création du fichier docker-compose.yml
-log "Création du fichier docker-compose.yml..."
-cat > /opt/monitoring/docker-compose.yml << 'EOF'
-version: '3.8'
+# Appliquer les prérequis système pour SonarQube
+log "Application des prérequis système pour SonarQube..."
+
+# Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
+if grep -q "vm.max_map_count" /etc/sysctl.conf; then
+    log "La configuration vm.max_map_count existe déjà, mise à jour..."
+    sudo sed -i 's/vm.max_map_count=.*/vm.max_map_count=262144/' /etc/sysctl.conf
+else
+    log "Ajout de vm.max_map_count=262144 à /etc/sysctl.conf"
+    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+fi
+sudo sysctl -w vm.max_map_count=262144
+
+# Augmenter la limite de fichiers ouverts
+if grep -q "fs.file-max" /etc/sysctl.conf; then
+    log "La configuration fs.file-max existe déjà, mise à jour..."
+    sudo sed -i 's/fs.file-max=.*/fs.file-max=65536/' /etc/sysctl.conf
+else
+    log "Ajout de fs.file-max=65536 à /etc/sysctl.conf"
+    echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
+fi
+sudo sysctl -w fs.file-max=65536
+
+# Configurer les limites de ressources pour l'utilisateur ec2-user
+if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
+    log "Ajout des limites de ressources pour l'utilisateur ec2-user"
+    echo "ec2-user soft nofile 65536" | sudo tee -a /etc/security/limits.conf
+    echo "ec2-user hard nofile 65536" | sudo tee -a /etc/security/limits.conf
+    echo "ec2-user soft nproc 4096" | sudo tee -a /etc/security/limits.conf
+    echo "ec2-user hard nproc 4096" | sudo tee -a /etc/security/limits.conf
+fi
+
+# Définir les permissions appropriées pour SonarQube
+sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/data
+sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/logs
+sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/extensions
+sudo chown -R 999:999 /opt/monitoring/sonarqube-data/db
+
+# Exécution du script pour récupérer les informations RDS et S3
+log "Exécution du script pour récupérer les informations RDS et S3..."
+if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
+    log "Utilisation du script get-aws-resources-info.sh..."
+    sudo chmod +x /opt/monitoring/get-aws-resources-info.sh
+    sudo /opt/monitoring/get-aws-resources-info.sh
+
+    # Charger les variables d'environnement
+    if [ -f "/opt/monitoring/aws-resources.env" ]; then
+        log "Chargement des variables d'environnement depuis aws-resources.env..."
+        source /opt/monitoring/aws-resources.env
+    else
+        log "AVERTISSEMENT: Le fichier aws-resources.env n'a pas été créé."
+    fi
+else
+    log "AVERTISSEMENT: Le script get-aws-resources-info.sh n'est pas disponible."
+    log "Création manuelle du fichier aws-resources.env..."
+
+    # Créer un fichier de variables d'environnement minimal
+    cat > /opt/monitoring/aws-resources.env << EOF
+# Fichier généré manuellement par setup.sh
+# Date de génération: $(date)
+
+# Informations RDS
+export RDS_ENDPOINT="${rds_endpoint}"
+export RDS_USERNAME="${rds_username}"
+export RDS_PASSWORD="${rds_password}"
+# Variables de compatibilité (pour les scripts existants)
+export DB_USERNAME="${rds_username}"
+export DB_PASSWORD="${rds_password}"
+export DB_ENDPOINT="${rds_endpoint}"
+
+# Informations pour SonarQube
+export SONAR_JDBC_URL="${sonar_jdbc_url}"
+export SONAR_JDBC_USERNAME="${sonar_jdbc_username}"
+export SONAR_JDBC_PASSWORD="${sonar_jdbc_password}"
+
+# Informations pour Grafana
+export GRAFANA_ADMIN_PASSWORD="${grafana_admin_password}"
+EOF
+
+    # Charger les variables d'environnement
+    source /opt/monitoring/aws-resources.env
+fi
+
+# Utiliser le docker-compose.yml du répertoire scripts/ec2-monitoring
+log "Copie du fichier docker-compose.yml depuis le répertoire scripts/ec2-monitoring..."
+if [ -f "/opt/monitoring/docker-compose.yml.template" ]; then
+    log "Utilisation du fichier docker-compose.yml.template..."
+    cp /opt/monitoring/docker-compose.yml.template /opt/monitoring/docker-compose.yml
+else
+    log "Création du fichier docker-compose.yml..."
+    cat > /opt/monitoring/docker-compose.yml << 'EOF'
+version: '3'
 
 services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    ports:
+      - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus-data:/prometheus
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    ports:
-      - "9090:9090"
-    restart: unless-stopped
-    networks:
-      - monitoring-network
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    ports:
-      - "9100:9100"
-    restart: unless-stopped
-    networks:
-      - monitoring-network
-
-  mysql-exporter:
-    image: prom/mysqld-exporter:latest
-    container_name: mysql-exporter
-    environment:
-      - DATA_SOURCE_NAME=MYSQL_USER:MYSQL_PASSWORD@(MYSQL_HOST:3306)/
-    ports:
-      - "9104:9104"
-    restart: unless-stopped
-    networks:
-      - monitoring-network
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=1GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    ports:
+      - "3000:3000"
     volumes:
-      - ./grafana-data:/var/lib/grafana
+      - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=GRAFANA_PASSWORD
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-    ports:
-      - "3001:3000"
-    restart: unless-stopped
-    networks:
-      - monitoring-network
     depends_on:
       - prometheus
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
 
+  # Base de données PostgreSQL pour SonarQube
   sonarqube-db:
     image: postgres:13
     container_name: sonarqube-db
+    ports:
+      - "5432:5432"
     environment:
-      - POSTGRES_USER=SONAR_DB_USER
-      - POSTGRES_PASSWORD=SONAR_DB_PASSWORD
+      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
+      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
       - POSTGRES_DB=sonar
     volumes:
-      - ./sonarqube-db-data:/var/lib/postgresql/data
-    networks:
-      - monitoring-network
-    restart: unless-stopped
+      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
 
+  # SonarQube pour l'analyse de code
   sonarqube:
     image: sonarqube:9.9-community
     container_name: sonarqube
     depends_on:
       - sonarqube-db
-    environment:
-      - SONAR_JDBC_URL=SONAR_JDBC_URL
-      - SONAR_JDBC_USERNAME=SONAR_DB_USER
-      - SONAR_JDBC_PASSWORD=SONAR_DB_PASSWORD
-    volumes:
-      - ./sonarqube-data/data:/opt/sonarqube/data
-      - ./sonarqube-data/logs:/opt/sonarqube/logs
-      - ./sonarqube-data/extensions:/opt/sonarqube/extensions
     ports:
       - "9000:9000"
-    networks:
-      - monitoring-network
-    restart: unless-stopped
+    environment:
+      - SONAR_JDBC_URL=${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}
+      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
+      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
+    volumes:
+      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
+      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
+      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 1g
+    cpu_shares: 1024
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
-networks:
-  monitoring-network:
-    driver: bridge
+  # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
+  cloudwatch-exporter:
+    image: prom/cloudwatch-exporter:latest
+    container_name: cloudwatch-exporter
+    ports:
+      - "9106:9106"
+    volumes:
+      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+    command: "--config.file=/config/cloudwatch-config.yml"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+
+  # Exportateur MySQL pour surveiller RDS
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@(${RDS_ENDPOINT}:3306)/
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
 EOF
+fi
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml..."
@@ -304,15 +443,9 @@ scrape_configs:
       - targets: ['${ec2_java_tomcat_ip}:8080']
 EOF
 
-# Remplacement des variables dans le fichier docker-compose.yml
-log "Remplacement des variables dans le fichier docker-compose.yml..."
-sudo sed -i "s/MYSQL_USER/${db_username}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s/MYSQL_PASSWORD/${db_password}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s/MYSQL_HOST/${db_endpoint}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s/GRAFANA_PASSWORD/${grafana_admin_password}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s/SONAR_DB_USER/${sonar_jdbc_username}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s/SONAR_DB_PASSWORD/${sonar_jdbc_password}/g" /opt/monitoring/docker-compose.yml
-sudo sed -i "s|SONAR_JDBC_URL|${sonar_jdbc_url}|g" /opt/monitoring/docker-compose.yml
+# Remplacement des variables dans le fichier prometheus.yml
+log "Remplacement des variables dans le fichier prometheus.yml..."
+sudo sed -i "s/\${ec2_java_tomcat_ip}/${ec2_java_tomcat_ip}/g" /opt/monitoring/prometheus.yml
 
 # Démarrage des conteneurs
 log "Démarrage des conteneurs..."
@@ -373,6 +506,29 @@ else
     # Correction manuelle des permissions
     sudo chown -R ec2-user:ec2-user /opt/monitoring
     sudo chmod -R 755 /opt/monitoring
+fi
+
+# Configuration d'une tâche cron pour vérifier périodiquement l'état des conteneurs
+log "Configuration d'une tâche cron pour vérifier périodiquement l'état des conteneurs..."
+if [ -f "/opt/monitoring/check-containers.sh" ]; then
+    # Rendre le script exécutable
+    sudo chmod +x /opt/monitoring/check-containers.sh
+
+    # Créer un fichier crontab temporaire
+    cat > /tmp/monitoring-crontab << EOF
+# Vérifier l'état des conteneurs toutes les 15 minutes
+*/15 * * * * /usr/bin/sudo /opt/monitoring/check-containers.sh >> /var/log/container-check.log 2>&1
+EOF
+
+    # Installer la tâche cron pour l'utilisateur root
+    sudo crontab -u root /tmp/monitoring-crontab
+
+    # Supprimer le fichier temporaire
+    rm -f /tmp/monitoring-crontab
+
+    log "Tâche cron configurée avec succès."
+else
+    log "AVERTISSEMENT: Le script check-containers.sh n'existe pas. La tâche cron n'a pas été configurée."
 fi
 
 log "Installation et configuration terminées avec succès."

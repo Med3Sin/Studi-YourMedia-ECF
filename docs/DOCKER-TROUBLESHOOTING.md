@@ -35,6 +35,13 @@ Si Docker ne s'installe pas correctement sur l'instance EC2 de monitoring, plusi
 
    **Pour Amazon Linux 2023** :
    ```bash
+   # Méthode recommandée (utilisant le package natif)
+   sudo dnf install -y docker
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   sudo usermod -aG docker ec2-user
+
+   # Méthode alternative (si la méthode recommandée échoue)
    sudo yum install -y yum-utils
    sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
    sudo yum install -y docker-ce docker-ce-cli containerd.io
@@ -156,6 +163,81 @@ Pour vérifier que Docker est correctement installé et fonctionne :
    docker-compose --version
    ```
 
+## Problèmes spécifiques aux conteneurs
+
+### 1. SonarQube ne démarre pas (erreur 137)
+
+**Symptômes** : Le conteneur SonarQube redémarre constamment avec le code d'erreur 137 (Out Of Memory).
+
+**Solution** :
+1. Vérifiez les logs du conteneur :
+   ```bash
+   docker logs sonarqube
+   ```
+
+2. Vérifiez la configuration système pour Elasticsearch :
+   ```bash
+   sysctl -n vm.max_map_count
+   ```
+
+3. Augmentez la limite de mmap count :
+   ```bash
+   sudo sysctl -w vm.max_map_count=262144
+   echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+   ```
+
+4. Limitez la mémoire utilisée par Elasticsearch dans le fichier docker-compose.yml :
+   ```yaml
+   environment:
+     - SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m
+   ```
+
+5. Redémarrez le conteneur :
+   ```bash
+   cd /opt/monitoring
+   docker-compose restart sonarqube
+   ```
+
+### 2. MySQL Exporter ne démarre pas
+
+**Symptômes** : Le conteneur MySQL Exporter redémarre constamment avec des erreurs de configuration.
+
+**Solution** :
+1. Vérifiez les logs du conteneur :
+   ```bash
+   docker logs mysql-exporter
+   ```
+
+2. Vérifiez que les variables d'environnement RDS sont correctement définies :
+   ```bash
+   cat /opt/monitoring/env.sh | grep RDS
+   ```
+
+3. Créez manuellement un fichier .my.cnf :
+   ```bash
+   cat > /tmp/.my.cnf << EOF
+   [client]
+   user=<RDS_USERNAME>
+   password=<RDS_PASSWORD>
+   host=<RDS_HOST>
+   port=<RDS_PORT>
+   EOF
+   chmod 600 /tmp/.my.cnf
+   ```
+
+4. Modifiez la configuration dans docker-compose.yml :
+   ```yaml
+   mysql-exporter:
+     environment:
+       - DATA_SOURCE_NAME=<RDS_USERNAME>:<RDS_PASSWORD>@tcp(<RDS_HOST>:<RDS_PORT>)/
+   ```
+
+5. Redémarrez le conteneur :
+   ```bash
+   cd /opt/monitoring
+   docker-compose restart mysql-exporter
+   ```
+
 ## Journaux et diagnostics
 
 Pour collecter des informations de diagnostic :
@@ -170,14 +252,29 @@ Pour collecter des informations de diagnostic :
    cat /var/log/docker-install.log
    ```
 
-3. Vérifiez l'état du système :
+3. Vérifiez les journaux des conteneurs :
+   ```bash
+   docker logs <nom_du_conteneur>
+   ```
+
+4. Vérifiez l'état du système :
    ```bash
    sudo systemctl status
    ```
 
-4. Vérifiez l'espace disque disponible :
+5. Vérifiez l'espace disque disponible :
    ```bash
    df -h
+   ```
+
+6. Vérifiez l'utilisation de la mémoire :
+   ```bash
+   free -h
+   ```
+
+7. Vérifiez les logs du script de vérification automatique :
+   ```bash
+   sudo tail -f /var/log/container-check.log
    ```
 
 ## Réinstallation complète

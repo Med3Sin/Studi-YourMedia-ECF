@@ -74,7 +74,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Étape 4: Configuration des variables d'environnement et des clés SSH
@@ -157,8 +157,8 @@ jobs:
           terraform plan \
             -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            -var="db_username=${{ secrets.DB_USERNAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_username=${{ secrets.RDS_USERNAME }}" \
+            -var="db_password=${{ secrets.RDS_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
@@ -171,9 +171,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
+            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -214,8 +214,8 @@ jobs:
             terraform apply -auto-approve -target=module.s3 \
               -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
               -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              -var="db_username=${{ secrets.DB_USERNAME }}" \
-              -var="db_password=${{ secrets.DB_PASSWORD }}" \
+              -var="db_username=${{ secrets.RDS_USERNAME }}" \
+              -var="db_password=${{ secrets.RDS_PASSWORD }}" \
               -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
               -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
               -var="github_token=${{ secrets.GH_PAT || '' }}" \
@@ -228,9 +228,9 @@ jobs:
               -var="environment=${{ github.event.inputs.environment || 'dev' }}" \
               -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
               -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-              -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME || '' }}" \
+              -var="dockerhub_username=${{ secrets.DOCKER_USERNAME || '' }}" \
               -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN || '' }}" \
-              -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO || '' }}"
+              -var="dockerhub_repo=${{ secrets.DOCKER_REPO || '' }}"
 
             # Récupérer le nom du bucket S3 après la création
             S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
@@ -347,8 +347,8 @@ jobs:
           terraform apply -auto-approve -target=module.s3 \
             -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            -var="db_username=${{ secrets.DB_USERNAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_username=${{ secrets.RDS_USERNAME }}" \
+            -var="db_password=${{ secrets.RDS_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
@@ -361,9 +361,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
 
           # Récupérer le nom du bucket S3
           S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
@@ -474,8 +474,8 @@ jobs:
           terraform apply -auto-approve \
             -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            -var="db_username=${{ secrets.DB_USERNAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_username=${{ secrets.RDS_USERNAME }}" \
+            -var="db_password=${{ secrets.RDS_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
@@ -488,9 +488,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
           echo "::endgroup::"
 
           # Affiche les outputs après l'application
@@ -620,8 +620,8 @@ jobs:
           terraform destroy -auto-approve \
             -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            -var="db_username=${{ secrets.DB_USERNAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="db_username=${{ secrets.RDS_USERNAME }}" \
+            -var="db_password=${{ secrets.RDS_PASSWORD }}" \
             -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
             -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
             -var="github_token=${{ secrets.GH_PAT || '' }}" \
@@ -634,9 +634,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
 
@@ -942,7 +942,42 @@ jobs:
       # Note: La création du secret Amplify App URL a été supprimée car nous utilisons maintenant des conteneurs Docker
       # pour le déploiement du frontend React Native.
 
-      # Étape 11: Résumé de l'exécution
+      # Étape 11: Synchronisation des secrets GitHub vers Terraform Cloud
+      - name: Sync GitHub Secrets to Terraform Cloud
+        id: sync_secrets
+        if: github.event.inputs.action == 'apply'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TF_WORKSPACE_ID: ${{ secrets.TF_WORKSPACE_ID }}
+          # Exporter les secrets qui doivent être synchronisés
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_SSH_PUBLIC_KEY: ${{ secrets.EC2_SSH_PUBLIC_KEY }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          # Ajouter les variables d'infrastructure
+          TF_EC2_PUBLIC_IP: ${{ env.EC2_PUBLIC_IP }}
+          TF_S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+          TF_MONITORING_EC2_PUBLIC_IP: ${{ env.MONITORING_EC2_PUBLIC_IP }}
+          TF_RDS_ENDPOINT: ${{ env.RDS_ENDPOINT }}
+        run: |
+          echo "::group::Synchronisation des secrets GitHub vers Terraform Cloud"
+          # Rendre le script exécutable
+          chmod +x ${GITHUB_WORKSPACE}/scripts/utils/sync-github-secrets-to-terraform.sh
+
+          # Exécuter le script de synchronisation
+          ${GITHUB_WORKSPACE}/scripts/utils/sync-github-secrets-to-terraform.sh
+
+          echo "Secrets synchronisés avec succès vers Terraform Cloud"
+          echo "::endgroup::"
+        continue-on-error: true
+
+      # Étape 12: Résumé de l'exécution
       - name: Summary
         run: |
           echo "## Résumé de l'exécution Terraform" >> $GITHUB_STEP_SUMMARY

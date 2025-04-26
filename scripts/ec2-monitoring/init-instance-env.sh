@@ -62,12 +62,17 @@ sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monit
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh || error_exit "Impossible de télécharger install-docker.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/get-aws-resources-info.sh /opt/monitoring/get-aws-resources-info.sh || log "AVERTISSEMENT: Impossible de télécharger get-aws-resources-info.sh depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml depuis S3"
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/monitoring/install-docker.sh
 sudo chmod +x /opt/monitoring/setup.sh
 sudo chmod +x /opt/monitoring/fix_permissions.sh
 sudo chmod +x /opt/monitoring/docker-manager.sh
+if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
+    sudo chmod +x /opt/monitoring/get-aws-resources-info.sh
+fi
 
 # Copier docker-manager.sh dans /usr/local/bin/
 log "Copie de docker-manager.sh dans /usr/local/bin/"
@@ -76,15 +81,34 @@ sudo chmod +x /usr/local/bin/docker-manager.sh
 
 # Création d'un fichier de variables d'environnement pour les scripts
 log "Création du fichier de variables d'environnement"
+
+# Extraire l'hôte et le port de RDS_ENDPOINT
+if [[ "${RDS_ENDPOINT}" == *":"* ]]; then
+    RDS_HOST=$(echo "${RDS_ENDPOINT}" | cut -d':' -f1)
+    RDS_PORT=$(echo "${RDS_ENDPOINT}" | cut -d':' -f2)
+else
+    RDS_HOST="${RDS_ENDPOINT}"
+    RDS_PORT="3306"
+fi
+
 cat > /tmp/monitoring-env.sh << EOF
 export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
-export DB_USERNAME="${DB_USERNAME}"
-export DB_PASSWORD="${DB_PASSWORD}"
+# Variables RDS standardisées
+export RDS_USERNAME="${RDS_USERNAME}"
+export RDS_PASSWORD="${RDS_PASSWORD}"
 export RDS_ENDPOINT="${RDS_ENDPOINT}"
+export RDS_HOST="${RDS_HOST}"
+export RDS_PORT="${RDS_PORT}"
+# Variables de compatibilité (pour les scripts existants)
+export DB_USERNAME="${RDS_USERNAME}"
+export DB_PASSWORD="${RDS_PASSWORD}"
+# Variables SonarQube
 export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME}"
 export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
 export SONAR_JDBC_URL="${SONAR_JDBC_URL}"
+# Variables Grafana
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
+# Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
 EOF
 
