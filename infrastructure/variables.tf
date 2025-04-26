@@ -301,3 +301,87 @@ variable "DOCKERHUB_REPO" {
   default     = ""
   sensitive   = true
 }
+
+# Variables manquantes identifiées dans les avertissements Terraform
+
+variable "TF_RDS_ENDPOINT" {
+  description = "Point de terminaison RDS (endpoint) généré par Terraform."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "RDS_PASSWORD" {
+  description = "Mot de passe pour la base de données RDS (alias)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "RDS_USERNAME" {
+  description = "Nom d'utilisateur pour la base de données RDS (alias)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "AWS_DEFAULT_REGION" {
+  description = "Région AWS par défaut pour les opérations."
+  type        = string
+  default     = "eu-west-3"
+}
+
+variable "DOCKER_USERNAME" {
+  description = "Nom d'utilisateur Docker Hub (alias)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# Variables supplémentaires potentiellement utilisées
+
+variable "GITHUB_CLIENT_ID" {
+  description = "ID client pour l'authentification OAuth GitHub."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "GITHUB_CLIENT_SECRET" {
+  description = "Secret client pour l'authentification OAuth GitHub."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "GF_SECURITY_ADMIN_PASSWORD" {
+  description = "Mot de passe administrateur Grafana (format variable d'environnement)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "EC2_SSH_PRIVATE_KEY" {
+  description = "Contenu de la clé privée SSH pour les instances EC2 (format spécifique)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "TF_EC2_PUBLIC_IP" {
+  description = "Adresse IP publique de l'instance EC2 générée par Terraform."
+  type        = string
+  default     = ""
+}
+
+variable "TF_MONITORING_EC2_PUBLIC_IP" {
+  description = "Adresse IP publique de l'instance EC2 de monitoring générée par Terraform."
+  type        = string
+  default     = ""
+}
+
+variable "TF_S3_BUCKET_NAME" {
+  description = "Nom du bucket S3 généré par Terraform."
+  type        = string
+  default     = ""
+}
