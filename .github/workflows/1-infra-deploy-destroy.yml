@@ -300,6 +300,9 @@ jobs:
 
           # Chiffrer la valeur du secret
           echo "Chiffrement de la valeur du secret..."
+          # Écrire la valeur du secret dans un fichier temporaire pour éviter les problèmes d'échappement
+          echo "$SECRET_VALUE" > /tmp/secret_value.txt
+
           ENCRYPTED_VALUE=$(python3 -c "
           import base64
           import json
@@ -311,8 +314,14 @@ jobs:
               encrypted = sealed_box.encrypt(secret_value.encode('utf-8'))
               return base64.b64encode(encrypted).decode('utf-8')
 
-          print(encrypt('$PUBLIC_KEY', '$SECRET_VALUE'))
+          with open('/tmp/secret_value.txt', 'r') as f:
+              secret_value = f.read()
+
+          print(encrypt('$PUBLIC_KEY', secret_value))
           ")
+
+          # Supprimer le fichier temporaire
+          rm -f /tmp/secret_value.txt
 
           # Mettre à jour le secret
           echo "Mise à jour du secret '$SECRET_NAME'..."

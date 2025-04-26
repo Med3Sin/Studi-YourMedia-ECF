@@ -62,69 +62,91 @@ SECRET_NAMES=$(echo "$SECRETS_RESPONSE" | jq -r '.secrets[].name')
 # Pour chaque secret, récupérer sa valeur et la synchroniser vers Terraform Cloud
 for SECRET_NAME in $SECRET_NAMES; do
     log "Traitement du secret: $SECRET_NAME"
-    
+
     # Vérifier si le secret est déjà défini dans Terraform Cloud
     TF_VAR_RESPONSE=$(curl -s -H "Authorization: Bearer $TF_API_TOKEN" \
         -H "Content-Type: application/vnd.api+json" \
         "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars?filter%5Bname%5D=$SECRET_NAME")
-    
+
     # Vérifier si la variable existe déjà
     VAR_ID=$(echo "$TF_VAR_RESPONSE" | jq -r '.data[] | select(.attributes.key == "'$SECRET_NAME'") | .id')
-    
+
     # La valeur du secret GitHub n'est pas accessible directement via l'API
     # Nous devons utiliser la valeur qui est déjà disponible dans l'environnement
     SECRET_VALUE="${!SECRET_NAME}"
-    
+
     if [ -z "$SECRET_VALUE" ]; then
         log "La valeur du secret $SECRET_NAME n'est pas disponible dans l'environnement"
         continue
     fi
-    
+
     # Déterminer si le secret doit être sensible dans Terraform Cloud
     IS_SENSITIVE=true
     if [[ "$SECRET_NAME" == *"_URL"* ]] || [[ "$SECRET_NAME" == *"_ENDPOINT"* ]] || [[ "$SECRET_NAME" == *"_IP"* ]]; then
         IS_SENSITIVE=false
     fi
-    
+
+    # Échapper les caractères spéciaux dans la valeur du secret
+    ESCAPED_VALUE=$(echo "$SECRET_VALUE" | jq -aRs .)
+
     # Créer ou mettre à jour la variable dans Terraform Cloud
     if [ -n "$VAR_ID" ]; then
         # Mettre à jour la variable existante
         log "Mise à jour de la variable $SECRET_NAME dans Terraform Cloud..."
+
+        # Créer le JSON de la requête avec jq pour éviter les problèmes d'échappement
+        JSON_PAYLOAD=$(jq -n \
+            --arg id "$VAR_ID" \
+            --arg key "$SECRET_NAME" \
+            --arg value "$SECRET_VALUE" \
+            --arg desc "Synchronisé depuis GitHub Secrets" \
+            --argjson sensitive $IS_SENSITIVE \
+            '{
+                "data": {
+                    "id": $id,
+                    "type": "vars",
+                    "attributes": {
+                        "key": $key,
+                        "value": $value,
+                        "description": $desc,
+                        "sensitive": $sensitive
+                    }
+                }
+            }')
+
         curl -s -X PATCH "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars/$VAR_ID" \
             -H "Authorization: Bearer $TF_API_TOKEN" \
             -H "Content-Type: application/vnd.api+json" \
-            -d '{
-                "data": {
-                    "id": "'$VAR_ID'",
-                    "type": "vars",
-                    "attributes": {
-                        "key": "'$SECRET_NAME'",
-                        "value": "'$SECRET_VALUE'",
-                        "description": "Synchronisé depuis GitHub Secrets",
-                        "sensitive": '$IS_SENSITIVE'
-                    }
-                }
-            }'
+            -d "$JSON_PAYLOAD"
     else
         # Créer une nouvelle variable
         log "Création de la variable $SECRET_NAME dans Terraform Cloud..."
-        curl -s -X POST "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" \
-            -H "Authorization: Bearer $TF_API_TOKEN" \
-            -H "Content-Type: application/vnd.api+json" \
-            -d '{
+
+        # Créer le JSON de la requête avec jq pour éviter les problèmes d'échappement
+        JSON_PAYLOAD=$(jq -n \
+            --arg key "$SECRET_NAME" \
+            --arg value "$SECRET_VALUE" \
+            --arg desc "Synchronisé depuis GitHub Secrets" \
+            --argjson sensitive $IS_SENSITIVE \
+            '{
                 "data": {
                     "type": "vars",
                     "attributes": {
-                        "key": "'$SECRET_NAME'",
-                        "value": "'$SECRET_VALUE'",
-                        "description": "Synchronisé depuis GitHub Secrets",
+                        "key": $key,
+                        "value": $value,
+                        "description": $desc,
                         "category": "terraform",
-                        "sensitive": '$IS_SENSITIVE'
+                        "sensitive": $sensitive
                     }
                 }
-            }'
+            }')
+
+        curl -s -X POST "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" \
+            -H "Authorization: Bearer $TF_API_TOKEN" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d "$JSON_PAYLOAD"
     fi
-    
+
     if [ $? -ne 0 ]; then
         log "AVERTISSEMENT: Impossible de synchroniser le secret $SECRET_NAME vers Terraform Cloud"
     else
