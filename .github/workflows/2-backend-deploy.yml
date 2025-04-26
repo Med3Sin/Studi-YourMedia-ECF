@@ -65,7 +65,7 @@ jobs:
       # Étape 4: Compilation avec Maven
       - name: Build with Maven
         run: |
-          echo "::group::Maven Build"
+          echo "group=Maven Build" >> $GITHUB_STEP_SUMMARY
           # Vérifier que le répertoire existe
           if [ ! -d "${{ env.APP_DIR }}" ]; then
             echo "ERREUR: Le répertoire ${{ env.APP_DIR }} n'existe pas!"
@@ -84,7 +84,7 @@ jobs:
 
           # Exécuter Maven
           cd ${{ env.APP_DIR }} && mvn -B package --file pom.xml # -B pour le mode batch non interactif
-          echo "::endgroup::"
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 5: Configuration des identifiants AWS
       - name: Configure AWS Credentials
@@ -110,7 +110,7 @@ jobs:
       # Étape 6: Téléchargement du WAR sur S3
       - name: Upload WAR to S3
         run: |
-          echo "::group::Upload to S3"
+          echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
           # Vérifier que le fichier WAR existe
           if [ ! -f "${{ env.APP_DIR }}/target/yourmedia-backend.war" ]; then
             echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/yourmedia-backend.war"
@@ -122,7 +122,7 @@ jobs:
           # Copier le WAR vers S3 avec le nom de déploiement (incluant l'environnement)
           aws s3 cp ${{ env.APP_DIR }}/target/yourmedia-backend.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
           echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
-          echo "::endgroup::"
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 7: Configuration de SSH simplifiée
       - name: Setup SSH
@@ -140,7 +140,7 @@ jobs:
       # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
-          echo "::group::Deploy to EC2"
+          echo "group=Deploy to EC2" >> $GITHUB_STEP_SUMMARY
           # Déploiement du WAR sur l'instance EC2
           echo "Déploiement du WAR sur l'instance EC2..."
 
@@ -191,7 +191,7 @@ jobs:
           EOF
 
           echo "Déploiement terminé."
-          echo "::endgroup::"
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 9: Résumé du déploiement
       - name: Summary
