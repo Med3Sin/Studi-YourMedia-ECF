@@ -57,6 +57,34 @@ La configuration des variables d'environnement AWS et des clés SSH a été cent
 
 Les chemins de fichiers sont maintenant stockés dans des variables, ce qui facilite leur modification et évite les erreurs.
 
+### 3. Amélioration de la synchronisation des secrets
+
+La synchronisation des secrets GitHub vers Terraform Cloud a été améliorée pour gérer correctement les caractères spéciaux et les sauts de ligne :
+
+```yaml
+# Amélioration de la gestion des secrets avec jq
+JSON_PAYLOAD=$(jq -n \
+  --arg id "$VAR_ID" \
+  --arg key "$SECRET_NAME" \
+  --arg value "$SECRET_VALUE" \
+  --arg desc "Synchronisé depuis GitHub Secrets" \
+  --argjson sensitive $IS_SENSITIVE \
+  '{
+    "data": {
+      "id": $id,
+      "type": "vars",
+      "attributes": {
+        "key": $key,
+        "value": $value,
+        "description": $desc,
+        "sensitive": $sensitive
+      }
+    }
+  }')
+```
+
+Cette approche utilise `jq` pour créer les payloads JSON, ce qui évite les problèmes d'échappement et permet de gérer correctement tous les types de valeurs de secrets.
+
 ## Améliorations du workflow `2-backend-deploy.yml`
 
 Le workflow de déploiement du backend a été amélioré de la manière suivante :
@@ -73,10 +101,10 @@ La configuration SSH a été simplifiée pour utiliser une approche plus directe
     mkdir -p ~/.ssh
     echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
     chmod 600 ~/.ssh/id_rsa
-    
+
     # Ajouter la clé d'hôte EC2 aux known_hosts pour éviter les prompts
     ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
-    
+
     echo "Configuration SSH terminée."
 ```
 
@@ -98,13 +126,13 @@ Le déploiement du WAR a été simplifié pour utiliser une approche plus direct
       aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
       region=${{ env.AWS_REGION }}
       EOC
-      
+
       # Télécharger le WAR depuis S3
       sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
-      
+
       # Déployer le WAR avec le script deploy-war.sh
       sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
-      
+
       # Nettoyer les informations d'identification AWS
       rm -rf ~/.aws
     EOF
@@ -156,7 +184,7 @@ if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.t
   curl -f http://localhost:3001/api/health || (echo "::warning::Le health check de l'image Grafana a échoué" && docker logs grafana-test)
   docker stop grafana-test
   docker rm grafana-test
-  
+
   # Test de santé pour Prometheus
   echo "Testing Prometheus health check..."
   docker run -d --name prometheus-test -p 9090:9090 ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}

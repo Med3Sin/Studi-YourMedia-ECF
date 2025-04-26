@@ -99,6 +99,14 @@ Si vous rencontrez cette erreur lors de l'exécution de Terraform, cela signifie
 2. Le secret est correctement référencé dans le workflow GitHub Actions
 3. La variable est correctement définie dans les fichiers Terraform
 
+### Avertissement : "Value for undeclared variable"
+
+Si vous rencontrez cet avertissement dans Terraform Cloud, cela signifie que vous utilisez une variable qui n'est pas déclarée dans vos fichiers Terraform. Pour résoudre ce problème :
+
+1. Vérifiez la casse des variables dans vos fichiers Terraform et dans Terraform Cloud
+2. Assurez-vous que toutes les variables utilisées dans Terraform Cloud sont déclarées dans le fichier `variables.tf`
+3. Si vous utilisez des variables avec une casse différente (par exemple, `DOCKERHUB_TOKEN` et `dockerhub_token`), déclarez les deux versions dans votre fichier `variables.tf`
+
 ### Erreur : "Error: Invalid AWS credentials"
 
 Si vous rencontrez cette erreur, vérifiez que :

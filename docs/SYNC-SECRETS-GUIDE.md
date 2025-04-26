@@ -49,7 +49,7 @@ Le workflow `sync-secrets-to-terraform.yml` permet d'exécuter le script de sync
 
 - Les valeurs des secrets GitHub ne sont pas accessibles directement via l'API GitHub
 - Le script doit être exécuté dans un environnement où les valeurs des secrets sont disponibles (comme GitHub Actions)
-- Les secrets qui contiennent des caractères spéciaux peuvent nécessiter un traitement particulier
+- Les secrets qui contiennent des caractères spéciaux ou des sauts de ligne sont maintenant correctement gérés grâce à l'utilisation de `jq` pour créer les payloads JSON
 
 ## Dépannage
 
@@ -59,6 +59,17 @@ Si vous rencontrez des problèmes lors de la synchronisation des secrets, vérif
 2. Les variables d'environnement requises sont définies
 3. Le workspace Terraform Cloud existe et est accessible
 4. Les dépendances (curl, jq) sont installées
+
+## Améliorations récentes
+
+Le script de synchronisation a été amélioré pour :
+
+- Gérer automatiquement les secrets sensibles (mots de passe, tokens, clés)
+- Ajouter une description aux variables Terraform Cloud
+- Vérifier l'existence des variables avant de les créer
+- Journaliser les opérations pour faciliter le débogage
+- Utiliser `jq` pour créer les payloads JSON et éviter les problèmes d'échappement
+- Gérer correctement les caractères spéciaux et les sauts de ligne dans les valeurs des secrets
 
 ## Références
 
