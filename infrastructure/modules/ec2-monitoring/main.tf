@@ -153,7 +153,7 @@ resource "aws_iam_policy" "monitoring_policy" {
           "cloudwatch:GetMetricStatistics",
           "cloudwatch:Describe*",
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         # Limiter l'accès aux métriques CloudWatch pour améliorer la sécurité
         Resource = "arn:aws:cloudwatch:${var.aws_region}:*:*"
       },
@@ -164,7 +164,7 @@ resource "aws_iam_policy" "monitoring_policy" {
           "logs:PutLogEvents",
           "logs:DescribeLogStreams",
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         # Limiter l'accès aux logs pour améliorer la sécurité
         Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/ec2/*"
       },
@@ -281,8 +281,8 @@ EOF
 
   # Protéger l'instance contre la suppression accidentelle
   lifecycle {
-    prevent_destroy = false  # Mettre à true en production
-    ignore_changes  = [ami]  # Ignorer les changements d'AMI pour éviter les recréations inutiles
+    prevent_destroy = false # Mettre à true en production
+    ignore_changes  = [ami] # Ignorer les changements d'AMI pour éviter les recréations inutiles
   }
 }
 

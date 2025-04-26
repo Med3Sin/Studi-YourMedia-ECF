@@ -38,7 +38,7 @@ resource "aws_db_instance" "mysql" {
   backup_retention_period = 0
   multi_az                = false
   # Le chiffrement est compatible avec le free tier et n'entraîne pas de coûts supplémentaires
-  storage_encrypted       = true
+  storage_encrypted = true
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-mysql-db"
