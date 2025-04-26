@@ -58,12 +58,20 @@ log "EC2_INSTANCE_PRIVATE_IP=$EC2_INSTANCE_PRIVATE_IP"
 
 # Téléchargement des scripts depuis S3
 log "Téléchargement des scripts depuis S3"
+if [ -z "${S3_BUCKET_NAME}" ]; then
+  log "ERREUR: La variable S3_BUCKET_NAME n'est pas définie"
+  error_exit "La variable S3_BUCKET_NAME est requise pour télécharger les scripts"
+fi
+
+log "Utilisation du bucket S3: ${S3_BUCKET_NAME}"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh || error_exit "Impossible de télécharger setup.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh || error_exit "Impossible de télécharger install-docker.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/get-aws-resources-info.sh /opt/monitoring/get-aws-resources-info.sh || log "AVERTISSEMENT: Impossible de télécharger get-aws-resources-info.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/cloudwatch-config.yml /opt/monitoring/cloudwatch-config.yml || log "AVERTISSEMENT: Impossible de télécharger cloudwatch-config.yml depuis S3"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/configure-sonarqube.sh /opt/monitoring/configure-sonarqube.sh || log "AVERTISSEMENT: Impossible de télécharger configure-sonarqube.sh depuis S3"
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/monitoring/install-docker.sh
@@ -72,6 +80,9 @@ sudo chmod +x /opt/monitoring/fix_permissions.sh
 sudo chmod +x /opt/monitoring/docker-manager.sh
 if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
     sudo chmod +x /opt/monitoring/get-aws-resources-info.sh
+fi
+if [ -f "/opt/monitoring/configure-sonarqube.sh" ]; then
+    sudo chmod +x /opt/monitoring/configure-sonarqube.sh
 fi
 
 # Copier docker-manager.sh dans /usr/local/bin/

@@ -274,7 +274,7 @@ version: '3'
 
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.45.0
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -298,7 +298,7 @@ services:
     cpu_shares: 512
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.0.3
     container_name: grafana
     ports:
       - "3000:3000"
@@ -377,7 +377,7 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+      - /opt/monitoring/cloudwatch-config:/config
     command: "--config.file=/config/cloudwatch-config.yml"
     restart: always
     logging:
@@ -390,12 +390,17 @@ services:
 
   # Exportateur MySQL pour surveiller RDS
   mysql-exporter:
-    image: prom/mysqld-exporter:latest
+    image: prom/mysqld-exporter:v0.15.0
     container_name: mysql-exporter
     ports:
       - "9104:9104"
     environment:
-      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@(${RDS_ENDPOINT}:3306)/
+      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@(${RDS_ENDPOINT:-localhost}:3306)/
+    command:
+      - '--collect.info_schema.tables'
+      - '--collect.info_schema.innodb_metrics'
+      - '--collect.global_status'
+      - '--collect.global_variables'
     restart: always
     logging:
       driver: "json-file"
@@ -406,6 +411,46 @@ services:
     cpu_shares: 256
 EOF
 fi
+
+# Création du répertoire pour CloudWatch Exporter
+log "Création du répertoire pour CloudWatch Exporter..."
+mkdir -p /opt/monitoring/cloudwatch-config
+
+# Création du fichier de configuration CloudWatch Exporter
+log "Création du fichier de configuration CloudWatch Exporter..."
+cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
+---
+region: ${AWS_REGION:-eu-west-3}
+metrics:
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/S3
+    aws_metric_name: NumberOfObjects
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+EOF
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml..."

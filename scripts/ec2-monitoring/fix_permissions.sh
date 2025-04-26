@@ -61,6 +61,31 @@ info "Configuration des permissions..."
 chown -R 65534:65534 /opt/monitoring/prometheus-data
 chown -R 472:472 /opt/monitoring/grafana-data
 
+# Création du répertoire pour CloudWatch Exporter s'il n'existe pas
+if [ ! -d "/opt/monitoring/cloudwatch-config" ]; then
+    info "Création du répertoire pour CloudWatch Exporter..."
+    mkdir -p /opt/monitoring/cloudwatch-config
+fi
+
+# Vérification de l'existence du fichier de configuration CloudWatch
+if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] && [ -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+    info "Copie du fichier de configuration CloudWatch..."
+    cp /opt/monitoring/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+fi
+
+# Configuration des permissions pour SonarQube
+if [ -d "/opt/monitoring/sonarqube-data" ]; then
+    info "Configuration des permissions pour SonarQube..."
+    mkdir -p /opt/monitoring/sonarqube-data/data
+    mkdir -p /opt/monitoring/sonarqube-data/logs
+    mkdir -p /opt/monitoring/sonarqube-data/extensions
+    mkdir -p /opt/monitoring/sonarqube-data/db
+    chown -R 999:999 /opt/monitoring/sonarqube-data/data
+    chown -R 999:999 /opt/monitoring/sonarqube-data/logs
+    chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
+    chown -R 999:999 /opt/monitoring/sonarqube-data/db
+fi
+
 # ÉTAPE 4: Sauvegarder les fichiers de configuration
 if [ -f "/opt/monitoring/docker-compose.yml" ]; then
     cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak

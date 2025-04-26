@@ -119,34 +119,82 @@ data "aws_ami" "amazon_linux_2023" {
 locals {
   install_script = <<-EOF
 #!/bin/bash
+set -e
+
+# Fonction pour afficher les messages
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a /var/log/user-data-init.log
+}
+
+# Fonction pour afficher les erreurs et quitter
+error_exit() {
+    log "ERREUR: $1"
+    exit 1
+}
+
+# Vérification des variables requises
+if [ -z "${var.s3_bucket_name}" ]; then
+    error_exit "La variable s3_bucket_name n'est pas définie"
+fi
+
+if [ -z "${var.db_username}" ]; then
+    error_exit "La variable db_username n'est pas définie"
+fi
+
+if [ -z "${var.db_password}" ]; then
+    error_exit "La variable db_password n'est pas définie"
+fi
+
+if [ -z "${var.rds_endpoint}" ]; then
+    error_exit "La variable rds_endpoint n'est pas définie"
+fi
 
 # Mettre à jour le système
+log "Mise à jour du système"
 dnf update -y
 
 # Installer les dépendances nécessaires
-dnf install -y aws-cli
+log "Installation des dépendances"
+dnf install -y aws-cli curl
 
 # Télécharger le script d'initialisation depuis S3
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-instance-env.sh /tmp/init-instance.sh
+log "Téléchargement du script d'initialisation depuis S3: ${var.s3_bucket_name}"
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-instance-env.sh /tmp/init-instance.sh || error_exit "Échec du téléchargement du script d'initialisation"
 chmod +x /tmp/init-instance.sh
 
 # Définir les variables d'environnement pour le script
-export EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+log "Configuration des variables d'environnement"
+EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+# Exporter les variables pour le script d'initialisation
+export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
 export DB_USERNAME="${var.db_username}"
 export DB_PASSWORD="${var.db_password}"
 export RDS_ENDPOINT="${var.rds_endpoint}"
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
+export RDS_USERNAME="${var.db_username}"
+export RDS_PASSWORD="${var.db_password}"
 export TOMCAT_VERSION="9.0.87"
 
+# Vérifier que les variables sont bien définies
+log "Vérification des variables d'environnement"
+log "S3_BUCKET_NAME: $S3_BUCKET_NAME"
+log "RDS_ENDPOINT: $RDS_ENDPOINT"
+log "EC2_INSTANCE_PRIVATE_IP: $EC2_INSTANCE_PRIVATE_IP"
+
 # Exécuter le script d'initialisation
-/tmp/init-instance.sh
+log "Exécution du script d'initialisation"
+/tmp/init-instance.sh || error_exit "Échec de l'exécution du script d'initialisation"
 
 # Configurer la clé SSH
+log "Configuration de la clé SSH"
 mkdir -p /home/ec2-user/.ssh
 echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
 chmod 700 /home/ec2-user/.ssh
 chmod 600 /home/ec2-user/.ssh/authorized_keys
 chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+
+log "Initialisation terminée avec succès"
 EOF
 }
 

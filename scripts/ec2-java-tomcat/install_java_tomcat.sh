@@ -1,9 +1,31 @@
-#!/bin/bash -xe
+#!/bin/bash
 # Script d'installation pour Java (Amazon Corretto 17) et Tomcat 9 sur Amazon Linux 2023
 # Exécuté en tant que root via user_data
 
+# Activer le mode de débogage et la sortie d'erreur en cas d'échec
+set -e
+
 # Rediriger stdout et stderr vers un fichier log pour le débogage
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
+# Fonction pour afficher les messages
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+# Fonction pour afficher les erreurs et quitter
+error_exit() {
+    log "ERREUR: $1"
+    exit 1
+}
+
+# Vérifier que les variables d'environnement nécessaires sont définies
+if [ -z "$TOMCAT_VERSION" ]; then
+    log "La variable TOMCAT_VERSION n'est pas définie, utilisation de la valeur par défaut 9.0.87"
+    TOMCAT_VERSION="9.0.87"
+fi
+
+log "Démarrage de l'installation de Java et Tomcat $TOMCAT_VERSION"
 
 echo "--- Mise à jour des paquets ---"
 sudo dnf update -y
@@ -169,10 +191,23 @@ echo "Installation de Tomcat version: $TOMCAT_VERSION"
 TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
 
 cd /tmp
-wget $TOMCAT_URL
+wget $TOMCAT_URL || error_exit "Échec du téléchargement de Tomcat"
 
-sudo mkdir /opt/tomcat
-sudo tar xzvf apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1
+# Vérifier que le téléchargement a réussi
+if [ ! -f "/tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz" ]; then
+  error_exit "Le fichier apache-tomcat-${TOMCAT_VERSION}.tar.gz n'a pas été téléchargé"
+fi
+
+# Créer le répertoire Tomcat s'il n'existe pas
+sudo mkdir -p /opt/tomcat
+
+# Extraire l'archive
+sudo tar xzvf apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1 || error_exit "Échec de l'extraction de Tomcat"
+
+# Vérifier que l'extraction a réussi
+if [ ! -f "/opt/tomcat/bin/startup.sh" ]; then
+  error_exit "L'extraction de Tomcat a échoué, le fichier startup.sh est introuvable"
+fi
 
 echo "--- Configuration des Permissions Tomcat ---"
 cd /opt/tomcat

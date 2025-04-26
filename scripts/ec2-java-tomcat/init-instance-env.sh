@@ -48,8 +48,14 @@ check_dependency sed sed
 
 # Téléchargement des scripts depuis S3
 log "Téléchargement des scripts depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/install_java_tomcat.sh /opt/yourmedia/install_java_tomcat.sh
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/deploy-war.sh /opt/yourmedia/deploy-war.sh
+if [ -z "${S3_BUCKET_NAME}" ]; then
+  log "ERREUR: La variable S3_BUCKET_NAME n'est pas définie"
+  error_exit "La variable S3_BUCKET_NAME est requise pour télécharger les scripts"
+fi
+
+log "Utilisation du bucket S3: ${S3_BUCKET_NAME}"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/install_java_tomcat.sh /opt/yourmedia/install_java_tomcat.sh || error_exit "Échec du téléchargement du script install_java_tomcat.sh"
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/deploy-war.sh /opt/yourmedia/deploy-war.sh || error_exit "Échec du téléchargement du script deploy-war.sh"
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
@@ -77,7 +83,24 @@ sudo chmod +x /opt/yourmedia/env.sh
 
 # Modification du script install_java_tomcat.sh pour utiliser les variables d'environnement
 log "Modification du script install_java_tomcat.sh pour utiliser les variables d'environnement"
-sudo sed -i '1s/^/#!/bin\/bash\nsource \/opt\/yourmedia\/env.sh\n\n/' /opt/yourmedia/install_java_tomcat.sh
+# Vérifier si le fichier existe
+if [ ! -f "/opt/yourmedia/install_java_tomcat.sh" ]; then
+  error_exit "Le fichier install_java_tomcat.sh n'existe pas"
+fi
+
+# Créer un fichier temporaire avec le contenu souhaité
+cat > /tmp/install_java_tomcat_header.sh << 'EOF'
+#!/bin/bash
+source /opt/yourmedia/env.sh
+
+EOF
+
+# Concaténer le fichier temporaire avec le fichier original
+cat /tmp/install_java_tomcat_header.sh > /tmp/install_java_tomcat_new.sh
+tail -n +2 /opt/yourmedia/install_java_tomcat.sh >> /tmp/install_java_tomcat_new.sh
+sudo mv /tmp/install_java_tomcat_new.sh /opt/yourmedia/install_java_tomcat.sh
+sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
+rm -f /tmp/install_java_tomcat_header.sh
 
 # Exécution du script d'installation
 log "Exécution du script d'installation"

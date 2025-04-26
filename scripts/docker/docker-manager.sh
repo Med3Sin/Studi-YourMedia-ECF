@@ -9,6 +9,35 @@
 #
 # Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
 
+# Fonction pour afficher les messages d'information
+log_info() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [INFO] $1"
+}
+
+# Fonction pour afficher les messages d'avertissement
+log_warning() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [WARNING] $1" >&2
+}
+
+# Fonction pour afficher les messages d'erreur et quitter
+log_error() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [ERROR] $1" >&2
+    # Capturer la trace d'appel pour le débogage
+    if [ "${DEBUG:-false}" = "true" ]; then
+        echo "Trace d'appel:" >&2
+        local i=0
+        while caller $i; do
+            i=$((i+1))
+        done >&2
+    fi
+    exit 1
+}
+
+# Fonction pour afficher les messages de succès
+log_success() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - [SUCCESS] $1"
+}
+
 # Variables avec noms standardisés
 # Variables Docker
 DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
@@ -77,34 +106,7 @@ echo "========================================================="
 echo "=== Script de gestion Docker pour YourMedia ==="
 echo "========================================================="
 
-# Fonction pour afficher les messages d'information
-log_info() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - [INFO] $1"
-}
 
-# Fonction pour afficher les messages d'avertissement
-log_warning() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - [WARNING] $1" >&2
-}
-
-# Fonction pour afficher les messages d'erreur et quitter
-log_error() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - [ERROR] $1" >&2
-    # Capturer la trace d'appel pour le débogage
-    if [ "${DEBUG:-false}" = "true" ]; then
-        echo "Trace d'appel:" >&2
-        local i=0
-        while caller $i; do
-            i=$((i+1))
-        done >&2
-    fi
-    exit 1
-}
-
-# Fonction pour afficher les messages de succès
-log_success() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - [SUCCESS] $1"
-}
 
 # Fonction pour gérer les erreurs de commande
 handle_error() {
