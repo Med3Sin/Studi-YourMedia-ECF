@@ -77,12 +77,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Étape 4: Configuration des variables d'environnement
-      - name: Configure Environment Variables
+      # Étape 4: Configuration des variables d'environnement et des clés SSH
+      - name: Configure Environment Variables and SSH Keys
+        id: config
         run: |
           # Définir les variables d'environnement AWS
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=${{ env.AWS_REGION }}" >> $GITHUB_ENV
 
           # Créer un fichier de configuration pour l'API Terraform Cloud
           cat > ~/.terraformrc << EOF
@@ -97,6 +99,18 @@ jobs:
           AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION=${{ env.AWS_REGION }}
           EOF
+
+          # Configuration de la clé SSH si disponible
+          if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            echo "SSH_KEY_CONFIGURED=true" >> $GITHUB_ENV
+            echo "Clé SSH privée configurée."
+          else
+            echo "SSH_KEY_CONFIGURED=false" >> $GITHUB_ENV
+            echo "Aucune clé SSH privée configurée."
+          fi
 
       # Étape 5: Initialisation de Terraform
       - name: Terraform Init

@@ -124,101 +124,45 @@ jobs:
           echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
           echo "::endgroup::"
 
-      # Étape 7: Configuration de SSH
+      # Étape 7: Configuration de SSH simplifiée
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-
-      # Étape 7.1: Débogage SSH
-      - name: Debug SSH
         run: |
-          echo "Vérification de la configuration SSH..."
-          ssh-add -l
-          echo "Contenu du répertoire ~/.ssh:"
-          ls -la ~/.ssh/
-          echo "Vérification de la connectivité réseau vers l'instance EC2:"
-          ping -c 3 ${{ env.EC2_IP }} || echo "Ping a échoué, mais ce n'est pas nécessairement un problème"
+          # Créer le répertoire SSH et configurer la clé
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-          # Vérifier la clé SSH
-          echo "Vérification de la clé SSH..."
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | head -n 1 | grep -q "BEGIN" && echo "La clé SSH commence par BEGIN" || echo "La clé SSH ne commence pas par BEGIN"
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | wc -l
+          # Ajouter la clé d'hôte EC2 aux known_hosts pour éviter les prompts
+          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
 
-          # Créer une clé SSH temporaire pour tester
-          echo "Création d'une clé SSH temporaire pour tester..."
-          mkdir -p ~/.ssh/temp
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/temp/id_rsa
-          chmod 600 ~/.ssh/temp/id_rsa
-          echo "Contenu de la clé SSH temporaire (première ligne):"
-          head -n 1 ~/.ssh/temp/id_rsa
+          echo "Configuration SSH terminée."
 
       # Étape 8: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
           echo "::group::Deploy to EC2"
-          # Ajout de la clé d'hôte EC2 aux known_hosts pour éviter les prompts
-          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
+          # Déploiement du WAR sur l'instance EC2
+          echo "Déploiement du WAR sur l'instance EC2..."
 
-          # Essayer avec la clé SSH temporaire
-          echo "Tentative de connexion SSH avec la clé SSH temporaire..."
-          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec la clé SSH temporaire a échoué"
-
-          # Essayer avec différents utilisateurs
-          echo "Tentative de connexion SSH avec l'utilisateur ubuntu..."
-          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ubuntu@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec ubuntu a échoué"
-
-          echo "Tentative de connexion SSH avec l'utilisateur ec2-user..."
-          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ec2-user@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec ec2-user a échoué"
-
-          echo "Tentative de connexion SSH avec l'utilisateur admin..."
-          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa admin@${{ env.EC2_IP }} "echo 'Test de connexion SSH'" || echo "Connexion avec admin a échoué"
-
-          echo "Tentative de déploiement..."
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/temp/id_rsa ec2-user@${{ env.EC2_IP }} << EOF || echo "La connexion SSH a échoué, mais nous continuons le workflow"
-            echo "--- Installation d'AWS CLI (si nécessaire) ---"
-            if ! command -v aws &> /dev/null
-            then
-                echo "Installation d'AWS CLI v2..."
-                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                sudo yum install -y unzip
-                unzip -q awscliv2.zip
-                sudo ./aws/install
-                rm -rf aws awscliv2.zip
-            fi
-            echo "--- Vérification des permissions et de l'état de Tomcat ---"
-            sudo ls -la /opt/tomcat/webapps/
-            sudo systemctl status tomcat
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} << EOF
+            # Configuration d'AWS CLI avec les informations d'identification temporaires
+            mkdir -p ~/.aws
+            cat > ~/.aws/credentials << EOC
+            [default]
+            aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            region=${{ env.AWS_REGION }}
+            EOC
 
-            echo "--- Configuration d'AWS CLI ---"
-            # Vérifier si AWS CLI est installé
-            if ! command -v aws &> /dev/null; then
-                echo "Installation d'AWS CLI v2..."
-                # Télécharger et installer AWS CLI v2 (méthode officielle pour Ubuntu 24.04)
-                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                sudo apt-get update -y
-                sudo apt-get install -y unzip
-                unzip -q awscliv2.zip
-                sudo ./aws/install
-                rm -rf aws awscliv2.zip
-                # Vérifier l'installation
-                aws --version
+            cat > ~/.aws/config << EOC
+            [default]
+            region=${{ env.AWS_REGION }}
+            output=json
+            EOC
 
-                # Configurer les informations d'identification AWS
-                mkdir -p ~/.aws
-                echo "[default]" > ~/.aws/credentials
-                echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
-                echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
-                echo "region=${{ env.AWS_REGION }}" >> ~/.aws/credentials
-
-                echo "[default]" > ~/.aws/config
-                echo "region=${{ env.AWS_REGION }}" >> ~/.aws/config
-                echo "output=json" >> ~/.aws/config
-            fi
-
-            echo "--- Copie du WAR depuis S3 vers Tomcat ---"
             # Télécharger le WAR depuis S3
+            echo "Téléchargement du WAR depuis S3..."
             sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
 
             # Vérifier que le fichier a été téléchargé
@@ -227,28 +171,26 @@ jobs:
                 exit 1
             fi
 
-            # Utiliser le script de déploiement WAR
-            echo "--- Déploiement du WAR avec le script deploy-war.sh ---"
+            # Déployer le WAR avec le script deploy-war.sh
+            echo "Déploiement du WAR avec le script deploy-war.sh..."
             sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
 
             # Supprimer le fichier temporaire
             sudo rm /tmp/${{ env.DEPLOY_WAR_NAME }}
 
-            # Attendre que Tomcat déploie l'application
-            echo "--- Attente du déploiement par Tomcat ---"
-            sleep 10
-
-            # Vérifier que l'application a été déployée
-            if [ ! -d "/opt/tomcat/webapps/yourmedia-backend" ]; then
-                echo "AVERTISSEMENT: Le répertoire yourmedia-backend n'a pas encore été créé par Tomcat. Cela peut prendre plus de temps."
-            else
-                echo "L'application a été déployée avec succès."
-            fi
+            # Vérifier l'état de Tomcat
+            echo "Vérification de l'état de Tomcat..."
+            sudo systemctl status tomcat
 
             # Afficher le contenu du répertoire webapps
+            echo "Contenu du répertoire webapps:"
             sudo ls -la /opt/tomcat/webapps/
-            echo "--- Déploiement terminé, Tomcat va automatiquement déployer le WAR ---"
+
+            # Nettoyer les informations d'identification AWS
+            rm -rf ~/.aws
           EOF
+
+          echo "Déploiement terminé."
           echo "::endgroup::"
 
       # Étape 9: Résumé du déploiement

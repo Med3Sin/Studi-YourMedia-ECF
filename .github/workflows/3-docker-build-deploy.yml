@@ -23,13 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
       # Build and push mobile app image
       - name: Build and push mobile app image
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./app-react
           file: ./app-react/Dockerfile
@@ -58,7 +58,7 @@ jobs:
       # Build and push Grafana image
       - name: Build and push Grafana image
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./scripts/docker/grafana
           push: true
@@ -71,7 +71,7 @@ jobs:
       # Build and push Prometheus image
       - name: Build and push Prometheus image
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./scripts/docker/prometheus
           push: true
@@ -84,7 +84,7 @@ jobs:
       # Build and push SonarQube image
       - name: Build and push SonarQube image
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./scripts/docker/sonarqube
           push: true
@@ -124,6 +124,7 @@ jobs:
       # Test Docker image health checks
       - name: Test Docker image health checks
         run: |
+          # Test de santé pour l'application mobile
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "Testing mobile app health check..."
             docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}
@@ -131,6 +132,24 @@ jobs:
             curl -f http://localhost:3000/ || (echo "::warning::Le health check de l'image mobile a échoué" && docker logs mobile-test)
             docker stop mobile-test
             docker rm mobile-test
+          fi
+
+          # Test de santé pour Grafana
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
+            echo "Testing Grafana health check..."
+            docker run -d --name grafana-test -p 3001:3000 ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}
+            sleep 10
+            curl -f http://localhost:3001/api/health || (echo "::warning::Le health check de l'image Grafana a échoué" && docker logs grafana-test)
+            docker stop grafana-test
+            docker rm grafana-test
+
+            # Test de santé pour Prometheus
+            echo "Testing Prometheus health check..."
+            docker run -d --name prometheus-test -p 9090:9090 ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}
+            sleep 10
+            curl -f http://localhost:9090/-/healthy || (echo "::warning::Le health check de l'image Prometheus a échoué" && docker logs prometheus-test)
+            docker stop prometheus-test
+            docker rm prometheus-test
           fi
 
       - name: Summary
@@ -171,7 +190,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up SSH key
         run: |
