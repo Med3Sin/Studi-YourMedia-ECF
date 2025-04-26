@@ -65,14 +65,14 @@ fi
 # ÉTAPE 6: Démarrer les conteneurs
 info "Démarrage des conteneurs Docker..."
 cd /opt/monitoring
-docker-compose up -d
+sudo docker-compose up -d
 
 # ÉTAPE 7: Vérification
 info "Vérification des conteneurs..."
-docker ps | grep -E 'prometheus|grafana'
+sudo docker ps | grep -E 'prometheus|grafana'
 
 # Afficher les URLs d'accès
-if docker ps | grep -q "prometheus" && docker ps | grep -q "grafana"; then
+if sudo docker ps | grep -q "prometheus" && sudo docker ps | grep -q "grafana"; then
     success "Les conteneurs sont en cours d'exécution"
     PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
     echo ""
@@ -81,6 +81,6 @@ if docker ps | grep -q "prometheus" && docker ps | grep -q "grafana"; then
     echo "- Grafana: http://$PUBLIC_IP:3000 (admin/admin)"
 else
     error "Les conteneurs ne sont pas en cours d'exécution"
-    docker logs prometheus 2>&1 | tail -10
-    docker logs grafana 2>&1 | tail -10
+    sudo docker logs prometheus 2>&1 | tail -10
+    sudo docker logs grafana 2>&1 | tail -10
 fi

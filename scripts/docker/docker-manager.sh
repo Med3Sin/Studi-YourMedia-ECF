@@ -67,10 +67,16 @@ show_help() {
     exit 1
 }
 
-# Vérifier si Docker est installé
+# Vérifier si Docker est installé et si l'utilisateur a les droits sudo
 check_docker() {
     if ! command -v docker &> /dev/null; then
         echo "[ERROR] Docker n'est pas installé. Veuillez l'installer avant d'exécuter ce script."
+        exit 1
+    fi
+
+    # Vérifier si l'utilisateur a les droits sudo
+    if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
+        echo "[ERROR] Ce script nécessite des privilèges sudo. Veuillez l'exécuter avec sudo ou en tant que root."
         exit 1
     fi
 }
