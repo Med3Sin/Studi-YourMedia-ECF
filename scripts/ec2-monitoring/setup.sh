@@ -70,11 +70,21 @@ if ! command -v docker &> /dev/null; then
         sudo /opt/monitoring/install-docker.sh
     else
         log "Le script install-docker.sh n'est pas disponible. Tentative d'installation standard..."
-        # Installation pour Amazon Linux 2023
+        # Installation pour Amazon Linux 2023 avec le script get-docker.sh
         log "Système détecté: Amazon Linux 2023"
-        sudo dnf install -y dnf-utils
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo dnf install -y docker-ce docker-ce-cli containerd.io
+        log "Installation des paquets nécessaires"
+        sudo dnf install -y tar gzip curl
+
+        log "Téléchargement du script d'installation de Docker"
+        curl -fsSL https://get.docker.com -o get-docker.sh
+
+        log "Exécution du script d'installation de Docker"
+        sudo sh get-docker.sh
+
+        # Supprimer le script d'installation
+        rm -f get-docker.sh
+
+        log "Démarrage et activation du service Docker"
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -a -G docker ec2-user

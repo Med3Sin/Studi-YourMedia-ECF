@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script amélioré d'installation de Docker pour Amazon Linux 2023
-# Peut être exécuté avec sudo ou en tant que root
+# Script d'installation de Docker pour Amazon Linux 2023
+# Ce script utilise le script d'installation officiel de Docker
 
 # Fonction pour la journalisation
 log() {
@@ -31,14 +31,17 @@ log "Système détecté: Amazon Linux 2023"
 log "Mise à jour des paquets"
 dnf update -y || error_exit "Impossible de mettre à jour les paquets"
 
-log "Installation de dnf-utils"
-dnf install -y dnf-utils || error_exit "Impossible d'installer dnf-utils"
+log "Installation des paquets nécessaires"
+dnf install -y tar gzip curl || error_exit "Impossible d'installer les paquets nécessaires"
 
-log "Ajout du dépôt Docker"
-dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || error_exit "Impossible d'ajouter le dépôt Docker"
+log "Téléchargement du script d'installation de Docker"
+curl -fsSL https://get.docker.com -o get-docker.sh || error_exit "Impossible de télécharger le script d'installation de Docker"
 
-log "Installation de Docker"
-dnf install -y docker-ce docker-ce-cli containerd.io || error_exit "Impossible d'installer Docker"
+log "Exécution du script d'installation de Docker"
+sh get-docker.sh || error_exit "Impossible d'exécuter le script d'installation de Docker"
+
+# Supprimer le script d'installation
+rm -f get-docker.sh
 
 log "Démarrage du service Docker"
 systemctl start docker || error_exit "Impossible de démarrer le service Docker"
