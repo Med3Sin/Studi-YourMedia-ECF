@@ -3,8 +3,17 @@ name: 3 - Docker Build and Deploy
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action à effectuer'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - build    # Uniquement construire et pousser les images
+          - deploy   # Uniquement déployer les images existantes
+          - both     # Construire, pousser et déployer les images
       target:
-        description: 'Target to build and deploy'
+        description: 'Cible à construire et/ou déployer'
         required: true
         default: 'all'
         type: choice
@@ -12,14 +21,10 @@ on:
           - all
           - mobile
           - monitoring
-      deploy:
-        description: 'Deploy after build'
-        required: true
-        default: true
-        type: boolean
 
 jobs:
   build-and-push:
+    if: ${{ github.event.inputs.action == 'build' || github.event.inputs.action == 'both' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -156,8 +161,8 @@ jobs:
         run: |
           echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "* **Version:** ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Deploy:** ${{ github.event.inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
@@ -184,9 +189,10 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-  deploy:
+  # Job de déploiement après build (pour l'action 'both')
+  deploy-after-build:
     needs: build-and-push
-    if: ${{ github.event.inputs.deploy == 'true' }}
+    if: ${{ success() && github.event.inputs.action == 'both' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -242,7 +248,80 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Summary (after build)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
+            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3001" >> $GITHUB_STEP_SUMMARY
+            echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
+            echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
+            echo "* **Mobile App URL:** http://${{ secrets.TF_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job de déploiement uniquement (pour l'action 'deploy')
+  deploy:
+    if: ${{ github.event.inputs.action == 'deploy' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.TF_EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy monitoring containers
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKER_REPO: yourmedia-ecf
+          DOCKERHUB_REPO: yourmedia-ecf
+          TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
+          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
+          RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          DB_USERNAME: ${{ secrets.RDS_USERNAME }}
+          DB_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
+          TF_RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
+          GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID || 'dummy-id' }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || 'dummy-secret' }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          chmod +x ./scripts/docker/docker-manager.sh
+          ./scripts/docker/docker-manager.sh deploy monitoring
+
+      - name: Deploy app containers
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKER_REPO: yourmedia-ecf
+          DOCKERHUB_REPO: yourmedia-ecf
+          TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          chmod +x ./scripts/docker/docker-manager.sh
+          ./scripts/docker/docker-manager.sh deploy mobile
+
+      - name: Summary
+        run: |
+          echo "## Deployment Summary (deploy only)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
