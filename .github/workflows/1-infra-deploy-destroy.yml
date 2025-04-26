@@ -268,11 +268,62 @@ jobs:
       - name: Update S3 Bucket Name Secret
         id: update_secret
         if: github.event.inputs.action == 'apply' && env.S3_BUCKET_NAME != '' && env.UPDATE_SECRET == 'true'
-        uses: gliech/create-github-secret-action@v1
-        with:
-          name: TF_S3_BUCKET_NAME
-          value: ${{ env.S3_BUCKET_NAME }}
-          pa_token: ${{ secrets.GH_PAT }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          SECRET_NAME: TF_S3_BUCKET_NAME
+          SECRET_VALUE: ${{ env.S3_BUCKET_NAME }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Récupérer la clé publique du dépôt
+          echo "Récupération de la clé publique pour le dépôt '$REPO'..."
+          PUBLIC_KEY_RESPONSE=$(curl -s -X GET \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/actions/secrets/public-key")
+
+          # Extraire la clé publique et son ID
+          KEY_ID=$(echo "$PUBLIC_KEY_RESPONSE" | jq -r '.key_id')
+          PUBLIC_KEY=$(echo "$PUBLIC_KEY_RESPONSE" | jq -r '.key')
+
+          if [ -z "$KEY_ID" ] || [ "$KEY_ID" == "null" ]; then
+            echo "Erreur: Impossible de récupérer la clé publique. Réponse: $PUBLIC_KEY_RESPONSE"
+            exit 1
+          fi
+
+          echo "Clé publique récupérée avec succès."
+
+          # Installer les dépendances nécessaires pour le chiffrement
+          echo "Installation des dépendances pour le chiffrement..."
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pip libsodium-dev
+          pip3 install -q pynacl
+
+          # Chiffrer la valeur du secret
+          echo "Chiffrement de la valeur du secret..."
+          ENCRYPTED_VALUE=$(python3 -c "
+          import base64
+          import json
+          from nacl import encoding, public
+
+          def encrypt(public_key, secret_value):
+              public_key = public.PublicKey(public_key.encode('utf-8'), encoding.Base64Encoder())
+              sealed_box = public.SealedBox(public_key)
+              encrypted = sealed_box.encrypt(secret_value.encode('utf-8'))
+              return base64.b64encode(encrypted).decode('utf-8')
+
+          print(encrypt('$PUBLIC_KEY', '$SECRET_VALUE'))
+          ")
+
+          # Mettre à jour le secret
+          echo "Mise à jour du secret '$SECRET_NAME'..."
+          curl -s -X PUT \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d "{\"encrypted_value\":\"$ENCRYPTED_VALUE\",\"key_id\":\"$KEY_ID\"}" \
+            "https://api.github.com/repos/$REPO/actions/secrets/$SECRET_NAME"
+
+          echo "Secret '$SECRET_NAME' mis à jour avec succès."
 
 # Cette étape a été déplacée après la création du bucket S3 et avant le déploiement de l'infrastructure
 
@@ -332,7 +383,7 @@ jobs:
           sleep 30
 
           # Vérifier que le bucket est accessible
-          aws s3 ls s3://${{ env.S3_BUCKET_NAME }} || (echo "ERREUR: Le bucket S3 n'est pas accessible" && exit 1)
+          aws s3 ls s3://${S3_BUCKET_NAME} || (echo "ERREUR: Le bucket S3 n'est pas accessible" && exit 1)
           echo "Bucket S3 vérifié et accessible."
           echo "::endgroup::"
 
@@ -350,7 +401,7 @@ jobs:
             echo "Clé SSH privée configurée."
           fi
 
-          echo "Téléchargement des scripts dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
+          echo "Téléchargement des scripts dans le bucket S3: ${S3_BUCKET_NAME}"
 
           # Définir le chemin absolu vers le répertoire de travail
           WORKSPACE_DIR="${GITHUB_WORKSPACE}"
@@ -364,7 +415,7 @@ jobs:
           # Télécharger les scripts de monitoring
           if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring" ]; then
             echo "Téléchargement des scripts de monitoring..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-monitoring/
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/ s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
           else
             echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-monitoring n'existe pas."
           fi
@@ -372,7 +423,7 @@ jobs:
           # Télécharger les scripts Java/Tomcat
           if [ -d "${WORKSPACE_DIR}/scripts/ec2-java-tomcat" ]; then
             echo "Téléchargement des scripts Java/Tomcat..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/ s3://${{ env.S3_BUCKET_NAME }}/scripts/ec2-java-tomcat/
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/ s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/
           else
             echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-java-tomcat n'existe pas."
           fi
@@ -380,12 +431,12 @@ jobs:
           # Télécharger les scripts Docker
           if [ -d "${WORKSPACE_DIR}/scripts/docker" ]; then
             echo "Téléchargement des scripts Docker..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/docker/ s3://${{ env.S3_BUCKET_NAME }}/scripts/docker/
+            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/docker/ s3://${S3_BUCKET_NAME}/scripts/docker/
           else
             echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/docker n'existe pas."
           fi
 
-          echo "Scripts téléchargés avec succès dans le bucket S3: ${{ env.S3_BUCKET_NAME }}"
+          echo "Scripts téléchargés avec succès dans le bucket S3: ${S3_BUCKET_NAME}"
           echo "::endgroup::"
 
       # Étape 8.1.6: Attente supplémentaire pour s'assurer que les scripts sont disponibles
@@ -399,7 +450,7 @@ jobs:
 
           # Vérifier que les scripts sont accessibles
           echo "Vérification de la disponibilité des scripts..."
-          aws s3 ls s3://${{ env.S3_BUCKET_NAME }}/scripts/ --recursive
+          aws s3 ls s3://${S3_BUCKET_NAME}/scripts/ --recursive
           echo "Scripts vérifiés et accessibles."
           echo "::endgroup::"
 
