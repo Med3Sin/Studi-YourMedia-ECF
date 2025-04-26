@@ -214,3 +214,90 @@ variable "last_rotation_date" {
   type        = string
   default     = ""
 }
+
+# Variables avec casse différente pour Terraform Cloud
+# Ces variables sont utilisées dans Terraform Cloud mais déclarées avec une casse différente
+
+variable "DOCKERHUB_TOKEN" {
+  description = "Token Docker Hub pour l'authentification (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "TF_API_TOKEN" {
+  description = "Token d'API Terraform Cloud pour l'authentification (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "AWS_ACCESS_KEY_ID" {
+  description = "Clé d'accès AWS pour l'authentification (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "AWS_SECRET_ACCESS_KEY" {
+  description = "Clé secrète AWS pour l'authentification (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "GITHUB_TOKEN" {
+  description = "Token GitHub (PAT) pour l'authentification aux services GitHub (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "DB_USERNAME" {
+  description = "Nom d'utilisateur pour la base de données RDS (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "DB_PASSWORD" {
+  description = "Mot de passe pour la base de données RDS (version majuscule)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "SSH_PUBLIC_KEY" {
+  description = "Contenu de la clé publique SSH à installer sur les instances EC2 (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "SSH_PRIVATE_KEY" {
+  description = "Contenu de la clé privée SSH pour se connecter aux instances EC2 (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "GRAFANA_ADMIN_PASSWORD" {
+  description = "Mot de passe administrateur Grafana (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "DOCKERHUB_USERNAME" {
+  description = "Nom d'utilisateur Docker Hub pour l'authentification (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "DOCKERHUB_REPO" {
+  description = "Nom du dépôt Docker Hub pour stocker les images (version majuscule)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
