@@ -1,5 +1,5 @@
 #!/bin/bash -xe
-# Script d'installation pour Java (OpenJDK 17) et Tomcat 9 sur Amazon Linux 2023
+# Script d'installation pour Java (Amazon Corretto 17) et Tomcat 9 sur Amazon Linux 2023
 # Exécuté en tant que root via user_data
 
 # Rediriger stdout et stderr vers un fichier log pour le débogage
