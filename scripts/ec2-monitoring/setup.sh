@@ -162,7 +162,7 @@ sudo chmod -R 755 /opt/monitoring
 
 # Création du fichier docker-compose.yml
 log "Création du fichier docker-compose.yml..."
-sudo bash -c 'cat > /opt/monitoring/docker-compose.yml << "EOL"'
+cat > /opt/monitoring/docker-compose.yml << 'EOF'
 version: '3.8'
 
 services:
@@ -266,11 +266,11 @@ services:
 networks:
   monitoring-network:
     driver: bridge
-EOL
+EOF
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml..."
-sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOL"'
+cat > /opt/monitoring/prometheus.yml << 'EOF'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -302,7 +302,7 @@ scrape_configs:
     metrics_path: '/metrics'
     static_configs:
       - targets: ['${ec2_java_tomcat_ip}:8080']
-EOL
+EOF
 
 # Remplacement des variables dans le fichier docker-compose.yml
 log "Remplacement des variables dans le fichier docker-compose.yml..."

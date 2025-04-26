@@ -35,17 +35,8 @@ log "Système détecté: Amazon Linux 2023"
 log "Mise à jour des paquets"
 dnf update -y || error_exit "Impossible de mettre à jour les paquets"
 
-log "Installation des paquets nécessaires"
-dnf install -y tar gzip curl || error_exit "Impossible d'installer les paquets nécessaires"
-
-log "Téléchargement du script d'installation de Docker"
-curl -fsSL https://get.docker.com -o get-docker.sh || error_exit "Impossible de télécharger le script d'installation de Docker"
-
-log "Exécution du script d'installation de Docker"
-sh get-docker.sh || error_exit "Impossible d'exécuter le script d'installation de Docker"
-
-# Supprimer le script d'installation
-rm -f get-docker.sh
+log "Installation de Docker natif pour Amazon Linux 2023"
+dnf install -y docker || error_exit "Impossible d'installer Docker"
 
 log "Démarrage du service Docker"
 systemctl start docker || error_exit "Impossible de démarrer le service Docker"
