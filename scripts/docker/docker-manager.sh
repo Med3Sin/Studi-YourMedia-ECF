@@ -2,6 +2,12 @@
 
 # Script pour gérer les images Docker et les conteneurs
 # Utilisation: ./docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
+#
+# EXIGENCES EN MATIÈRE DE DROITS :
+# Ce script doit être exécuté avec des privilèges sudo ou en tant que root pour certaines opérations.
+# Exemple d'utilisation : sudo ./docker-manager.sh deploy monitoring
+#
+# Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
 
 # Variables
 DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
@@ -75,9 +81,34 @@ check_docker() {
     fi
 
     # Vérifier si l'utilisateur a les droits sudo
-    if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
-        echo "[ERROR] Ce script nécessite des privilèges sudo. Veuillez l'exécuter avec sudo ou en tant que root."
-        exit 1
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "[WARNING] Ce script nécessite des privilèges sudo pour certaines opérations."
+
+        # Vérifier si sudo est disponible sans mot de passe
+        if sudo -n true 2>/dev/null; then
+            echo "[INFO] Privilèges sudo disponibles sans mot de passe."
+        else
+            echo "[INFO] Tentative d'obtention des privilèges sudo..."
+            if ! sudo -v; then
+                echo "[ERROR] Impossible d'obtenir les privilèges sudo. Certaines opérations pourraient échouer."
+                echo "[ERROR] Il est recommandé d'exécuter ce script avec sudo ou en tant que root."
+
+                # Demander à l'utilisateur s'il souhaite continuer
+                if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
+                    read -p "Voulez-vous continuer quand même? (y/n) " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        echo "[INFO] Opération annulée."
+                        exit 1
+                    fi
+                else
+                    # Mode non interactif, sortir avec une erreur
+                    exit 1
+                fi
+            else
+                echo "[INFO] Privilèges sudo obtenus avec succès."
+            fi
+        fi
     fi
 }
 

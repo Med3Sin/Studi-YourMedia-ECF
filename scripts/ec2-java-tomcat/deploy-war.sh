@@ -1,5 +1,11 @@
 #!/bin/bash
 # Script simplifié pour déployer un fichier WAR dans Tomcat
+#
+# EXIGENCES EN MATIÈRE DE DROITS :
+# Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+# Exemple d'utilisation : sudo ./deploy-war.sh <chemin_vers_war>
+#
+# Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
 
 # Vérifier si un argument a été fourni
 if [ $# -ne 1 ]; then

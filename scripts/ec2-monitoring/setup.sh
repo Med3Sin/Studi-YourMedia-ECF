@@ -1,5 +1,11 @@
 #!/bin/bash
 # Script d'installation et de configuration des conteneurs Docker pour le monitoring
+#
+# EXIGENCES EN MATIÈRE DE DROITS :
+# Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+# Exemple d'utilisation : sudo ./setup.sh
+#
+# Le script vérifie automatiquement les droits et demandera sudo si nécessaire.
 
 # Variables (peuvent être remplacées par des variables d'environnement)
 ec2_java_tomcat_ip="${EC2_JAVA_TOMCAT_IP:-PLACEHOLDER_IP}"
@@ -48,8 +54,18 @@ if [ ! -f "/etc/os-release" ] || ! grep -q "Amazon Linux" /etc/os-release; then
     error_exit "Ce script est conçu pour Amazon Linux. Veuillez l'adapter pour votre système d'exploitation."
 fi
 
-if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
-    error_exit "Ce script nécessite des privilèges sudo. Veuillez l'exécuter avec sudo ou en tant que root."
+# Vérification des droits sudo
+if [ "$(id -u)" -ne 0 ]; then
+    log "Ce script nécessite des privilèges sudo."
+    if sudo -n true 2>/dev/null; then
+        log "Privilèges sudo disponibles sans mot de passe."
+    else
+        log "Tentative d'obtention des privilèges sudo..."
+        if ! sudo -v; then
+            error_exit "Impossible d'obtenir les privilèges sudo. Veuillez exécuter ce script avec sudo ou en tant que root."
+        fi
+        log "Privilèges sudo obtenus avec succès."
+    fi
 fi
 
 # Vérification des dépendances essentielles

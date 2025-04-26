@@ -2,6 +2,12 @@
 
 # Script simplifié de correction des permissions pour Grafana et Prometheus
 # Résout les problèmes de permissions dans les conteneurs Docker
+#
+# EXIGENCES EN MATIÈRE DE DROITS :
+# Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+# Exemple d'utilisation : sudo ./fix_permissions.sh [--force]
+#
+# Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
 
 # Afficher l'aide
 if [ "$1" = "--help" ]; then
@@ -12,17 +18,26 @@ if [ "$1" = "--help" ]; then
     exit 0
 fi
 
-# Vérifier si l'utilisateur a les droits sudo
-if [ "$(id -u)" -ne 0 ]; then
-    echo "[ERREUR] Ce script doit être exécuté avec sudo"
-    echo "Exemple: sudo $0 $*"
-    exit 1
-fi
-
 # Fonctions simplifiées pour les messages
 info() { echo "[INFO] $1"; }
 success() { echo "[SUCCÈS] $1"; }
 error() { echo "[ERREUR] $1" >&2; }
+
+# Vérifier si l'utilisateur a les droits sudo
+if [ "$(id -u)" -ne 0 ]; then
+    error "Ce script doit être exécuté avec sudo"
+    error "Exemple: sudo $0 $*"
+
+    # Tentative d'obtention des droits sudo
+    info "Tentative d'obtention des privilèges sudo..."
+    if sudo -n true 2>/dev/null; then
+        info "Relancement du script avec sudo..."
+        exec sudo "$0" "$@"
+    else
+        error "Impossible d'obtenir les privilèges sudo automatiquement."
+        exit 1
+    fi
+fi
 
 # ÉTAPE 1: Arrêter les conteneurs existants
 info "Arrêt des conteneurs Docker..."

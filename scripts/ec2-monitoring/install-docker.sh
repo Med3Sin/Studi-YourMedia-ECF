@@ -2,6 +2,10 @@
 
 # Script d'installation de Docker pour Amazon Linux 2023
 # Ce script utilise le script d'installation officiel de Docker
+#
+# EXIGENCES EN MATIÈRE DE DROITS :
+# Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+# Exemple d'utilisation : sudo ./install-docker.sh
 
 # Fonction pour la journalisation
 log() {
