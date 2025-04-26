@@ -309,7 +309,7 @@ getent group docker &>/dev/null || groupadd docker
 usermod -aG docker ec2-user
 ```
 
-Si vous devez installer Docker manuellement sur une instance Amazon Linux 2023, vous pouvez utiliser le script `scripts/utils/install-docker-al2023.sh` :
+Pour installer Docker sur Amazon Linux 2023, utilisez le script `scripts/ec2-monitoring/install-docker.sh` qui utilise la méthode d'installation native recommandée :
 
 ## Dépannage
 
@@ -327,9 +327,7 @@ Si vous rencontrez des problèmes avec l'initialisation des instances EC2, voici
 
 ```bash
 sudo dnf update -y
-sudo dnf install -y dnf-utils
-sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-sudo dnf install -y docker-ce docker-ce-cli containerd.io
+sudo dnf install -y docker
 sudo systemctl start docker
 sudo systemctl enable docker
 ```

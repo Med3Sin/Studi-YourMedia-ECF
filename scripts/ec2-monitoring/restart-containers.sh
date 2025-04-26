@@ -38,7 +38,7 @@ log "Récupération des informations RDS et S3..."
 if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
     log "Exécution du script get-aws-resources-info.sh..."
     sudo /opt/monitoring/get-aws-resources-info.sh
-    
+
     # Vérifier si le script a réussi
     if [ $? -ne 0 ]; then
         log "AVERTISSEMENT: Le script get-aws-resources-info.sh a échoué."
@@ -64,6 +64,30 @@ fi
 log "Arrêt des conteneurs existants..."
 cd /opt/monitoring
 docker-compose down || log "AVERTISSEMENT: Impossible d'arrêter les conteneurs."
+
+# Exécuter le script de correction des permissions
+log "Exécution du script de correction des permissions..."
+if [ -f "/opt/monitoring/fix_permissions.sh" ]; then
+    sudo /opt/monitoring/fix_permissions.sh || log "AVERTISSEMENT: Le script fix_permissions.sh a échoué."
+else
+    log "AVERTISSEMENT: Le script fix_permissions.sh n'est pas disponible."
+    # Correction manuelle des permissions
+    log "Application manuelle des permissions..."
+    sudo chown -R 65534:65534 /opt/monitoring/prometheus-data
+    sudo chmod -R 755 /opt/monitoring/prometheus-data
+    sudo chown -R 472:472 /opt/monitoring/grafana-data
+    sudo chmod -R 755 /opt/monitoring/grafana-data
+    if [ -d "/opt/monitoring/sonarqube-data" ]; then
+        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/data
+        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/logs
+        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
+        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/db
+        sudo chmod -R 755 /opt/monitoring/sonarqube-data/data
+        sudo chmod -R 755 /opt/monitoring/sonarqube-data/logs
+        sudo chmod -R 755 /opt/monitoring/sonarqube-data/extensions
+        sudo chmod -R 700 /opt/monitoring/sonarqube-data/db
+    fi
+fi
 
 # Démarrer les conteneurs
 log "Démarrage des conteneurs..."

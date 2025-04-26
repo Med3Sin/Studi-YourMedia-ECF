@@ -118,9 +118,14 @@ export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME}"
 export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
 export SONAR_JDBC_URL="${SONAR_JDBC_URL}"
 # Variables Grafana
-export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
+export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
 # Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+# Variables Docker Hub
+export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME}"
+export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
+export DOCKER_USERNAME="${DOCKER_USERNAME:-${DOCKERHUB_USERNAME}}"
+export DOCKER_REPO="${DOCKER_REPO:-yourmedia-ecf}"
 EOF
 
 sudo mv /tmp/monitoring-env.sh /opt/monitoring/env.sh
@@ -137,9 +142,7 @@ if ! command -v docker &> /dev/null; then
     sudo /opt/monitoring/install-docker.sh || {
         log "Installation manuelle de Docker..."
         sudo dnf update -y
-        sudo dnf install -y dnf-utils
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo dnf install -y docker-ce docker-ce-cli containerd.io
+        sudo dnf install -y docker
         sudo systemctl start docker
         sudo systemctl enable docker
     }
@@ -153,8 +156,12 @@ else
     error_exit "L'installation de Docker a échoué."
 fi
 
+# Exécution du script de correction des permissions
+log "Exécution du script de correction des permissions"
+sudo /opt/monitoring/fix_permissions.sh || log "AVERTISSEMENT: L'exécution du script fix_permissions.sh a échoué."
+
 # Exécution du script d'installation
 log "Exécution du script d'installation"
-sudo /opt/monitoring/setup.sh || error_exit "L'exécution du script setup.sh a échoué."
+sudo -E /opt/monitoring/setup.sh || error_exit "L'exécution du script setup.sh a échoué."
 
 log "Initialisation terminée avec succès"
