@@ -289,9 +289,12 @@ echo "--- Exécution du script de correction des clés SSH ---"
 # Exécuter le script en tant qu'utilisateur ec2-user
 su - ec2-user -c "/usr/local/bin/fix-ssh-keys.sh"
 
-echo "--- Création du script de déploiement WAR ---"
-# Créer le script de déploiement WAR
-cat > /usr/local/bin/deploy-war.sh << 'EOF'
+echo "--- Vérification du script de déploiement WAR ---"
+# Vérifier si le script de déploiement WAR existe déjà dans /opt/yourmedia
+if [ ! -f "/opt/yourmedia/deploy-war.sh" ]; then
+  echo "Le script deploy-war.sh n'existe pas dans /opt/yourmedia. Création du script..."
+  # Créer le script de déploiement WAR
+  cat > /opt/yourmedia/deploy-war.sh << 'EOF'
 #!/bin/bash
 # Script pour déployer un fichier WAR dans Tomcat
 # Ce script doit être exécuté avec sudo
@@ -345,9 +348,22 @@ echo "Déploiement terminé avec succès"
 exit 0
 EOF
 
-# Rendre le script exécutable
-chmod +x /usr/local/bin/deploy-war.sh
-chown root:root /usr/local/bin/deploy-war.sh
+  # Rendre le script exécutable
+  chmod +x /opt/yourmedia/deploy-war.sh
+  echo "Script de déploiement WAR créé dans /opt/yourmedia/deploy-war.sh"
+else
+  echo "Le script deploy-war.sh existe déjà dans /opt/yourmedia. Utilisation du script existant."
+fi
+
+# Créer un lien symbolique vers le script dans /usr/local/bin pour le rendre accessible globalement
+if [ ! -f "/usr/local/bin/deploy-war.sh" ]; then
+  ln -s /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+  chmod +x /usr/local/bin/deploy-war.sh
+  chown root:root /usr/local/bin/deploy-war.sh
+  echo "Lien symbolique créé dans /usr/local/bin/deploy-war.sh"
+else
+  echo "Le lien symbolique /usr/local/bin/deploy-war.sh existe déjà."
+fi
 
 # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
 echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war

@@ -40,30 +40,45 @@ log_success() {
 
 # Variables avec noms standardisés
 # Variables Docker
-DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
-DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
-DOCKER_VERSION=$(date +%Y%m%d%H%M%S)
+export DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
+export DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-$DOCKER_USERNAME}
+export DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
+export DOCKERHUB_REPO=${DOCKERHUB_REPO:-$DOCKER_REPO}
+export DOCKER_VERSION=$(date +%Y%m%d%H%M%S)
 
 # Variables d'action
 ACTION=${1:-all}
 TARGET=${2:-all}
 
 # Variables EC2
-EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
-EC2_APP_IP=${TF_EC2_PUBLIC_IP}
-EC2_SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
+export EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
+export EC2_APP_IP=${TF_EC2_PUBLIC_IP}
+export EC2_SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
 
 # Variables Grafana
-GRAFANA_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+export GRAFANA_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
+export GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-$GRAFANA_ADMIN_PASSWORD}
 
 # Variables RDS
-RDS_USERNAME=${DB_USERNAME}
-RDS_PASSWORD=${DB_PASSWORD}
-RDS_ENDPOINT=${TF_RDS_ENDPOINT}
+export RDS_USERNAME=${RDS_USERNAME:-${DB_USERNAME}}
+export DB_USERNAME=${DB_USERNAME:-$RDS_USERNAME}
+export RDS_PASSWORD=${RDS_PASSWORD:-${DB_PASSWORD}}
+export DB_PASSWORD=${DB_PASSWORD:-$RDS_PASSWORD}
+export RDS_ENDPOINT=${RDS_ENDPOINT:-${TF_RDS_ENDPOINT}}
+export DB_ENDPOINT=${DB_ENDPOINT:-$RDS_ENDPOINT}
+
+# Extraire l'hôte et le port de RDS_ENDPOINT
+if [[ "$RDS_ENDPOINT" == *":"* ]]; then
+    export RDS_HOST=$(echo "$RDS_ENDPOINT" | cut -d':' -f1)
+    export RDS_PORT=$(echo "$RDS_ENDPOINT" | cut -d':' -f2)
+else
+    export RDS_HOST="$RDS_ENDPOINT"
+    export RDS_PORT="3306"
+fi
 
 # Variables GitHub
-GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+export GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-dummy-id}
+export GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-dummy-secret}
 
 # Déterminer le chemin absolu du répertoire racine du projet
 # Obtenir le chemin absolu du répertoire contenant ce script

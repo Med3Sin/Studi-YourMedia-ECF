@@ -525,22 +525,27 @@ jobs:
           # Stockage dans les variables d'environnement du workflow
           if [ ! -z "$EC2_PUBLIC_IP" ]; then
             echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
+            echo "ec2_public_ip=$EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
           fi
 
           if [ ! -z "$S3_BUCKET_NAME" ]; then
             echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
+            echo "s3_bucket_name=$S3_BUCKET_NAME" >> $GITHUB_OUTPUT
           fi
 
           if [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
             echo "MONITORING_EC2_PUBLIC_IP=$MONITORING_EC2_PUBLIC_IP" >> $GITHUB_ENV
+            echo "monitoring_ec2_public_ip=$MONITORING_EC2_PUBLIC_IP" >> $GITHUB_OUTPUT
           fi
 
           if [ ! -z "$RDS_ENDPOINT" ]; then
             echo "RDS_ENDPOINT=$RDS_ENDPOINT" >> $GITHUB_ENV
+            echo "rds_endpoint=$RDS_ENDPOINT" >> $GITHUB_OUTPUT
           fi
 
           if [ ! -z "$GRAFANA_URL" ]; then
             echo "GRAFANA_URL=$GRAFANA_URL" >> $GITHUB_ENV
+            echo "grafana_url=$GRAFANA_URL" >> $GITHUB_OUTPUT
           fi
 
           # Note: La référence à Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
@@ -569,8 +574,8 @@ jobs:
           # Exécuter le script de nettoyage des conteneurs
           if [ ! -z "$EC2_PUBLIC_IP" ] && [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
             echo "Nettoyage des conteneurs Docker sur les instances EC2..."
-            chmod +x /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF/scripts/docker/cleanup-containers.sh
-            /home/runner/work/Studi-YourMedia-ECF/Studi-YourMedia-ECF/scripts/docker/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
+            chmod +x ${GITHUB_WORKSPACE}/scripts/docker/cleanup-containers.sh
+            ${GITHUB_WORKSPACE}/scripts/docker/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
             echo "Nettoyage des conteneurs Docker terminé."
           else
             echo "Adresses IP des instances EC2 non disponibles. Impossible de nettoyer les conteneurs Docker."

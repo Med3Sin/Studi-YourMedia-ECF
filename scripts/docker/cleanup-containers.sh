@@ -18,7 +18,7 @@ cleanup_containers() {
     local instance_type=$2
     local cleanup_type=$3
 
-    echo "\n[INFO] Nettoyage des conteneurs Docker sur l'instance $instance_type ($ip)..."
+    echo -e "\n[INFO] Nettoyage des conteneurs Docker sur l'instance $instance_type ($ip)..."
     echo "[INFO] Type de nettoyage: $cleanup_type"
 
     # Se connecter à l'instance EC2 et arrêter/supprimer les conteneurs
@@ -117,16 +117,16 @@ cleanup_containers() {
         fi
 
         # Afficher l'espace disque récupéré
-        echo "\n[INFO] Espace disque disponible après nettoyage:"
+        echo -e "\n[INFO] Espace disque disponible après nettoyage:"
         df -h /
 
-        echo "\n[INFO] Nettoyage terminé sur l'instance $instance_type."
+        echo -e "\n[INFO] Nettoyage terminé sur l'instance $instance_type."
 EOF
 }
 
 # Fonction d'aide
 show_help() {
-    echo "\nUsage: $0 <EC2_MONITORING_IP> <EC2_APP_IP> <SSH_KEY_PATH> [CLEANUP_TYPE]\n"
+    echo -e "\nUsage: $0 <EC2_MONITORING_IP> <EC2_APP_IP> <SSH_KEY_PATH> [CLEANUP_TYPE]\n"
     echo "CLEANUP_TYPE options:"
     echo "  all       - Nettoie tout (conteneurs, images, volumes, réseaux, fichiers) - par défaut"
     echo "  containers - Arrête et supprime uniquement les conteneurs"
@@ -134,10 +134,10 @@ show_help() {
     echo "  volumes    - Supprime uniquement les volumes Docker"
     echo "  networks   - Supprime uniquement les réseaux Docker personnalisés"
     echo "  prune      - Exécute docker system prune -af --volumes"
-    echo "\nExemples:"
+    echo -e "\nExemples:"
     echo "  $0 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa all"
     echo "  $0 192.168.1.10 192.168.1.11 ~/.ssh/id_rsa containers"
-    echo "\n"
+    echo -e "\n"
     exit 1
 }
 
@@ -153,11 +153,11 @@ if [ -n "$CLEANUP_TYPE" ] && ! [[ "$CLEANUP_TYPE" =~ ^(all|containers|images|vol
 fi
 
 # Afficher les informations sur le nettoyage
-echo "\n[INFO] Nettoyage des conteneurs Docker sur les instances suivantes:"
+echo -e "\n[INFO] Nettoyage des conteneurs Docker sur les instances suivantes:"
 echo "  - Instance de monitoring: $EC2_MONITORING_IP"
 echo "  - Instance d'application: $EC2_APP_IP"
 echo "  - Type de nettoyage: $CLEANUP_TYPE"
-echo "\n[INFO] Les logs seront sauvegardés avant le nettoyage."
+echo -e "\n[INFO] Les logs seront sauvegardés avant le nettoyage."
 
 # Nettoyer les conteneurs sur l'instance de monitoring
 cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
@@ -165,4 +165,4 @@ cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
 # Nettoyer les conteneurs sur l'instance d'application
 cleanup_containers $EC2_APP_IP "application" $CLEANUP_TYPE
 
-echo "\n[SUCCESS] Nettoyage des conteneurs Docker terminé sur toutes les instances."
+echo -e "\n[SUCCESS] Nettoyage des conteneurs Docker terminé sur toutes les instances."

@@ -131,30 +131,89 @@ jobs:
         run: |
           # Test de santé pour l'application mobile
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
-            echo "Testing mobile app health check..."
-            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}
-            sleep 10
-            curl -f http://localhost:3000/ || (echo "::warning::Le health check de l'image mobile a échoué" && docker logs mobile-test)
+            echo "Démarrage du conteneur mobile pour les tests..."
+            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}
+
+            echo "Attente de 15 secondes pour le démarrage du conteneur..."
+            sleep 15
+
+            echo "Vérification de l'état de santé de l'application mobile..."
+            if curl -s -f http://localhost:3000/ > /dev/null; then
+                echo "✅ Le test de santé de l'application mobile a réussi"
+            else
+                echo "❌ Le test de santé de l'application mobile a échoué"
+                echo "Logs du conteneur mobile:"
+                docker logs mobile-test
+                echo "::warning::Le health check de l'image mobile a échoué"
+            fi
             docker stop mobile-test
             docker rm mobile-test
           fi
 
           # Test de santé pour Grafana
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "Testing Grafana health check..."
-            docker run -d --name grafana-test -p 3001:3000 ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}
-            sleep 10
-            curl -f http://localhost:3001/api/health || (echo "::warning::Le health check de l'image Grafana a échoué" && docker logs grafana-test)
+            echo "Démarrage du conteneur Grafana pour les tests..."
+            docker run -d --name grafana-test -p 3000:3000 \
+              -e "GF_SECURITY_ADMIN_PASSWORD=${{ secrets.GF_SECURITY_ADMIN_PASSWORD || 'YourMedia2025!' }}" \
+              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}
+
+            echo "Attente de 15 secondes pour le démarrage du conteneur..."
+            sleep 15
+
+            echo "Vérification de l'état de santé de Grafana..."
+            if curl -s -f http://localhost:3000/api/health > /dev/null; then
+                echo "✅ Le test de santé de Grafana a réussi"
+            else
+                echo "❌ Le test de santé de Grafana a échoué"
+                echo "Logs du conteneur Grafana:"
+                docker logs grafana-test
+                echo "::warning::Le health check de l'image Grafana a échoué"
+            fi
             docker stop grafana-test
             docker rm grafana-test
 
             # Test de santé pour Prometheus
-            echo "Testing Prometheus health check..."
-            docker run -d --name prometheus-test -p 9090:9090 ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}
-            sleep 10
-            curl -f http://localhost:9090/-/healthy || (echo "::warning::Le health check de l'image Prometheus a échoué" && docker logs prometheus-test)
+            echo "Démarrage du conteneur Prometheus pour les tests..."
+            docker run -d --name prometheus-test -p 9090:9090 \
+              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}
+
+            echo "Attente de 15 secondes pour le démarrage du conteneur..."
+            sleep 15
+
+            echo "Vérification de l'état de santé de Prometheus..."
+            if curl -s -f http://localhost:9090/-/healthy > /dev/null; then
+                echo "✅ Le test de santé de Prometheus a réussi"
+            else
+                echo "❌ Le test de santé de Prometheus a échoué"
+                echo "Logs du conteneur Prometheus:"
+                docker logs prometheus-test
+                echo "::warning::Le health check de l'image Prometheus a échoué"
+            fi
             docker stop prometheus-test
             docker rm prometheus-test
+
+            # Test de santé pour SonarQube
+            echo "Démarrage du conteneur SonarQube pour les tests..."
+            docker run -d --name sonarqube-test -p 9000:9000 \
+              -e "SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m" \
+              -e "SONAR_WEB_JAVA_OPTS=-Xmx512m -Xms256m" \
+              -e "SONAR_CE_JAVA_OPTS=-Xmx512m -Xms256m" \
+              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:sonarqube-${{ env.VERSION }}
+
+            echo "Attente de 45 secondes pour le démarrage du conteneur SonarQube..."
+            sleep 45
+
+            echo "Vérification de l'état de santé de SonarQube..."
+            if curl -s -f http://localhost:9000/api/system/status > /dev/null; then
+                echo "✅ Le test de santé de SonarQube a réussi"
+            else
+                echo "❌ Le test de santé de SonarQube a échoué"
+                echo "Logs du conteneur SonarQube:"
+                docker logs sonarqube-test
+                echo "::warning::Le health check de l'image SonarQube a échoué"
+            fi
+            docker stop sonarqube-test
+            docker rm sonarqube-test
           fi
 
       - name: Summary
@@ -163,10 +222,10 @@ jobs:
           echo "* **Version:** ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf" >> $GITHUB_STEP_SUMMARY
+          echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
-            echo "* **Mobile App Image:** ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Mobile App Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Mobile App Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat mobile-scan.txt >> $GITHUB_STEP_SUMMARY
@@ -174,9 +233,9 @@ jobs:
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "* **Grafana Image:** ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-            echo "* **Prometheus Image:** ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-            echo "* **SonarQube Image:** ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:sonarqube-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Grafana Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Prometheus Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **SonarQube Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:sonarqube-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
 
             echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
@@ -212,8 +271,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKER_REPO: yourmedia-ecf
-          DOCKERHUB_REPO: yourmedia-ecf
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
+          DOCKERHUB_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
           TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
@@ -237,8 +296,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKER_REPO: yourmedia-ecf
-          DOCKERHUB_REPO: yourmedia-ecf
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
+          DOCKERHUB_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
           TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
@@ -253,7 +312,7 @@ jobs:
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3001" >> $GITHUB_STEP_SUMMARY
+            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
             echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
           fi
@@ -284,8 +343,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKER_REPO: yourmedia-ecf
-          DOCKERHUB_REPO: yourmedia-ecf
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
+          DOCKERHUB_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
           TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
@@ -309,8 +368,8 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKER_REPO: yourmedia-ecf
-          DOCKERHUB_REPO: yourmedia-ecf
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
+          DOCKERHUB_REPO: ${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}
           TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
@@ -325,7 +384,7 @@ jobs:
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3001" >> $GITHUB_STEP_SUMMARY
+            echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
             echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
           fi

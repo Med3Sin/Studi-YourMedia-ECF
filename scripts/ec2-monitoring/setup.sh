@@ -7,34 +7,47 @@
 #
 # Le script vérifie automatiquement les droits et demandera sudo si nécessaire.
 
-# Variables (peuvent être remplacées par des variables d'environnement)
-ec2_java_tomcat_ip="${EC2_JAVA_TOMCAT_IP:-PLACEHOLDER_IP}"
+# Charger les variables d'environnement si elles existent
+if [ -f "/opt/monitoring/env.sh" ]; then
+    echo "Chargement des variables d'environnement depuis /opt/monitoring/env.sh"
+    source /opt/monitoring/env.sh
+fi
+
+# Charger les variables sensibles si elles existent
+if [ -f "/opt/monitoring/secure/sensitive-env.sh" ]; then
+    echo "Chargement des variables sensibles depuis /opt/monitoring/secure/sensitive-env.sh"
+    source /opt/monitoring/secure/sensitive-env.sh
+fi
+
+# Variables standardisées (peuvent être remplacées par des variables d'environnement)
+# Variables EC2
+export EC2_JAVA_TOMCAT_IP="${EC2_JAVA_TOMCAT_IP:-PLACEHOLDER_IP}"
+
 # Variables RDS standardisées
-rds_username="${RDS_USERNAME:-PLACEHOLDER_USERNAME}"
-rds_password="${RDS_PASSWORD:-PLACEHOLDER_PASSWORD}"
-rds_endpoint="${RDS_ENDPOINT:-PLACEHOLDER_ENDPOINT}"
+export RDS_USERNAME="${RDS_USERNAME:-PLACEHOLDER_USERNAME}"
+export RDS_PASSWORD="${RDS_PASSWORD:-PLACEHOLDER_PASSWORD}"
+export RDS_ENDPOINT="${RDS_ENDPOINT:-PLACEHOLDER_ENDPOINT}"
 
 # Extraire l'hôte et le port de RDS_ENDPOINT
-if [[ "$rds_endpoint" == *":"* ]]; then
-    rds_host=$(echo "$rds_endpoint" | cut -d':' -f1)
-    rds_port=$(echo "$rds_endpoint" | cut -d':' -f2)
+if [[ "$RDS_ENDPOINT" == *":"* ]]; then
+    export RDS_HOST=$(echo "$RDS_ENDPOINT" | cut -d':' -f1)
+    export RDS_PORT=$(echo "$RDS_ENDPOINT" | cut -d':' -f2)
 else
-    rds_host="$rds_endpoint"
-    rds_port="3306"
+    export RDS_HOST="$RDS_ENDPOINT"
+    export RDS_PORT="3306"
 fi
-export RDS_HOST="$rds_host"
-export RDS_PORT="$rds_port"
 
 # Variables de compatibilité (pour les scripts existants)
-db_username="${DB_USERNAME:-$rds_username}"
-db_password="${DB_PASSWORD:-$rds_password}"
-db_endpoint="${DB_ENDPOINT:-$rds_endpoint}"
+export DB_USERNAME="$RDS_USERNAME"
+export DB_PASSWORD="$RDS_PASSWORD"
+export DB_ENDPOINT="$RDS_ENDPOINT"
 # Variables SonarQube
-sonar_jdbc_username="${SONAR_JDBC_USERNAME:-sonar}"
-sonar_jdbc_password="${SONAR_JDBC_PASSWORD:-sonar123}"
-sonar_jdbc_url="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME:-sonar}"
+export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD:-sonar123}"
+export SONAR_JDBC_URL="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
 # Variables Grafana
-grafana_admin_password="${GRAFANA_ADMIN_PASSWORD:-admin}"
+export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
+export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
 
 # Fonction pour afficher les messages
 log() {
@@ -48,11 +61,15 @@ error_exit() {
 }
 
 # Vérification de sécurité pour les mots de passe par défaut
-if [ "$grafana_admin_password" = "admin" ]; then
+if [ "$GRAFANA_ADMIN_PASSWORD" = "admin" ]; then
     log "AVERTISSEMENT: Mot de passe Grafana par défaut détecté. Il est recommandé de le changer."
+    # Définir un mot de passe plus sécurisé
+    export GRAFANA_ADMIN_PASSWORD="YourMedia2025!"
+    export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
+    log "Mot de passe Grafana défini sur une valeur plus sécurisée."
 fi
 
-if [ "$sonar_jdbc_password" = "sonar123" ]; then
+if [ "$SONAR_JDBC_PASSWORD" = "sonar123" ]; then
     log "AVERTISSEMENT: Mot de passe SonarQube par défaut détecté. Il est recommandé de le changer."
 fi
 
@@ -104,25 +121,25 @@ if ! command -v docker &> /dev/null; then
         log "Utilisation du script install-docker.sh..."
         sudo /opt/monitoring/install-docker.sh
     else
-        log "Le script install-docker.sh n'est pas disponible. Tentative d'installation standard..."
-        # Installation pour Amazon Linux 2023 avec le script get-docker.sh
+        log "Le script install-docker.sh n'est pas disponible. Installation native pour Amazon Linux 2023..."
+        # Installation native pour Amazon Linux 2023
         log "Système détecté: Amazon Linux 2023"
         log "Installation des paquets nécessaires"
-        sudo dnf install -y tar gzip curl
+        sudo dnf update -y
 
-        log "Téléchargement du script d'installation de Docker"
-        curl -fsSL https://get.docker.com -o get-docker.sh
-
-        log "Exécution du script d'installation de Docker"
-        sudo sh get-docker.sh
-
-        # Supprimer le script d'installation
-        rm -f get-docker.sh
+        log "Installation de Docker natif pour Amazon Linux 2023"
+        sudo dnf install -y docker
 
         log "Démarrage et activation du service Docker"
         sudo systemctl start docker
         sudo systemctl enable docker
-        sudo usermod -a -G docker ec2-user
+
+        # Créer le groupe docker s'il n'existe pas
+        getent group docker &>/dev/null || sudo groupadd docker
+
+        # Ajouter l'utilisateur ec2-user au groupe docker
+        sudo usermod -aG docker ec2-user
+        log "Utilisateur ec2-user ajouté au groupe docker"
     fi
 else
     log "Docker est déjà installé."
@@ -305,7 +322,7 @@ services:
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -327,8 +344,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
+      - POSTGRES_USER=${SONAR_JDBC_USERNAME}
+      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD}
       - POSTGRES_DB=sonar
     volumes:
       - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
@@ -350,9 +367,9 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
+      - SONAR_JDBC_URL=${SONAR_JDBC_URL}
+      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME}
+      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD}
     volumes:
       - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
       - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
@@ -395,7 +412,7 @@ services:
     ports:
       - "9104:9104"
     environment:
-      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@(${RDS_ENDPOINT:-localhost}:3306)/
+      - DATA_SOURCE_NAME=${RDS_USERNAME}:${RDS_PASSWORD}@(${RDS_HOST}:${RDS_PORT})/
     command:
       - '--collect.info_schema.tables'
       - '--collect.info_schema.innodb_metrics'
@@ -503,21 +520,37 @@ if [ "$RUNNING_CONTAINERS" -gt 0 ]; then
     sudo docker-compose down || log "Erreur lors de l'arrêt des conteneurs. Tentative de continuer..."
 fi
 
+# Exécuter le script de correction des permissions avant de démarrer les conteneurs
+if [ -f "/opt/monitoring/fix_permissions.sh" ]; then
+    log "Exécution du script de correction des permissions avant le démarrage..."
+    sudo /opt/monitoring/fix_permissions.sh
+fi
+
+# Connexion à Docker Hub si les identifiants sont disponibles
+if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
+    log "Connexion à Docker Hub..."
+    echo "$DOCKERHUB_TOKEN" | sudo docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+fi
+
 # Utiliser docker-manager.sh si disponible, sinon utiliser docker-compose directement
 if [ -f "/usr/local/bin/docker-manager.sh" ]; then
     log "Utilisation de docker-manager.sh pour déployer les conteneurs..."
-    sudo /usr/local/bin/docker-manager.sh deploy monitoring
+    # Définir explicitement le mot de passe Grafana pour docker-manager.sh
+    export GF_SECURITY_ADMIN_PASSWORD="$grafana_admin_password"
+    sudo -E /usr/local/bin/docker-manager.sh deploy monitoring
 
     # Vérifier si le déploiement a réussi
     if [ $? -ne 0 ]; then
         log "Erreur lors du déploiement avec docker-manager.sh. Tentative avec docker-compose..."
         cd /opt/monitoring
-        sudo docker-compose up -d
+        sudo -E docker-compose up -d
     fi
 else
     log "Le script docker-manager.sh n'est pas disponible. Utilisation de docker-compose..."
     cd /opt/monitoring
-    sudo docker-compose up -d
+    # Définir explicitement le mot de passe Grafana pour docker-compose
+    export GF_SECURITY_ADMIN_PASSWORD="$grafana_admin_password"
+    sudo -E docker-compose up -d
 fi
 
 # Vérification du statut des conteneurs
@@ -577,7 +610,7 @@ else
 fi
 
 log "Installation et configuration terminées avec succès."
-log "Grafana est accessible à l'adresse http://localhost:3001"
+log "Grafana est accessible à l'adresse http://localhost:3000"
 log "Prometheus est accessible à l'adresse http://localhost:9090"
 log "SonarQube est accessible à l'adresse http://localhost:9000"
 

@@ -58,8 +58,18 @@ fi
 
 # ÉTAPE 3: Corriger les permissions
 info "Configuration des permissions..."
+# Permissions pour Prometheus
 chown -R 65534:65534 /opt/monitoring/prometheus-data
+chmod -R 755 /opt/monitoring/prometheus-data
+
+# Permissions pour Grafana
 chown -R 472:472 /opt/monitoring/grafana-data
+chmod -R 755 /opt/monitoring/grafana-data
+
+# S'assurer que tous les scripts sont exécutables
+info "S'assurer que tous les scripts sont exécutables..."
+find /opt/monitoring -name "*.sh" -exec chmod +x {} \;
+find /usr/local/bin -name "docker-manager.sh" -exec chmod +x {} \;
 
 # Création du répertoire pour CloudWatch Exporter s'il n'existe pas
 if [ ! -d "/opt/monitoring/cloudwatch-config" ]; then
@@ -80,10 +90,20 @@ if [ -d "/opt/monitoring/sonarqube-data" ]; then
     mkdir -p /opt/monitoring/sonarqube-data/logs
     mkdir -p /opt/monitoring/sonarqube-data/extensions
     mkdir -p /opt/monitoring/sonarqube-data/db
+
+    # Permissions pour SonarQube (utilisateur 999 pour SonarQube)
     chown -R 999:999 /opt/monitoring/sonarqube-data/data
     chown -R 999:999 /opt/monitoring/sonarqube-data/logs
     chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
+
+    # Permissions pour PostgreSQL (utilisateur 999 pour PostgreSQL)
     chown -R 999:999 /opt/monitoring/sonarqube-data/db
+
+    # Définir les permissions correctes
+    chmod -R 755 /opt/monitoring/sonarqube-data/data
+    chmod -R 755 /opt/monitoring/sonarqube-data/logs
+    chmod -R 755 /opt/monitoring/sonarqube-data/extensions
+    chmod -R 700 /opt/monitoring/sonarqube-data/db
 fi
 
 # ÉTAPE 4: Sauvegarder les fichiers de configuration

@@ -13,8 +13,23 @@ error_exit() {
 }
 
 # Vérification des variables d'environnement requises
+# Récupérer la variable S3_BUCKET_NAME depuis les métadonnées de l'instance si elle n'est pas définie
 if [ -z "$S3_BUCKET_NAME" ]; then
-    error_exit "La variable d'environnement S3_BUCKET_NAME n'est pas définie."
+    log "La variable S3_BUCKET_NAME n'est pas définie, tentative de récupération depuis les métadonnées de l'instance..."
+    # Récupérer les tags de l'instance
+    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+    REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+
+    # Récupérer le tag S3_BUCKET_NAME
+    S3_BUCKET_NAME=$(aws ec2 describe-tags --region $REGION --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3_BUCKET_NAME" --query "Tags[0].Value" --output text)
+
+    if [ -z "${S3_BUCKET_NAME}" ] || [ "${S3_BUCKET_NAME}" = "None" ]; then
+        error_exit "Impossible de récupérer la variable S3_BUCKET_NAME depuis les métadonnées de l'instance"
+    fi
+
+    # Exporter la variable pour les scripts suivants
+    export S3_BUCKET_NAME
+    log "Variable S3_BUCKET_NAME récupérée depuis les métadonnées de l'instance: ${S3_BUCKET_NAME}"
 fi
 
 # Vérification des dépendances
@@ -58,10 +73,6 @@ log "EC2_INSTANCE_PRIVATE_IP=$EC2_INSTANCE_PRIVATE_IP"
 
 # Téléchargement des scripts depuis S3
 log "Téléchargement des scripts depuis S3"
-if [ -z "${S3_BUCKET_NAME}" ]; then
-  log "ERREUR: La variable S3_BUCKET_NAME n'est pas définie"
-  error_exit "La variable S3_BUCKET_NAME est requise pour télécharger les scripts"
-fi
 
 log "Utilisation du bucket S3: ${S3_BUCKET_NAME}"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh || error_exit "Impossible de télécharger setup.sh depuis S3"
@@ -69,7 +80,12 @@ sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/get-aws-resources-info.sh /opt/monitoring/get-aws-resources-info.sh || log "AVERTISSEMENT: Impossible de télécharger get-aws-resources-info.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml depuis S3"
+# Utiliser le docker-compose.yml centralisé du répertoire docker
+sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || {
+  log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml centralisé depuis S3"
+  # Fallback sur le docker-compose.yml spécifique à l'instance
+  sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml depuis S3"
+}
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/cloudwatch-config.yml /opt/monitoring/cloudwatch-config.yml || log "AVERTISSEMENT: Impossible de télécharger cloudwatch-config.yml depuis S3"
 sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/configure-sonarqube.sh /opt/monitoring/configure-sonarqube.sh || log "AVERTISSEMENT: Impossible de télécharger configure-sonarqube.sh depuis S3"
 
@@ -102,34 +118,64 @@ else
     RDS_PORT="3306"
 fi
 
+# Créer un répertoire sécurisé pour les variables d'environnement
+sudo mkdir -p /opt/monitoring/secure
+sudo chmod 700 /opt/monitoring/secure
+
+# Créer un fichier pour les variables non sensibles
 cat > /tmp/monitoring-env.sh << EOF
 export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
-# Variables RDS standardisées
-export RDS_USERNAME="${RDS_USERNAME}"
-export RDS_PASSWORD="${RDS_PASSWORD}"
-export RDS_ENDPOINT="${RDS_ENDPOINT}"
-export RDS_HOST="${RDS_HOST}"
-export RDS_PORT="${RDS_PORT}"
+# Variables RDS standardisées (références sécurisées)
+export RDS_USERNAME="\$(cat /opt/monitoring/secure/rds_username.txt 2>/dev/null || echo "${RDS_USERNAME}")"
+export RDS_ENDPOINT="\$(cat /opt/monitoring/secure/rds_endpoint.txt 2>/dev/null || echo "${RDS_ENDPOINT}")"
+export RDS_HOST="\$(cat /opt/monitoring/secure/rds_host.txt 2>/dev/null || echo "${RDS_HOST}")"
+export RDS_PORT="\$(cat /opt/monitoring/secure/rds_port.txt 2>/dev/null || echo "${RDS_PORT}")"
 # Variables de compatibilité (pour les scripts existants)
-export DB_USERNAME="${RDS_USERNAME}"
-export DB_PASSWORD="${RDS_PASSWORD}"
-# Variables SonarQube
-export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME}"
-export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
-export SONAR_JDBC_URL="${SONAR_JDBC_URL}"
-# Variables Grafana
-export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
+export DB_USERNAME="\$RDS_USERNAME"
+# Variables SonarQube (références sécurisées)
+export SONAR_JDBC_USERNAME="\$(cat /opt/monitoring/secure/sonar_jdbc_username.txt 2>/dev/null || echo "${SONAR_JDBC_USERNAME}")"
+export SONAR_JDBC_URL="\$(cat /opt/monitoring/secure/sonar_jdbc_url.txt 2>/dev/null || echo "${SONAR_JDBC_URL}")"
 # Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
-# Variables Docker Hub
-export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME}"
-export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
-export DOCKER_USERNAME="${DOCKER_USERNAME:-${DOCKERHUB_USERNAME}}"
-export DOCKER_REPO="${DOCKER_REPO:-yourmedia-ecf}"
+# Variables Docker Hub (références sécurisées)
+export DOCKERHUB_USERNAME="\$(cat /opt/monitoring/secure/dockerhub_username.txt 2>/dev/null || echo "${DOCKERHUB_USERNAME}")"
+export DOCKER_USERNAME="\$DOCKERHUB_USERNAME"
+export DOCKER_REPO="\$(cat /opt/monitoring/secure/docker_repo.txt 2>/dev/null || echo "${DOCKER_REPO:-yourmedia-ecf}")"
+# Charger les variables sensibles
+source /opt/monitoring/secure/sensitive-env.sh 2>/dev/null || true
 EOF
 
+# Créer un fichier pour les variables sensibles
+cat > /tmp/sensitive-env.sh << EOF
+# Variables sensibles
+export RDS_PASSWORD="${RDS_PASSWORD}"
+export DB_PASSWORD="\$RDS_PASSWORD"
+export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
+export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
+export GF_SECURITY_ADMIN_PASSWORD="\$GRAFANA_ADMIN_PASSWORD"
+export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
+EOF
+
+# Déplacer les fichiers vers leurs emplacements définitifs
 sudo mv /tmp/monitoring-env.sh /opt/monitoring/env.sh
+sudo mv /tmp/sensitive-env.sh /opt/monitoring/secure/sensitive-env.sh
+
+# Définir les permissions appropriées
 sudo chmod +x /opt/monitoring/env.sh
+sudo chmod 600 /opt/monitoring/secure/sensitive-env.sh
+
+# Stocker les variables non sensibles dans des fichiers séparés pour une meilleure sécurité
+echo "${RDS_USERNAME}" | sudo tee /opt/monitoring/secure/rds_username.txt > /dev/null
+echo "${RDS_ENDPOINT}" | sudo tee /opt/monitoring/secure/rds_endpoint.txt > /dev/null
+echo "${RDS_HOST}" | sudo tee /opt/monitoring/secure/rds_host.txt > /dev/null
+echo "${RDS_PORT}" | sudo tee /opt/monitoring/secure/rds_port.txt > /dev/null
+echo "${SONAR_JDBC_USERNAME}" | sudo tee /opt/monitoring/secure/sonar_jdbc_username.txt > /dev/null
+echo "${SONAR_JDBC_URL}" | sudo tee /opt/monitoring/secure/sonar_jdbc_url.txt > /dev/null
+echo "${DOCKERHUB_USERNAME}" | sudo tee /opt/monitoring/secure/dockerhub_username.txt > /dev/null
+echo "${DOCKER_REPO:-yourmedia-ecf}" | sudo tee /opt/monitoring/secure/docker_repo.txt > /dev/null
+
+# Sécuriser les fichiers
+sudo chmod 600 /opt/monitoring/secure/*.txt
 
 # Modification du script setup.sh pour utiliser les variables d'environnement
 log "Modification du script setup.sh pour utiliser les variables d'environnement"
