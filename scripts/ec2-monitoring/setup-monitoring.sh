@@ -1,7 +1,41 @@
 #!/bin/bash
-# Script unifié d'installation et de configuration pour l'instance EC2 Monitoring
-# Ce script combine les fonctionnalités de setup.sh, init-instance-env.sh, install-docker.sh,
-# fix_permissions.sh, fix-containers.sh et fix-exporters.sh
+#==============================================================================
+# Nom du script : setup-monitoring.sh
+# Description   : Script unifié d'installation et de configuration pour l'instance EC2 Monitoring.
+#                 Ce script combine les fonctionnalités de setup.sh, init-instance-env.sh,
+#                 install-docker.sh, fix_permissions.sh, fix-containers.sh et fix-exporters.sh.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.1
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./setup-monitoring.sh
+#
+# Options       : Aucune
+#
+# Exemples      :
+#   sudo ./setup-monitoring.sh
+#==============================================================================
+# Dépendances   :
+#   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
+#   - jq        : Pour le traitement JSON
+#   - aws-cli   : Pour interagir avec les services AWS
+#   - docker    : Sera installé par le script
+#   - docker-compose : Sera installé par le script
+#==============================================================================
+# Variables d'environnement :
+#   - S3_BUCKET_NAME : Nom du bucket S3 contenant les scripts
+#   - RDS_USERNAME / DB_USERNAME : Nom d'utilisateur RDS
+#   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
+#   - RDS_ENDPOINT / DB_ENDPOINT : Point de terminaison RDS
+#   - GRAFANA_ADMIN_PASSWORD / GF_SECURITY_ADMIN_PASSWORD : Mot de passe administrateur Grafana
+#   - SONAR_JDBC_USERNAME : Nom d'utilisateur pour la base de données SonarQube
+#   - SONAR_JDBC_PASSWORD : Mot de passe pour la base de données SonarQube
+#   - SONAR_JDBC_URL : URL JDBC pour la base de données SonarQube
+#   - DOCKER_USERNAME / DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
+#   - DOCKER_REPO / DOCKERHUB_REPO : Nom du dépôt Docker Hub
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
 
 set -e
 
@@ -36,21 +70,46 @@ if [ -f "/opt/monitoring/secure/sensitive-env.sh" ]; then
 fi
 
 # Définir les variables d'environnement
+log "Configuration des variables d'environnement"
+
+# Variables EC2 - Standardisation sur EC2_*
 EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 EC2_INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 
-# Variables standardisées
-export RDS_USERNAME="${RDS_USERNAME:-yourmedia}"
-export RDS_PASSWORD="${RDS_PASSWORD:-password}"
-export RDS_ENDPOINT="${RDS_ENDPOINT:-localhost:3306}"
-export S3_BUCKET_NAME="${S3_BUCKET_NAME:-yourmedia-ecf-studi}"
-export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
-export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
-export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME:-sonar}"
-export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD:-sonar123}"
-export SONAR_JDBC_URL="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+# Variables S3 - Standardisation sur S3_*
+if [ -z "$S3_BUCKET_NAME" ]; then
+    log "La variable S3_BUCKET_NAME n'est pas définie, utilisation de la valeur par défaut yourmedia-ecf-studi"
+    S3_BUCKET_NAME="yourmedia-ecf-studi"
+fi
+export S3_BUCKET_NAME
+export AWS_REGION="${AWS_REGION:-eu-west-3}"
+
+# Variables RDS - Standardisation sur RDS_*
+if [ -z "$RDS_USERNAME" ] && [ -n "$DB_USERNAME" ]; then
+    RDS_USERNAME="$DB_USERNAME"
+elif [ -z "$RDS_USERNAME" ]; then
+    RDS_USERNAME="yourmedia"
+    log "La variable RDS_USERNAME n'est pas définie, utilisation de la valeur par défaut $RDS_USERNAME"
+fi
+export RDS_USERNAME
+
+if [ -z "$RDS_PASSWORD" ] && [ -n "$DB_PASSWORD" ]; then
+    RDS_PASSWORD="$DB_PASSWORD"
+elif [ -z "$RDS_PASSWORD" ]; then
+    RDS_PASSWORD="password"
+    log "La variable RDS_PASSWORD n'est pas définie, utilisation de la valeur par défaut (non sécurisée)"
+fi
+export RDS_PASSWORD
+
+if [ -z "$RDS_ENDPOINT" ] && [ -n "$DB_ENDPOINT" ]; then
+    RDS_ENDPOINT="$DB_ENDPOINT"
+elif [ -z "$RDS_ENDPOINT" ]; then
+    RDS_ENDPOINT="localhost:3306"
+    log "La variable RDS_ENDPOINT n'est pas définie, utilisation de la valeur par défaut $RDS_ENDPOINT"
+fi
+export RDS_ENDPOINT
 
 # Extraire l'hôte et le port de RDS_ENDPOINT
 if [[ "$RDS_ENDPOINT" == *":"* ]]; then
@@ -61,10 +120,33 @@ else
     export RDS_PORT="3306"
 fi
 
+# Variables Grafana - Standardisation sur GRAFANA_*
+if [ -z "$GRAFANA_ADMIN_PASSWORD" ] && [ -n "$GF_SECURITY_ADMIN_PASSWORD" ]; then
+    GRAFANA_ADMIN_PASSWORD="$GF_SECURITY_ADMIN_PASSWORD"
+elif [ -z "$GRAFANA_ADMIN_PASSWORD" ]; then
+    GRAFANA_ADMIN_PASSWORD="YourMedia2025!"
+    log "La variable GRAFANA_ADMIN_PASSWORD n'est pas définie, utilisation de la valeur par défaut"
+fi
+export GRAFANA_ADMIN_PASSWORD
+export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
+
+# Variables SonarQube - Standardisation sur SONAR_*
+export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME:-sonar}"
+export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD:-sonar123}"
+export SONAR_JDBC_URL="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+
+# Variables Docker - Standardisation sur DOCKERHUB_*
+export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-medsin}"
+export DOCKERHUB_REPO="${DOCKERHUB_REPO:-yourmedia-ecf}"
+export DOCKER_USERNAME="$DOCKERHUB_USERNAME"
+export DOCKER_REPO="$DOCKERHUB_REPO"
+
 # Variables de compatibilité
 export DB_USERNAME="$RDS_USERNAME"
 export DB_PASSWORD="$RDS_PASSWORD"
 export DB_ENDPOINT="$RDS_ENDPOINT"
+
+log "Variables d'environnement configurées avec succès"
 
 # Création des répertoires nécessaires
 log "Création des répertoires nécessaires"

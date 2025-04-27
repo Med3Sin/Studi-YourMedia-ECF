@@ -1,12 +1,37 @@
 #!/bin/bash
-# Script unifié d'installation et de configuration pour l'instance EC2 Java Tomcat
-# Ce script combine les fonctionnalités de install_java_tomcat.sh, init-instance-env.sh et fix_permissions.sh
+#==============================================================================
+# Nom du script : setup-java-tomcat.sh
+# Description   : Script unifié d'installation et de configuration pour l'instance EC2 Java Tomcat.
+#                 Ce script combine les fonctionnalités de install_java_tomcat.sh,
+#                 init-instance-env.sh et fix_permissions.sh.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.1
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./setup-java-tomcat.sh
 #
-# EXIGENCES EN MATIÈRE DE DROITS :
-# Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
-# Exemple d'utilisation : sudo ./setup-java-tomcat.sh
+# Options       : Aucune
 #
-# Le script vérifie automatiquement les droits et demandera sudo si nécessaire.
+# Exemples      :
+#   sudo ./setup-java-tomcat.sh
+#==============================================================================
+# Dépendances   :
+#   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
+#   - wget      : Pour télécharger Tomcat
+#   - jq        : Pour le traitement JSON
+#   - aws-cli   : Pour interagir avec les services AWS
+#   - java      : Java 17 (Amazon Corretto) sera installé par le script
+#==============================================================================
+# Variables d'environnement :
+#   - S3_BUCKET_NAME : Nom du bucket S3 contenant les scripts
+#   - RDS_USERNAME / DB_USERNAME : Nom d'utilisateur RDS
+#   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
+#   - RDS_ENDPOINT / DB_ENDPOINT : Point de terminaison RDS
+#   - TOMCAT_VERSION : Version de Tomcat à installer (par défaut: 9.0.104)
+#   - SSH_PUBLIC_KEY : Clé SSH publique à ajouter aux clés autorisées
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
 
 # Activer le mode de débogage et la sortie d'erreur en cas d'échec
 set -e
@@ -59,16 +84,50 @@ fi
 
 # Définir les variables d'environnement
 log "Configuration des variables d'environnement"
+# Variables EC2 - Standardisation sur EC2_*
 EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 EC2_INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 
-# Vérifier que les variables d'environnement nécessaires sont définies
+# Variables Tomcat - Standardisation sur TOMCAT_*
 if [ -z "$TOMCAT_VERSION" ]; then
     log "La variable TOMCAT_VERSION n'est pas définie, utilisation de la valeur par défaut 9.0.104"
     TOMCAT_VERSION="9.0.104"
 fi
+
+# Variables S3 - Standardisation sur S3_*
+if [ -z "$S3_BUCKET_NAME" ]; then
+    log "La variable S3_BUCKET_NAME n'est pas définie, utilisation de la valeur par défaut yourmedia-ecf-studi"
+    S3_BUCKET_NAME="yourmedia-ecf-studi"
+fi
+
+# Variables RDS - Standardisation sur RDS_*
+if [ -z "$RDS_USERNAME" ] && [ -n "$DB_USERNAME" ]; then
+    RDS_USERNAME="$DB_USERNAME"
+elif [ -z "$RDS_USERNAME" ]; then
+    RDS_USERNAME="yourmedia"
+    log "La variable RDS_USERNAME n'est pas définie, utilisation de la valeur par défaut $RDS_USERNAME"
+fi
+
+if [ -z "$RDS_PASSWORD" ] && [ -n "$DB_PASSWORD" ]; then
+    RDS_PASSWORD="$DB_PASSWORD"
+elif [ -z "$RDS_PASSWORD" ]; then
+    RDS_PASSWORD="password"
+    log "La variable RDS_PASSWORD n'est pas définie, utilisation de la valeur par défaut (non sécurisée)"
+fi
+
+if [ -z "$RDS_ENDPOINT" ] && [ -n "$DB_ENDPOINT" ]; then
+    RDS_ENDPOINT="$DB_ENDPOINT"
+elif [ -z "$RDS_ENDPOINT" ]; then
+    RDS_ENDPOINT="localhost:3306"
+    log "La variable RDS_ENDPOINT n'est pas définie, utilisation de la valeur par défaut $RDS_ENDPOINT"
+fi
+
+# Variables de compatibilité
+DB_USERNAME="$RDS_USERNAME"
+DB_PASSWORD="$RDS_PASSWORD"
+DB_ENDPOINT="$RDS_ENDPOINT"
 
 # Créer les répertoires nécessaires
 log "Création des répertoires nécessaires"
@@ -342,7 +401,7 @@ fi
 log "Vérification de l'installation de Tomcat..."
 if [ -d "/opt/tomcat" ]; then
     log "✅ Le répertoire Tomcat existe: /opt/tomcat"
-    
+
     # Vérifier si les fichiers binaires de Tomcat existent
     if [ -f "/opt/tomcat/bin/startup.sh" ] && [ -f "/opt/tomcat/bin/shutdown.sh" ]; then
         log "✅ Les fichiers binaires de Tomcat existent"
@@ -350,11 +409,11 @@ if [ -d "/opt/tomcat" ]; then
         log "❌ Les fichiers binaires de Tomcat n'existent pas"
         exit 1
     fi
-    
+
     # Vérifier si le service Tomcat est configuré
     if systemctl list-unit-files | grep -q tomcat.service; then
         log "✅ Le service Tomcat est configuré"
-        
+
         # Vérifier si le service Tomcat est activé
         if systemctl is-enabled tomcat &> /dev/null; then
             log "✅ Le service Tomcat est activé"
@@ -363,7 +422,7 @@ if [ -d "/opt/tomcat" ]; then
             log "Activation du service Tomcat..."
             sudo systemctl enable tomcat
         fi
-        
+
         # Vérifier si le service Tomcat est en cours d'exécution
         if systemctl is-active tomcat &> /dev/null; then
             log "✅ Le service Tomcat est en cours d'exécution"

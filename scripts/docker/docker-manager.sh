@@ -1,13 +1,52 @@
 #!/bin/bash
-
-# Script pour gérer les images Docker et les conteneurs
-# Utilisation: ./docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
+#==============================================================================
+# Nom du script : docker-manager.sh
+# Description   : Script pour gérer les images Docker et les conteneurs.
+#                 Permet de construire, pousser et déployer des images Docker.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.1
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : ./docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
 #
-# EXIGENCES EN MATIÈRE DE DROITS :
-# Ce script doit être exécuté avec des privilèges sudo ou en tant que root pour certaines opérations.
-# Exemple d'utilisation : sudo ./docker-manager.sh deploy monitoring
+# Actions       :
+#   build       : Construit et pousse les images Docker vers Docker Hub
+#   deploy      : Déploie les conteneurs Docker sur les instances EC2
+#   all         : Exécute les actions build et deploy
 #
-# Le script vérifie automatiquement les droits et affichera une erreur si nécessaire.
+# Cibles        :
+#   mobile      : Application mobile React Native
+#   monitoring  : Services de monitoring (Grafana, Prometheus, SonarQube)
+#   all         : Toutes les cibles
+#
+# Exemples      :
+#   ./docker-manager.sh build mobile     # Construit et pousse l'image de l'application mobile
+#   ./docker-manager.sh deploy monitoring # Déploie les services de monitoring
+#   ./docker-manager.sh all all          # Construit, pousse et déploie toutes les images
+#==============================================================================
+# Dépendances   :
+#   - docker    : Pour construire et gérer les conteneurs
+#   - docker-compose : Pour orchestrer les conteneurs
+#   - curl      : Pour les requêtes HTTP
+#   - openssl   : Pour les opérations cryptographiques
+#   - ssh       : Pour se connecter aux instances EC2
+#==============================================================================
+# Variables d'environnement :
+#   - DOCKER_USERNAME / DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
+#   - DOCKER_REPO / DOCKERHUB_REPO : Nom du dépôt Docker Hub
+#   - DOCKERHUB_TOKEN : Token d'authentification Docker Hub
+#   - EC2_MONITORING_IP / TF_MONITORING_EC2_PUBLIC_IP : IP publique de l'instance EC2 de monitoring
+#   - EC2_APP_IP / TF_EC2_PUBLIC_IP : IP publique de l'instance EC2 de l'application
+#   - EC2_SSH_KEY / EC2_SSH_PRIVATE_KEY : Clé SSH privée pour se connecter aux instances EC2
+#   - GRAFANA_ADMIN_PASSWORD / GF_SECURITY_ADMIN_PASSWORD : Mot de passe administrateur Grafana
+#   - RDS_USERNAME / DB_USERNAME : Nom d'utilisateur RDS
+#   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
+#   - RDS_ENDPOINT / DB_ENDPOINT / TF_RDS_ENDPOINT : Point de terminaison RDS
+#   - GITHUB_CLIENT_ID : ID client GitHub pour SonarQube
+#   - GITHUB_CLIENT_SECRET : Secret client GitHub pour SonarQube
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root pour certaines opérations.
+#==============================================================================
 
 # Fonction pour afficher les messages d'information
 log_info() {
