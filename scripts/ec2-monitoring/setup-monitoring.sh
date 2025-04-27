@@ -606,58 +606,88 @@ check_containers() {
     fi
 
     log "Vérification des fichiers de configuration..."
-    if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
-        log "❌ Le fichier docker-compose.yml n'existe pas"
-        if [ "$fix_issues" = "true" ]; then
-            log "Création du fichier docker-compose.yml..."
-            create_docker_compose_file
-            if [ $? -eq 0 ]; then
-                log "✅ Fichier docker-compose.yml créé avec succès"
-            else
-                log "❌ La création du fichier docker-compose.yml a échoué"
-                return 1
-            fi
-        else
-            status=1
-        fi
+    local config_files_missing=0
+
+    # Vérifier si les fichiers de configuration existent
+    if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
+       [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
+       [ ! -f "/opt/monitoring/prometheus.yml" ] ||
+       [ ! -f "/opt/monitoring/loki-config.yml" ] ||
+       [ ! -f "/opt/monitoring/promtail-config.yml" ] ||
+       [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
+        log "❌ Certains fichiers de configuration sont manquants"
+        config_files_missing=1
     else
-        log "✅ Le fichier docker-compose.yml existe"
+        log "✅ Tous les fichiers de configuration existent"
     fi
 
-    if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
-        log "❌ Le fichier cloudwatch-config.yml n'existe pas"
-        if [ "$fix_issues" = "true" ]; then
-            log "Création du fichier cloudwatch-config.yml..."
-            create_cloudwatch_config
-            if [ $? -eq 0 ]; then
-                log "✅ Fichier cloudwatch-config.yml créé avec succès"
-            else
-                log "❌ La création du fichier cloudwatch-config.yml a échoué"
-                return 1
-            fi
-        else
-            status=1
-        fi
-    else
-        log "✅ Le fichier cloudwatch-config.yml existe"
-    fi
+    # Si des fichiers sont manquants et que fix_issues est true, générer les fichiers
+    if [ $config_files_missing -eq 1 ] && [ "$fix_issues" = "true" ]; then
+        log "Génération des fichiers de configuration manquants..."
 
-    if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
-        log "❌ Le fichier prometheus.yml n'existe pas"
-        if [ "$fix_issues" = "true" ]; then
-            log "Création du fichier prometheus.yml..."
-            create_prometheus_config
+        # Vérifier si le script generate-config.sh existe
+        if [ -f "$(dirname "$0")/generate-config.sh" ]; then
+            # Copier le script dans /opt/monitoring
+            cp "$(dirname "$0")/generate-config.sh" /opt/monitoring/
+            chmod +x /opt/monitoring/generate-config.sh
+
+            # Exécuter le script
+            /opt/monitoring/generate-config.sh --force
+
             if [ $? -eq 0 ]; then
-                log "✅ Fichier prometheus.yml créé avec succès"
+                log "✅ Fichiers de configuration générés avec succès"
             else
-                log "❌ La création du fichier prometheus.yml a échoué"
-                return 1
+                log "❌ La génération des fichiers de configuration a échoué"
+
+                # Utiliser les anciennes fonctions comme fallback
+                log "Utilisation des fonctions intégrées comme fallback..."
+
+                if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+                    create_docker_compose_file
+                fi
+
+                if [ ! -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+                    create_cloudwatch_config
+                fi
+
+                if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+                    create_prometheus_config
+                fi
+
+                # Vérifier si les fichiers ont été créés
+                if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
+                   [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
+                   [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+                    log "❌ La création des fichiers de configuration a échoué"
+                    return 1
+                fi
             fi
         else
-            status=1
+            # Si le script n'existe pas, utiliser les anciennes fonctions
+            log "Script generate-config.sh non trouvé, utilisation des fonctions intégrées..."
+
+            if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+                create_docker_compose_file
+            fi
+
+            if [ ! -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+                create_cloudwatch_config
+            fi
+
+            if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+                create_prometheus_config
+            fi
+
+            # Vérifier si les fichiers ont été créés
+            if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
+               [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
+               [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+                log "❌ La création des fichiers de configuration a échoué"
+                return 1
+            fi
         fi
-    else
-        log "✅ Le fichier prometheus.yml existe"
+    elif [ $config_files_missing -eq 1 ]; then
+        status=1
     fi
 
     log "Vérification des conteneurs Docker..."
