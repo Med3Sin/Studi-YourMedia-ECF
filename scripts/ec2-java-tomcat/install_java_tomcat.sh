@@ -21,8 +21,8 @@ error_exit() {
 
 # Vérifier que les variables d'environnement nécessaires sont définies
 if [ -z "$TOMCAT_VERSION" ]; then
-    log "La variable TOMCAT_VERSION n'est pas définie, utilisation de la valeur par défaut 9.0.87"
-    TOMCAT_VERSION="9.0.87"
+    log "La variable TOMCAT_VERSION n'est pas définie, utilisation de la valeur par défaut 9.0.104"
+    TOMCAT_VERSION="9.0.104"
 fi
 
 log "Démarrage de l'installation de Java et Tomcat $TOMCAT_VERSION"
@@ -32,12 +32,12 @@ sudo dnf update -y
 
 echo "--- Configuration des clés SSH ---"
 # Créer le répertoire .ssh pour ec2-user
-mkdir -p /home/ec2-user/.ssh
-chmod 700 /home/ec2-user/.ssh
+sudo mkdir -p /home/ec2-user/.ssh
+sudo chmod 700 /home/ec2-user/.ssh
 
 # Créer le fichier authorized_keys s'il n'existe pas
-touch /home/ec2-user/.ssh/authorized_keys
-chmod 600 /home/ec2-user/.ssh/authorized_keys
+sudo touch /home/ec2-user/.ssh/authorized_keys
+sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 
 # Fonction pour corriger les clés SSH
 fix_ssh_keys() {
@@ -51,13 +51,14 @@ fix_ssh_keys() {
   fi
 
   # Sauvegarder le fichier original
-  cp "$ssh_dir/authorized_keys" "$ssh_dir/authorized_keys.bak"
+  sudo cp "$ssh_dir/authorized_keys" "$ssh_dir/authorized_keys.bak"
 
   # Supprimer les guillemets simples dans le fichier authorized_keys
-  sed "s/'//g" "$ssh_dir/authorized_keys.bak" > "$ssh_dir/authorized_keys.tmp"
+  sudo sed "s/'//g" "$ssh_dir/authorized_keys.bak" > "$ssh_dir/authorized_keys.tmp"
 
   # Vérifier le format des clés SSH
-  > "$ssh_dir/authorized_keys.new"
+  sudo touch "$ssh_dir/authorized_keys.new"
+  sudo chmod 600 "$ssh_dir/authorized_keys.new"
   while IFS= read -r line; do
     # Ignorer les lignes vides ou commentées
     if [[ -z "$line" || "$line" == \#* ]]; then
@@ -83,13 +84,13 @@ fix_ssh_keys() {
   done < "$ssh_dir/authorized_keys.tmp"
 
   # Remplacer le fichier authorized_keys
-  mv "$ssh_dir/authorized_keys.new" "$ssh_dir/authorized_keys"
+  sudo mv "$ssh_dir/authorized_keys.new" "$ssh_dir/authorized_keys"
 
   # Ajuster les permissions
-  chmod 600 "$ssh_dir/authorized_keys"
+  sudo chmod 600 "$ssh_dir/authorized_keys"
 
   # Supprimer les fichiers temporaires
-  rm -f "$ssh_dir/authorized_keys.tmp"
+  sudo rm -f "$ssh_dir/authorized_keys.tmp"
 
   echo "Correction des clés SSH terminée."
 }
@@ -99,7 +100,7 @@ SSH_PUBLIC_KEY="${ssh_public_key}"
 if [ ! -z "$SSH_PUBLIC_KEY" ]; then
   # Supprimer les guillemets simples qui pourraient être présents dans la clé
   CLEAN_KEY=$(echo "$SSH_PUBLIC_KEY" | sed "s/'//g")
-  echo "$CLEAN_KEY" >> /home/ec2-user/.ssh/authorized_keys
+  echo "$CLEAN_KEY" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
   echo "Clé SSH publique GitHub installée avec succès"
 
   # Corriger les clés SSH
@@ -117,11 +118,11 @@ $(declare -f fix_ssh_keys)
 fix_ssh_keys ~/.ssh
 EOF
 
-chmod +x /tmp/fix-ssh-keys.sh
-cp /tmp/fix-ssh-keys.sh /usr/local/bin/fix-ssh-keys.sh
+sudo chmod +x /tmp/fix-ssh-keys.sh
+sudo cp /tmp/fix-ssh-keys.sh /usr/local/bin/fix-ssh-keys.sh
 
 # Créer un service systemd pour exécuter le script périodiquement
-cat > /etc/systemd/system/ssh-key-checker.service << 'EOF'
+sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.service << "EOF"'
 [Unit]
 Description=SSH Key Format Checker
 After=network.target
@@ -133,7 +134,7 @@ User=ec2-user
 Group=ec2-user
 EOF
 
-cat > /etc/systemd/system/ssh-key-checker.timer << 'EOF'
+sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.timer << "EOF"'
 [Unit]
 Description=Run SSH Key Format Checker periodically
 
@@ -154,12 +155,12 @@ systemctl start ssh-key-checker.timer
 # Récupérer également la clé publique depuis les métadonnées de l'instance (si disponible)
 PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
 if [ ! -z "$PUBLIC_KEY" ]; then
-  echo "$PUBLIC_KEY" >> /home/ec2-user/.ssh/authorized_keys
+  echo "$PUBLIC_KEY" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
   echo "Clé SSH publique AWS installée avec succès"
 fi
 
 # Ajuster les permissions
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 echo "--- Installation d'AWS CLI ---"
 if ! command -v aws &> /dev/null; then

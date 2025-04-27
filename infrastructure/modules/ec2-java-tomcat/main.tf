@@ -175,7 +175,7 @@ export RDS_ENDPOINT="${var.rds_endpoint}"
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
 export RDS_USERNAME="${var.db_username}"
 export RDS_PASSWORD="${var.db_password}"
-export TOMCAT_VERSION="9.0.87"
+export TOMCAT_VERSION="9.0.104"
 
 # Vérifier que les variables sont bien définies
 log "Vérification des variables d'environnement"
