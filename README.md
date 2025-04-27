@@ -26,6 +26,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
+- [Améliorations pour un Environnement de Production](docs/AMELIORATIONS-SECURITE-PRODUCTION.md) : Recommandations pour adapter le projet à un environnement d'entreprise réel
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
 - [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
@@ -64,7 +65,8 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 16. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
 17. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
-18. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
+18. [Améliorations pour un Environnement de Production](docs/AMELIORATIONS-SECURITE-PRODUCTION.md)
+19. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
 
