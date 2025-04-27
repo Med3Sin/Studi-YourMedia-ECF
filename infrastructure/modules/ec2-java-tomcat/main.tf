@@ -252,17 +252,17 @@ find /opt/yourmedia -name "*.sh" -exec chmod +x {} \;
 
 # Configurer la clé SSH
 log "Configuration de la clé SSH"
-mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
-chmod 700 /home/ec2-user/.ssh
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+sudo mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+sudo chmod 700 /home/ec2-user/.ssh
+sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Exécuter le script d'installation de Java et Tomcat
 log "Exécution du script d'installation de Java et Tomcat"
 if [ -f "/opt/yourmedia/install_java_tomcat.sh" ]; then
-    chmod +x /opt/yourmedia/install_java_tomcat.sh
-    /opt/yourmedia/install_java_tomcat.sh || error_exit "Échec de l'exécution du script d'installation de Java et Tomcat"
+    sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
+    sudo /opt/yourmedia/install_java_tomcat.sh || error_exit "Échec de l'exécution du script d'installation de Java et Tomcat"
 else
     error_exit "Le script install_java_tomcat.sh n'existe pas"
 fi
@@ -270,13 +270,13 @@ fi
 # Créer un lien symbolique pour le script deploy-war.sh
 log "Création d'un lien symbolique pour le script deploy-war.sh"
 if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
-    chmod +x /opt/yourmedia/deploy-war.sh
-    ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
-    chmod +x /usr/local/bin/deploy-war.sh
+    sudo chmod +x /opt/yourmedia/deploy-war.sh
+    sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+    sudo chmod +x /usr/local/bin/deploy-war.sh
 
     # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
-    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war
-    chmod 440 /etc/sudoers.d/deploy-war
+    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" | sudo tee /etc/sudoers.d/deploy-war > /dev/null
+    sudo chmod 440 /etc/sudoers.d/deploy-war
 
     log "Script deploy-war.sh configuré avec succès"
 else
