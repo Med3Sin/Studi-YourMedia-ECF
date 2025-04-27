@@ -222,19 +222,28 @@ resource "aws_instance" "monitoring_instance" {
 #!/bin/bash
 set -e
 
-# Fonction pour afficher les messages
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a /var/log/user-data-init.log
-}
+# Rediriger stdout et stderr vers un fichier log
+exec > >(tee /var/log/user-data-init.log) 2>&1
 
-# Fonction pour afficher les erreurs et quitter
-error_exit() {
-    log "ERREUR: $1"
-    exit 1
-}
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation"
+
+# Mettre à jour le système
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Mise à jour du système"
+dnf update -y
+
+# Installer les dépendances nécessaires
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
+dnf install -y aws-cli curl jq wget amazon-cloudwatch-agent
+
+# Configurer la clé SSH
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
+mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+chmod 700 /home/ec2-user/.ssh
+chmod 600 /home/ec2-user/.ssh/authorized_keys
+chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Définir les variables d'environnement
-log "Configuration des variables d'environnement"
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
 export DB_USERNAME="${var.db_username}"
 export DB_PASSWORD="${var.db_password}"
@@ -250,101 +259,45 @@ export DOCKER_REPO="${var.docker_repo}"
 export DOCKERHUB_TOKEN="${var.dockerhub_token}"
 export DOCKERHUB_USERNAME="${var.docker_username}"
 export DOCKERHUB_REPO="${var.docker_repo}"
-export SSH_PUBLIC_KEY="${var.ssh_public_key}"
 export EC2_APP_IP="${var.ec2_instance_private_ip}"
 
-# Mettre à jour le système
-log "Mise à jour du système"
-sudo dnf update -y
+# Télécharger et exécuter le script d'installation depuis S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
+mkdir -p /opt/monitoring
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/setup-monitoring.sh /opt/monitoring/ || echo "Échec du téléchargement du script setup-monitoring.sh"
+aws s3 cp s3://${var.s3_bucket_name}/scripts/docker/docker-manager.sh /opt/monitoring/ || echo "Échec du téléchargement du script docker-manager.sh"
 
-# Installer les dépendances nécessaires
-log "Installation des dépendances"
-sudo dnf install -y aws-cli curl jq wget amazon-cloudwatch-agent
-
-# Configurer la clé SSH
-log "Configuration de la clé SSH"
-sudo mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-sudo chmod 700 /home/ec2-user/.ssh
-sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
-
-# Télécharger les scripts depuis S3
-log "Téléchargement des scripts depuis S3"
-if [ -z "$S3_BUCKET_NAME" ]; then
-    log "AVERTISSEMENT: S3_BUCKET_NAME n'est pas défini, impossible de télécharger les scripts depuis S3"
+if [ -f "/opt/monitoring/setup-monitoring.sh" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-monitoring.sh"
+    chmod +x /opt/monitoring/setup-monitoring.sh
+    /opt/monitoring/setup-monitoring.sh
 else
-    # Vérifier si le bucket existe
-    if aws s3 ls s3://$S3_BUCKET_NAME 2>&1 | grep -q 'NoSuchBucket'; then
-        log "AVERTISSEMENT: Le bucket S3 $S3_BUCKET_NAME n'existe pas"
-    else
-        # Télécharger les scripts
-        log "Téléchargement des scripts depuis s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/"
-        sudo mkdir -p /opt/monitoring
-        sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/ /opt/monitoring/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
-        sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/ /opt/monitoring/docker/ --recursive || log "AVERTISSEMENT: Échec du téléchargement des scripts docker depuis S3"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Docker"
+    # Installation de Docker
+    dnf install -y docker
+    systemctl start docker
+    systemctl enable docker
+    usermod -aG docker ec2-user
 
-        # Rendre les scripts exécutables
-        sudo find /opt/monitoring -name "*.sh" -exec chmod +x {} \;
+    # Installation de Docker Compose
+    dnf install -y docker-compose
 
-        # Copier docker-manager.sh dans /usr/local/bin
-        if [ -f "/opt/monitoring/docker/docker-manager.sh" ]; then
-            sudo cp /opt/monitoring/docker/docker-manager.sh /usr/local/bin/
-            sudo chmod +x /usr/local/bin/docker-manager.sh
-        fi
+    # Création des répertoires nécessaires
+    mkdir -p /opt/monitoring/secure
+    mkdir -p /opt/monitoring/prometheus-data
+    mkdir -p /opt/monitoring/grafana-data
+    mkdir -p /opt/monitoring/sonarqube-data/data
+    mkdir -p /opt/monitoring/sonarqube-data/logs
+    mkdir -p /opt/monitoring/sonarqube-data/extensions
+    mkdir -p /opt/monitoring/sonarqube-data/db
 
-        # Exécuter le script d'installation
-        if [ -f "/opt/monitoring/setup-monitoring.sh" ]; then
-            log "Exécution du script setup-monitoring.sh..."
-            sudo /opt/monitoring/setup-monitoring.sh > /var/log/setup-monitoring.log 2>&1
-            if [ $? -eq 0 ]; then
-                log "Installation terminée avec succès"
-            else
-                log "AVERTISSEMENT: L'installation a échoué. Consultez le fichier /var/log/setup-monitoring.log pour plus de détails."
-            fi
-        else
-            log "AVERTISSEMENT: Le script setup-monitoring.sh n'a pas été téléchargé depuis S3"
-        fi
-    fi
-fi
+    # Définir les permissions
+    chmod 755 /opt/monitoring
+    chmod 700 /opt/monitoring/secure
+    chown -R ec2-user:ec2-user /opt/monitoring
 
-# Si le script setup-monitoring.sh n'a pas été téléchargé ou exécuté avec succès, créer une installation par défaut
-if ! command -v docker &> /dev/null; then
-    log "Installation de Docker par défaut..."
-    sudo dnf install -y docker
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    sudo usermod -aG docker ec2-user
-    log "Docker installé avec succès"
-fi
-
-# Vérifier si Docker Compose est installé
-if ! command -v docker-compose &> /dev/null; then
-    log "Installation de Docker Compose par défaut..."
-    sudo dnf install -y docker-compose
-    log "Docker Compose installé avec succès"
-fi
-
-# Créer les répertoires nécessaires
-log "Création des répertoires nécessaires par défaut..."
-sudo mkdir -p /opt/monitoring/secure
-sudo mkdir -p /opt/monitoring/prometheus-data
-sudo mkdir -p /opt/monitoring/grafana-data
-sudo mkdir -p /opt/monitoring/sonarqube-data/data
-sudo mkdir -p /opt/monitoring/sonarqube-data/logs
-sudo mkdir -p /opt/monitoring/sonarqube-data/extensions
-sudo mkdir -p /opt/monitoring/sonarqube-data/db
-sudo mkdir -p /opt/monitoring/cloudwatch-config
-
-# Définir les permissions
-sudo chmod 755 /opt/monitoring
-sudo chmod 700 /opt/monitoring/secure
-sudo chown -R ec2-user:ec2-user /opt/monitoring
-
-# Créer un fichier docker-compose.yml par défaut si nécessaire
-if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
-    log "Création d'un fichier docker-compose.yml par défaut..."
-    sudo bash -c 'cat > /opt/monitoring/docker-compose.yml << "EOF"'
+    # Créer un fichier docker-compose.yml minimal
+    cat > /opt/monitoring/docker-compose.yml << "EOL"
 version: '3'
 
 services:
@@ -356,18 +309,7 @@ services:
     volumes:
       - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - /opt/monitoring/prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--storage.tsdb.retention.size=1GB'
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
 
   grafana:
     image: grafana/grafana:10.0.3
@@ -377,102 +319,38 @@ services:
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-    depends_on:
-      - prometheus
+      - GF_SECURITY_ADMIN_PASSWORD=YourMedia2025!
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
+EOL
 
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-
-  sonarqube:
-    image: sonarqube:9.9-community
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 1g
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-EOF
-fi
-
-# Créer un fichier prometheus.yml par défaut si nécessaire
-if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
-    log "Création d'un fichier prometheus.yml par défaut..."
-    sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOF"'
+    # Créer un fichier prometheus.yml minimal
+    cat > /opt/monitoring/prometheus.yml << "EOL"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: "prometheus"
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ["localhost:9090"]
+EOL
 
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-
-  - job_name: 'mysql-exporter'
-    static_configs:
-      - targets: ['mysql-exporter:9104']
-EOF
-fi
-
-# Démarrer les conteneurs si nécessaire
-if ! sudo docker ps | grep -q "prometheus\|grafana\|sonarqube"; then
-    log "Démarrage des conteneurs par défaut..."
+    # Démarrer les conteneurs
     cd /opt/monitoring
-    sudo docker-compose up -d
+    docker-compose up -d
 fi
 
-log "Initialisation terminée avec succès"
-log "Grafana est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
-log "Prometheus est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9090"
-log "SonarQube est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9000"
+# Copier docker-manager.sh dans /usr/local/bin si disponible
+if [ -f "/opt/monitoring/docker-manager.sh" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation du script docker-manager.sh"
+    cp /opt/monitoring/docker-manager.sh /usr/local/bin/
+    chmod +x /usr/local/bin/docker-manager.sh
+fi
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
+echo "Grafana est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
+echo "Prometheus est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9090"
+echo "SonarQube est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9000"
 EOF
 
   tags = {

@@ -121,150 +121,66 @@ locals {
 #!/bin/bash
 set -e
 
-# Fonction pour afficher les messages
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a /var/log/user-data-init.log
-}
+# Rediriger stdout et stderr vers un fichier log
+exec > >(tee /var/log/user-data-init.log) 2>&1
 
-# Fonction pour afficher les erreurs et quitter
-error_exit() {
-    log "ERREUR: $1"
-    exit 1
-}
-
-# Définir les variables d'environnement
-log "Configuration des variables d'environnement"
-export S3_BUCKET_NAME="${var.s3_bucket_name}"
-export DB_USERNAME="${var.db_username}"
-export DB_PASSWORD="${var.db_password}"
-export RDS_ENDPOINT="${var.rds_endpoint}"
-export RDS_USERNAME="${var.db_username}"
-export RDS_PASSWORD="${var.db_password}"
-export TOMCAT_VERSION="9.0.104"
-export SSH_PUBLIC_KEY="${var.ssh_public_key}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation"
 
 # Mettre à jour le système
-log "Mise à jour du système"
-sudo dnf update -y
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Mise à jour du système"
+dnf update -y
 
 # Installer les dépendances nécessaires
-log "Installation des dépendances"
-sudo dnf install -y aws-cli curl jq wget
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
+dnf install -y aws-cli curl jq wget
 
-# Télécharger les scripts depuis S3
-log "Téléchargement des scripts depuis S3"
-if [ -z "$S3_BUCKET_NAME" ]; then
-    log "AVERTISSEMENT: S3_BUCKET_NAME n'est pas défini, impossible de télécharger les scripts depuis S3"
-else
-    # Vérifier si le bucket existe
-    if aws s3 ls s3://$S3_BUCKET_NAME 2>&1 | grep -q 'NoSuchBucket'; then
-        log "AVERTISSEMENT: Le bucket S3 $S3_BUCKET_NAME n'existe pas"
-    else
-        # Télécharger les scripts
-        log "Téléchargement des scripts depuis s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/"
-        sudo mkdir -p /opt/yourmedia
-        sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
+# Configurer la clé SSH
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
+mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+chmod 700 /home/ec2-user/.ssh
+chmod 600 /home/ec2-user/.ssh/authorized_keys
+chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
-        # Rendre les scripts exécutables
-        sudo find /opt/yourmedia -name "*.sh" -exec chmod +x {} \;
-
-        # Exécuter le script d'installation
-        if [ -f "/opt/yourmedia/setup-java-tomcat.sh" ]; then
-            log "Exécution du script setup-java-tomcat.sh..."
-            sudo /opt/yourmedia/setup-java-tomcat.sh > /var/log/setup-java-tomcat.log 2>&1
-            if [ $? -eq 0 ]; then
-                log "Installation terminée avec succès"
-            else
-                log "AVERTISSEMENT: L'installation a échoué. Consultez le fichier /var/log/setup-java-tomcat.log pour plus de détails."
-            fi
-        else
-            log "AVERTISSEMENT: Le script setup-java-tomcat.sh n'a pas été téléchargé depuis S3"
-        fi
-    fi
-fi
-
-# Si le script setup-java-tomcat.sh n'a pas été téléchargé ou exécuté avec succès, créer un script par défaut
-if [ ! -d "/opt/tomcat" ]; then
-    log "Le répertoire /opt/tomcat n'existe pas, création d'un script d'installation par défaut"
-
-    # Créer les répertoires nécessaires
-    sudo mkdir -p /opt/yourmedia/secure
-    sudo chmod 755 /opt/yourmedia
-    sudo chmod 700 /opt/yourmedia/secure
-
-    # Créer le fichier de variables d'environnement
-    sudo bash -c 'cat > /opt/yourmedia/env.sh << "EOL"'
-#!/bin/bash
-# Variables d'environnement pour l'application Java Tomcat
-# Généré automatiquement par user_data
-# Date de génération: $(date)
-
-# Variables EC2
-export EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-export EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-export EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-export EC2_INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-
-# Variables S3
+# Définir les variables d'environnement
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
-
-# Variables RDS
-export RDS_USERNAME="${var.db_username}"
-export RDS_ENDPOINT="${var.rds_endpoint}"
-
-# Variables de compatibilité
 export DB_USERNAME="${var.db_username}"
-export DB_ENDPOINT="${var.rds_endpoint}"
-
-# Variable Tomcat
+export DB_PASSWORD="${var.db_password}"
+export RDS_ENDPOINT="${var.rds_endpoint}"
+export RDS_USERNAME="${var.db_username}"
+export RDS_PASSWORD="${var.db_password}"
 export TOMCAT_VERSION="9.0.104"
 
-# Charger les variables sensibles
-source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
-EOL
+# Télécharger et exécuter le script d'installation depuis S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
+mkdir -p /opt/yourmedia
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/setup-java-tomcat.sh /opt/yourmedia/ || echo "Échec du téléchargement du script setup-java-tomcat.sh"
 
-    # Créer le fichier de variables sensibles
-    sudo bash -c 'cat > /opt/yourmedia/secure/sensitive-env.sh << "EOL"'
-#!/bin/bash
-# Variables sensibles pour l'application Java Tomcat
-# Généré automatiquement par user_data
-# Date de génération: $(date)
-
-# Variables RDS
-export RDS_PASSWORD="${var.db_password}"
-
-# Variables de compatibilité
-export DB_PASSWORD="${var.db_password}"
-EOL
-
-    # Définir les permissions
-    sudo chmod 755 /opt/yourmedia/env.sh
-    sudo chmod 600 /opt/yourmedia/secure/sensitive-env.sh
-    sudo chown -R ec2-user:ec2-user /opt/yourmedia
-
+if [ -f "/opt/yourmedia/setup-java-tomcat.sh" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-java-tomcat.sh"
+    chmod +x /opt/yourmedia/setup-java-tomcat.sh
+    /opt/yourmedia/setup-java-tomcat.sh
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Java et Tomcat"
     # Installation de Java
-    log "Installation de Java"
-    sudo dnf install -y java-17-amazon-corretto-devel
+    dnf install -y java-17-amazon-corretto-devel
 
     # Création de l'utilisateur et groupe Tomcat
-    log "Création de l'utilisateur et groupe Tomcat"
-    sudo groupadd tomcat 2>/dev/null || true
-    sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
+    groupadd tomcat 2>/dev/null || true
+    useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
 
     # Téléchargement et installation de Tomcat
-    log "Téléchargement et installation de Tomcat"
     cd /tmp
     wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.104/bin/apache-tomcat-9.0.104.tar.gz
-    sudo mkdir -p /opt/tomcat
-    sudo tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
+    mkdir -p /opt/tomcat
+    tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
 
     # Configuration des permissions
-    sudo chown -R tomcat:tomcat /opt/tomcat
-    sudo chmod +x /opt/tomcat/bin/*.sh
+    chown -R tomcat:tomcat /opt/tomcat
+    chmod +x /opt/tomcat/bin/*.sh
 
     # Création du service Tomcat
-    log "Création du service Tomcat"
-    sudo bash -c 'cat > /etc/systemd/system/tomcat.service << "EOF"'
+    cat > /etc/systemd/system/tomcat.service << "EOL"
 [Unit]
 Description=Apache Tomcat Web Application Container
 After=network.target
@@ -290,73 +206,15 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOL
 
     # Démarrage de Tomcat
-    log "Démarrage de Tomcat"
-    sudo systemctl daemon-reload
-    sudo systemctl enable tomcat
-    sudo systemctl start tomcat
-
-    # Création du script de déploiement WAR
-    log "Création du script de déploiement WAR"
-    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << "EOF"'
-#!/bin/bash
-# Script pour déployer un fichier WAR dans Tomcat
-# Ce script doit être exécuté avec sudo
-
-# Vérifier si un argument a été fourni
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <chemin_vers_war>"
-  exit 1
+    systemctl daemon-reload
+    systemctl enable tomcat
+    systemctl start tomcat
 fi
 
-WAR_PATH=$1
-TARGET_NAME="yourmedia-backend.war"
-
-echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
-
-# Vérifier si le fichier existe
-if [ ! -f "$WAR_PATH" ]; then
-  echo "ERREUR: Le fichier $WAR_PATH n'existe pas"
-  exit 1
-fi
-
-# Copier le fichier WAR dans webapps
-cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
-
-# Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
-
-# Redémarrer Tomcat
-systemctl restart tomcat
-
-echo "Déploiement terminé avec succès"
-exit 0
-EOF
-
-    # Rendre le script exécutable
-    sudo chmod +x /opt/yourmedia/deploy-war.sh
-
-    # Créer un lien symbolique pour le script deploy-war.sh
-    log "Création d'un lien symbolique pour le script deploy-war.sh"
-    sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
-    sudo chmod +x /usr/local/bin/deploy-war.sh
-
-    # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
-    sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
-    sudo chmod 440 /etc/sudoers.d/deploy-war
-fi
-
-# Configurer la clé SSH
-log "Configuration de la clé SSH"
-sudo mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-sudo chmod 700 /home/ec2-user/.ssh
-sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
-
-log "Initialisation terminée avec succès"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
 EOF
 }
 
