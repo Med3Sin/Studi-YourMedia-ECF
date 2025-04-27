@@ -7,22 +7,34 @@
 # Version       : 1.1
 # Date          : 2025-04-27
 #==============================================================================
-# Utilisation   : ./docker-manager.sh [build|deploy|all] [mobile|monitoring|all]
+# Utilisation   : ./docker-manager.sh [action] [cible] [options]
 #
 # Actions       :
 #   build       : Construit et pousse les images Docker vers Docker Hub
 #   deploy      : Déploie les conteneurs Docker sur les instances EC2
 #   all         : Exécute les actions build et deploy
+#   backup      : Sauvegarde les données des conteneurs Docker
+#   restore     : Restaure les données des conteneurs Docker
+#   cleanup     : Nettoie les conteneurs, images et volumes Docker
 #
 # Cibles        :
 #   mobile      : Application mobile React Native
 #   monitoring  : Services de monitoring (Grafana, Prometheus, SonarQube)
 #   all         : Toutes les cibles
 #
+# Options pour backup/restore :
+#   --s3-bucket : Nom du bucket S3 pour stocker/récupérer les sauvegardes
+#
+# Options pour cleanup :
+#   --type      : Type de nettoyage (all, containers, images, volumes, networks, prune)
+#
 # Exemples      :
 #   ./docker-manager.sh build mobile     # Construit et pousse l'image de l'application mobile
 #   ./docker-manager.sh deploy monitoring # Déploie les services de monitoring
 #   ./docker-manager.sh all all          # Construit, pousse et déploie toutes les images
+#   ./docker-manager.sh backup all --s3-bucket=yourmedia-backups # Sauvegarde tous les conteneurs
+#   ./docker-manager.sh restore all --s3-bucket=yourmedia-backups # Restaure tous les conteneurs
+#   ./docker-manager.sh cleanup all --type=containers # Nettoie uniquement les conteneurs
 #==============================================================================
 # Dépendances   :
 #   - docker    : Pour construire et gérer les conteneurs
@@ -88,6 +100,29 @@ export DOCKER_VERSION=$(date +%Y%m%d%H%M%S)
 # Variables d'action
 ACTION=${1:-all}
 TARGET=${2:-all}
+
+# Traitement des options supplémentaires
+S3_BUCKET=""
+CLEANUP_TYPE="all"
+
+# Parcourir les arguments supplémentaires
+shift 2 2>/dev/null || true
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --s3-bucket=*)
+            S3_BUCKET="${1#*=}"
+            shift
+            ;;
+        --type=*)
+            CLEANUP_TYPE="${1#*=}"
+            shift
+            ;;
+        *)
+            log_warning "Option inconnue: $1"
+            shift
+            ;;
+    esac
+done
 
 # Variables EC2
 export EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
@@ -176,22 +211,34 @@ handle_error() {
 
 # Fonction d'aide
 show_help() {
-    echo "Usage: $0 [build|deploy|all] [mobile|monitoring|all]"
+    echo "Usage: $0 [action] [cible] [options]"
     echo ""
     echo "Actions:"
     echo "  build      - Construit et pousse les images Docker vers Docker Hub"
     echo "  deploy     - Déploie les conteneurs Docker sur les instances EC2"
     echo "  all        - Exécute les actions build et deploy"
+    echo "  backup     - Sauvegarde les données des conteneurs Docker"
+    echo "  restore    - Restaure les données des conteneurs Docker"
+    echo "  cleanup    - Nettoie les conteneurs, images et volumes Docker"
     echo ""
     echo "Cibles:"
     echo "  mobile     - Application mobile React Native"
     echo "  monitoring - Services de monitoring (Grafana, Prometheus, SonarQube)"
     echo "  all        - Toutes les cibles"
     echo ""
+    echo "Options pour backup/restore:"
+    echo "  --s3-bucket=NOM - Nom du bucket S3 pour stocker/récupérer les sauvegardes"
+    echo ""
+    echo "Options pour cleanup:"
+    echo "  --type=TYPE     - Type de nettoyage (all, containers, images, volumes, networks, prune)"
+    echo ""
     echo "Exemples:"
     echo "  $0 build mobile     # Construit et pousse l'image de l'application mobile"
     echo "  $0 deploy monitoring # Déploie les services de monitoring"
     echo "  $0 all all          # Construit, pousse et déploie toutes les images"
+    echo "  $0 backup all --s3-bucket=yourmedia-backups # Sauvegarde tous les conteneurs"
+    echo "  $0 restore all --s3-bucket=yourmedia-backups # Restaure tous les conteneurs"
+    echo "  $0 cleanup all --type=containers # Nettoie uniquement les conteneurs"
     echo ""
     exit 1
 }
@@ -648,14 +695,363 @@ EOF
     log_success "Déploiement de l'application mobile terminé."
 }
 
+# Fonction pour sauvegarder les données des conteneurs
+backup_containers() {
+    local ip=$1
+    local instance_type=$2
+    local s3_bucket=$3
+    local timestamp=$(date +%Y%m%d%H%M%S)
+    local backup_dir="yourmedia-backup-${instance_type}-${timestamp}"
+
+    log_info "Sauvegarde des données des conteneurs sur l'instance $instance_type ($ip)..."
+
+    # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
+    CLEAN_SSH_KEY=$(echo "$EC2_SSH_KEY" | sed "s/'//g")
+    SSH_KEY_FILE=$(mktemp -p /tmp ssh_key_XXXXXXXX)
+    echo "$CLEAN_SSH_KEY" > "$SSH_KEY_FILE"
+    chmod 400 "$SSH_KEY_FILE" || log_error "Impossible de définir les permissions sur le fichier de clé SSH"
+    # Ajouter le fichier à la liste des fichiers à supprimer à la fin
+    trap "rm -f $SSH_KEY_FILE" EXIT
+
+    # Se connecter à l'instance EC2 et sauvegarder les données
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$ip << EOF
+        echo "[INFO] Création du répertoire de sauvegarde..."
+        mkdir -p ~/$backup_dir
+
+        # Sauvegarder les configurations Docker
+        echo "[INFO] Sauvegarde des configurations Docker..."
+        if [ -d "/opt/monitoring" ]; then
+            tar -czf ~/$backup_dir/monitoring-config.tar.gz /opt/monitoring
+        fi
+        if [ -d "/opt/app-mobile" ]; then
+            tar -czf ~/$backup_dir/app-mobile-config.tar.gz /opt/app-mobile
+        fi
+
+        # Sauvegarder les volumes Docker
+        echo "[INFO] Sauvegarde des volumes Docker..."
+        volumes=\$(sudo docker volume ls -q)
+        if [ -n "\$volumes" ]; then
+            mkdir -p ~/$backup_dir/volumes
+            for volume in \$volumes; do
+                echo "[INFO] Sauvegarde du volume \$volume..."
+                # Créer un conteneur temporaire pour accéder au volume
+                sudo docker run --rm -v \$volume:/source -v ~/$backup_dir/volumes:/backup alpine tar -czf /backup/\$volume.tar.gz -C /source .
+            done
+        else
+            echo "[INFO] Aucun volume Docker à sauvegarder."
+        fi
+
+        # Sauvegarder les logs des conteneurs
+        echo "[INFO] Sauvegarde des logs des conteneurs..."
+        containers=\$(sudo docker ps -a --format "{{.Names}}")
+        if [ -n "\$containers" ]; then
+            mkdir -p ~/$backup_dir/logs
+            for container in \$containers; do
+                echo "[INFO] Sauvegarde des logs du conteneur \$container..."
+                sudo docker logs \$container > ~/$backup_dir/logs/\$container.log 2>&1
+            done
+        else
+            echo "[INFO] Aucun conteneur à sauvegarder."
+        fi
+
+        # Sauvegarder les images Docker
+        echo "[INFO] Sauvegarde des informations sur les images Docker..."
+        sudo docker images > ~/$backup_dir/docker-images.txt
+
+        # Sauvegarder les configurations des conteneurs
+        echo "[INFO] Sauvegarde des configurations des conteneurs..."
+        containers=\$(sudo docker ps -a --format "{{.Names}}")
+        if [ -n "\$containers" ]; then
+            mkdir -p ~/$backup_dir/configs
+            for container in \$containers; do
+                echo "[INFO] Sauvegarde de la configuration du conteneur \$container..."
+                sudo docker inspect \$container > ~/$backup_dir/configs/\$container.json
+            done
+        fi
+
+        # Compresser le répertoire de sauvegarde
+        echo "[INFO] Compression du répertoire de sauvegarde..."
+        tar -czf ~/$backup_dir.tar.gz -C ~ $backup_dir
+        rm -rf ~/$backup_dir
+
+        # Installer AWS CLI si nécessaire
+        if ! command -v aws &> /dev/null; then
+            echo "[INFO] Installation de AWS CLI..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            rm -rf aws awscliv2.zip
+        fi
+
+        # Uploader la sauvegarde vers S3
+        echo "[INFO] Upload de la sauvegarde vers S3..."
+        aws s3 cp ~/$backup_dir.tar.gz s3://$s3_bucket/$backup_dir.tar.gz
+
+        # Supprimer le fichier de sauvegarde local
+        echo "[INFO] Suppression du fichier de sauvegarde local..."
+        rm -f ~/$backup_dir.tar.gz
+
+        echo "[INFO] Sauvegarde terminée et uploadée vers S3: s3://$s3_bucket/$backup_dir.tar.gz"
+EOF
+
+    log_success "Sauvegarde des conteneurs sur l'instance $instance_type terminée."
+}
+
+# Fonction pour restaurer les données des conteneurs
+restore_containers() {
+    local ip=$1
+    local instance_type=$2
+    local s3_bucket=$3
+
+    log_info "Restauration des données des conteneurs sur l'instance $instance_type ($ip)..."
+
+    # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
+    CLEAN_SSH_KEY=$(echo "$EC2_SSH_KEY" | sed "s/'//g")
+    SSH_KEY_FILE=$(mktemp -p /tmp ssh_key_XXXXXXXX)
+    echo "$CLEAN_SSH_KEY" > "$SSH_KEY_FILE"
+    chmod 400 "$SSH_KEY_FILE" || log_error "Impossible de définir les permissions sur le fichier de clé SSH"
+    # Ajouter le fichier à la liste des fichiers à supprimer à la fin
+    trap "rm -f $SSH_KEY_FILE" EXIT
+
+    # Se connecter à l'instance EC2 et restaurer les données
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$ip << EOF
+        # Installer AWS CLI si nécessaire
+        if ! command -v aws &> /dev/null; then
+            echo "[INFO] Installation de AWS CLI..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            rm -rf aws awscliv2.zip
+        fi
+
+        # Lister les sauvegardes disponibles
+        echo "[INFO] Liste des sauvegardes disponibles pour $instance_type..."
+        backups=\$(aws s3 ls s3://$s3_bucket/ | grep "yourmedia-backup-$instance_type" | sort -r)
+
+        if [ -z "\$backups" ]; then
+            echo "[ERROR] Aucune sauvegarde trouvée pour $instance_type dans le bucket S3."
+            exit 1
+        fi
+
+        # Afficher les sauvegardes disponibles
+        echo "\$backups"
+
+        # Demander à l'utilisateur de choisir une sauvegarde
+        echo "[PROMPT] Entrez le nom complet du fichier de sauvegarde à restaurer:"
+        read backup_file
+
+        if [ -z "\$backup_file" ]; then
+            echo "[ERROR] Aucun fichier de sauvegarde spécifié."
+            exit 1
+        fi
+
+        # Télécharger la sauvegarde depuis S3
+        echo "[INFO] Téléchargement de la sauvegarde depuis S3..."
+        aws s3 cp s3://$s3_bucket/\$backup_file ~/\$backup_file
+
+        # Extraire la sauvegarde
+        echo "[INFO] Extraction de la sauvegarde..."
+        mkdir -p ~/restore
+        tar -xzf ~/\$backup_file -C ~/restore
+
+        # Trouver le répertoire de sauvegarde
+        backup_dir=\$(find ~/restore -type d -name "yourmedia-backup-*" | head -1)
+
+        if [ -z "\$backup_dir" ]; then
+            echo "[ERROR] Impossible de trouver le répertoire de sauvegarde dans l'archive."
+            rm -rf ~/restore ~/\$backup_file
+            exit 1
+        fi
+
+        # Restaurer les configurations Docker
+        echo "[INFO] Restauration des configurations Docker..."
+        if [ -f "\$backup_dir/monitoring-config.tar.gz" ]; then
+            echo "[INFO] Restauration des configurations de monitoring..."
+            sudo tar -xzf \$backup_dir/monitoring-config.tar.gz -C /
+        fi
+
+        if [ -f "\$backup_dir/app-mobile-config.tar.gz" ]; then
+            echo "[INFO] Restauration des configurations d'application mobile..."
+            sudo tar -xzf \$backup_dir/app-mobile-config.tar.gz -C /
+        fi
+
+        # Restaurer les volumes Docker
+        echo "[INFO] Restauration des volumes Docker..."
+        if [ -d "\$backup_dir/volumes" ]; then
+            for volume_file in \$backup_dir/volumes/*.tar.gz; do
+                if [ -f "\$volume_file" ]; then
+                    volume_name=\$(basename \$volume_file .tar.gz)
+                    echo "[INFO] Restauration du volume \$volume_name..."
+
+                    # Vérifier si le volume existe déjà
+                    if ! sudo docker volume inspect \$volume_name &>/dev/null; then
+                        echo "[INFO] Création du volume \$volume_name..."
+                        sudo docker volume create \$volume_name
+                    else
+                        echo "[INFO] Le volume \$volume_name existe déjà."
+                    fi
+
+                    # Restaurer les données du volume
+                    sudo docker run --rm -v \$volume_name:/target -v \$volume_file:/backup.tar.gz alpine sh -c "tar -xzf /backup.tar.gz -C /target"
+                fi
+            done
+        else
+            echo "[INFO] Aucun volume à restaurer."
+        fi
+
+        # Nettoyer
+        echo "[INFO] Nettoyage des fichiers temporaires..."
+        rm -rf ~/restore ~/\$backup_file
+
+        echo "[INFO] Restauration terminée. Redémarrez les conteneurs pour appliquer les changements."
+EOF
+
+    log_success "Restauration des conteneurs sur l'instance $instance_type terminée."
+}
+
+# Fonction pour nettoyer les conteneurs Docker
+cleanup_containers() {
+    local ip=$1
+    local instance_type=$2
+    local cleanup_type=$3
+
+    log_info "Nettoyage des conteneurs Docker sur l'instance $instance_type ($ip)..."
+    log_info "Type de nettoyage: $cleanup_type"
+
+    # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
+    CLEAN_SSH_KEY=$(echo "$EC2_SSH_KEY" | sed "s/'//g")
+    SSH_KEY_FILE=$(mktemp -p /tmp ssh_key_XXXXXXXX)
+    echo "$CLEAN_SSH_KEY" > "$SSH_KEY_FILE"
+    chmod 400 "$SSH_KEY_FILE" || log_error "Impossible de définir les permissions sur le fichier de clé SSH"
+    # Ajouter le fichier à la liste des fichiers à supprimer à la fin
+    trap "rm -f $SSH_KEY_FILE" EXIT
+
+    # Se connecter à l'instance EC2 et arrêter/supprimer les conteneurs
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$ip << EOF
+        # Sauvegarder les logs avant le nettoyage
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "containers" ]; then
+            echo "[INFO] Sauvegarde des logs des conteneurs..."
+            mkdir -p ~/docker-logs-backup
+            for container in \$(sudo docker ps -a --format "{{.Names}}"); do
+                sudo docker logs \$container > ~/docker-logs-backup/\$container-\$(date +%Y%m%d%H%M%S).log 2>&1 || echo "[WARN] Impossible de sauvegarder les logs pour \$container"
+            done
+            echo "[INFO] Logs sauvegardés dans ~/docker-logs-backup"
+        fi
+
+        # Arrêter tous les conteneurs en cours d'exécution
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "containers" ]; then
+            echo "[INFO] Arrêt des conteneurs Docker..."
+            running_containers=\$(sudo docker ps -q)
+            if [ -n "\$running_containers" ]; then
+                sudo docker stop \$running_containers
+                echo "[INFO] Conteneurs arrêtés: \$(echo \$running_containers | wc -w)"
+            else
+                echo "[INFO] Aucun conteneur en cours d'exécution"
+            fi
+
+            # Supprimer tous les conteneurs
+            echo "[INFO] Suppression des conteneurs Docker..."
+            all_containers=\$(sudo docker ps -aq)
+            if [ -n "\$all_containers" ]; then
+                sudo docker rm \$all_containers
+                echo "[INFO] Conteneurs supprimés: \$(echo \$all_containers | wc -w)"
+            else
+                echo "[INFO] Aucun conteneur à supprimer"
+            fi
+        fi
+
+        # Supprimer les images non utilisées
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "images" ]; then
+            echo "[INFO] Suppression des images Docker non utilisées..."
+            dangling_images=\$(sudo docker images -f "dangling=true" -q)
+            if [ -n "\$dangling_images" ]; then
+                sudo docker rmi \$dangling_images
+                echo "[INFO] Images dangling supprimées: \$(echo \$dangling_images | wc -w)"
+            else
+                echo "[INFO] Aucune image dangling à supprimer"
+            fi
+
+            # Supprimer toutes les images si demandé
+            if [ "$cleanup_type" = "all" ]; then
+                echo "[INFO] Suppression de toutes les images Docker..."
+                all_images=\$(sudo docker images -q)
+                if [ -n "\$all_images" ]; then
+                    sudo docker rmi -f \$all_images
+                    echo "[INFO] Images supprimées: \$(echo \$all_images | wc -w)"
+                else
+                    echo "[INFO] Aucune image à supprimer"
+                fi
+            fi
+        fi
+
+        # Supprimer les volumes non utilisés
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "volumes" ]; then
+            echo "[INFO] Suppression des volumes Docker non utilisés..."
+            volumes=\$(sudo docker volume ls -q)
+            if [ -n "\$volumes" ]; then
+                sudo docker volume rm \$volumes
+                echo "[INFO] Volumes supprimés: \$(echo \$volumes | wc -w)"
+            else
+                echo "[INFO] Aucun volume à supprimer"
+            fi
+        fi
+
+        # Supprimer tous les réseaux personnalisés
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "networks" ]; then
+            echo "[INFO] Suppression des réseaux Docker personnalisés..."
+            networks=\$(sudo docker network ls -q -f "type=custom")
+            if [ -n "\$networks" ]; then
+                sudo docker network rm \$networks
+                echo "[INFO] Réseaux supprimés: \$(echo \$networks | wc -w)"
+            else
+                echo "[INFO] Aucun réseau à supprimer"
+            fi
+        fi
+
+        # Nettoyage système Docker (prune)
+        if [ "$cleanup_type" = "all" ] || [ "$cleanup_type" = "prune" ]; then
+            echo "[INFO] Nettoyage système Docker (prune)..."
+            sudo docker system prune -af --volumes
+            echo "[INFO] Nettoyage système terminé"
+        fi
+
+        # Supprimer les fichiers de configuration Docker
+        if [ "$cleanup_type" = "all" ]; then
+            echo "[INFO] Suppression des fichiers de configuration Docker..."
+            sudo rm -rf /opt/monitoring /opt/app-mobile 2>/dev/null || echo "[INFO] Aucun fichier de configuration à supprimer"
+        fi
+
+        # Afficher l'espace disque récupéré
+        echo -e "\n[INFO] Espace disque disponible après nettoyage:"
+        df -h /
+
+        echo -e "\n[INFO] Nettoyage terminé sur l'instance $instance_type."
+EOF
+
+    log_success "Nettoyage des conteneurs sur l'instance $instance_type terminé."
+}
+
 # Vérifier les arguments
-if [ "$ACTION" != "build" ] && [ "$ACTION" != "deploy" ] && [ "$ACTION" != "all" ]; then
+if [ "$ACTION" != "build" ] && [ "$ACTION" != "deploy" ] && [ "$ACTION" != "all" ] && [ "$ACTION" != "backup" ] && [ "$ACTION" != "restore" ] && [ "$ACTION" != "cleanup" ]; then
     log_error "Action inconnue: $ACTION"
     show_help
 fi
 
 if [ "$TARGET" != "mobile" ] && [ "$TARGET" != "monitoring" ] && [ "$TARGET" != "all" ]; then
     log_error "Cible inconnue: $TARGET"
+    show_help
+fi
+
+# Vérifier les options supplémentaires
+if [ "$ACTION" = "backup" ] || [ "$ACTION" = "restore" ]; then
+    if [ -z "$S3_BUCKET" ]; then
+        log_error "L'option --s3-bucket est requise pour les actions backup et restore"
+        show_help
+    fi
+fi
+
+if [ "$ACTION" = "cleanup" ] && [ "$CLEANUP_TYPE" != "all" ] && [ "$CLEANUP_TYPE" != "containers" ] && [ "$CLEANUP_TYPE" != "images" ] && [ "$CLEANUP_TYPE" != "volumes" ] && [ "$CLEANUP_TYPE" != "networks" ] && [ "$CLEANUP_TYPE" != "prune" ]; then
+    log_error "Type de nettoyage invalide: $CLEANUP_TYPE"
     show_help
 fi
 
@@ -710,6 +1106,101 @@ case $ACTION in
                 build_push_monitoring
                 deploy_monitoring
                 deploy_mobile
+                ;;
+        esac
+        ;;
+    backup)
+        check_deploy_vars
+        log_info "Sauvegarde des conteneurs Docker vers le bucket S3: $S3_BUCKET"
+
+        # Demander confirmation avant de procéder
+        if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
+            echo -e "\n[WARN] Vous êtes sur le point de sauvegarder les données des conteneurs Docker sur les instances suivantes:"
+            echo "  - Instance de monitoring: $EC2_MONITORING_IP"
+            echo "  - Instance d'application: $EC2_APP_IP"
+            echo "  - Bucket S3: $S3_BUCKET"
+            read -p $'\n[PROMPT] Êtes-vous sûr de vouloir continuer? (y/n): ' -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Opération annulée."
+                exit 0
+            fi
+        fi
+
+        case $TARGET in
+            mobile)
+                backup_containers $EC2_APP_IP "app" $S3_BUCKET
+                ;;
+            monitoring)
+                backup_containers $EC2_MONITORING_IP "monitoring" $S3_BUCKET
+                ;;
+            all)
+                backup_containers $EC2_MONITORING_IP "monitoring" $S3_BUCKET
+                backup_containers $EC2_APP_IP "app" $S3_BUCKET
+                ;;
+        esac
+        ;;
+    restore)
+        check_deploy_vars
+        log_info "Restauration des conteneurs Docker depuis le bucket S3: $S3_BUCKET"
+
+        # Demander confirmation avant de procéder
+        if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
+            echo -e "\n[WARN] Vous êtes sur le point de restaurer les données des conteneurs Docker sur les instances suivantes:"
+            echo "  - Instance de monitoring: $EC2_MONITORING_IP"
+            echo "  - Instance d'application: $EC2_APP_IP"
+            echo "  - Bucket S3: $S3_BUCKET"
+            echo -e "\n[WARN] Cette opération peut écraser des données existantes. Assurez-vous d'avoir arrêté les conteneurs avant de continuer."
+            read -p $'\n[PROMPT] Êtes-vous sûr de vouloir continuer? (y/n): ' -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Opération annulée."
+                exit 0
+            fi
+        fi
+
+        case $TARGET in
+            mobile)
+                restore_containers $EC2_APP_IP "app" $S3_BUCKET
+                ;;
+            monitoring)
+                restore_containers $EC2_MONITORING_IP "monitoring" $S3_BUCKET
+                ;;
+            all)
+                restore_containers $EC2_MONITORING_IP "monitoring" $S3_BUCKET
+                restore_containers $EC2_APP_IP "app" $S3_BUCKET
+                ;;
+        esac
+        ;;
+    cleanup)
+        check_deploy_vars
+        log_info "Nettoyage des conteneurs Docker (type: $CLEANUP_TYPE)"
+
+        # Demander confirmation avant de procéder
+        if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
+            echo -e "\n[WARN] Vous êtes sur le point de nettoyer les conteneurs Docker sur les instances suivantes:"
+            echo "  - Instance de monitoring: $EC2_MONITORING_IP"
+            echo "  - Instance d'application: $EC2_APP_IP"
+            echo "  - Type de nettoyage: $CLEANUP_TYPE"
+            echo -e "\n[WARN] Cette opération peut supprimer des données. Les logs seront sauvegardés avant le nettoyage."
+            read -p $'\n[PROMPT] Êtes-vous sûr de vouloir continuer? (y/n): ' -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Opération annulée."
+                exit 0
+            fi
+        fi
+
+        case $TARGET in
+            mobile)
+                cleanup_containers $EC2_APP_IP "application" $CLEANUP_TYPE
+                ;;
+            monitoring)
+                cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
+                ;;
+            all)
+                cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
+                cleanup_containers $EC2_APP_IP "application" $CLEANUP_TYPE
                 ;;
         esac
         ;;
