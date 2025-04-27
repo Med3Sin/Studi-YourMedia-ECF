@@ -130,7 +130,9 @@ handle_error() {
 
     if [ $exit_code -ne 0 ]; then
         log_error "$error_message (code: $exit_code)"
+        return 1
     fi
+    return 0
 }
 
 # Fonction d'aide

@@ -282,7 +282,7 @@ Tous les scripts et fichiers de configuration sont maintenant centralisés dans 
 
 **Scripts Docker (`scripts/docker/`) :**
 
--   `docker-manager.sh` : Script pour gérer les conteneurs Docker
+-   `docker-manager.sh` : Script principal pour gérer les conteneurs Docker (construction, publication, déploiement)
 -   `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs
 -   `cleanup-containers.sh` : Script pour nettoyer les conteneurs
 
@@ -635,18 +635,21 @@ Les fichiers obsolètes ont été supprimés et les configurations ont été cen
 
 - Suppression du fichier obsolète `scripts/ec2-monitoring/fix-monitoring-legacy.sh`
 - Suppression du fichier obsolète `scripts/utils/install-docker-al2023.sh`
+- Suppression du fichier redondant `scripts/docker/docker-manager-simple.sh` (remplacé par `docker-manager.sh`)
 - Centralisation des fichiers Docker dans le dossier `scripts/docker/` pour éviter la duplication
 - Centralisation des configurations Docker dans le dossier `scripts/docker/monitoring/`
 - Mise à jour des références dans le code Terraform pour pointer vers les dossiers centralisés
 - Vérification de la cohérence des fichiers entre les dossiers avant la suppression
 - Mise à jour de la documentation pour refléter cette centralisation
+- Amélioration de la fonction `handle_error()` dans `docker-manager.sh` pour une meilleure gestion des erreurs
 
 ### Amélioration de l'ordre d'exécution des scripts
 
 L'ordre d'exécution des scripts a été amélioré pour garantir un déploiement plus fiable :
 
 - Ajout d'une étape explicite pour télécharger les scripts dans S3 avant le déploiement de l'infrastructure
-- Modification de `init-instance.sh` pour télécharger `docker-manager.sh` depuis S3 et le copier dans `/usr/local/bin/`
+- Modification de `setup-monitoring.sh` pour télécharger `docker-manager.sh` depuis S3 et le copier dans `/usr/local/bin/`
+- Ajout d'une logique de fallback dans `setup-monitoring.sh` pour créer une version simplifiée de `docker-manager.sh` si le téléchargement depuis S3 échoue
 - Ajout d'un appel à `fix_permissions.sh` à la fin de `setup.sh` pour s'assurer que les permissions sont correctement configurées
 - Ajout de vérifications de dépendances dans les scripts pour s'assurer que toutes les dépendances nécessaires sont disponibles
 
@@ -735,3 +738,18 @@ Les scripts d'installation Docker ont été mis à jour pour être compatibles a
 - Correction des références aux ports dans les tests
 
 Ces modifications améliorent la stabilité, la performance et la sécurité de l'infrastructure tout en maintenant la compatibilité avec le Free Tier AWS.
+
+## Améliorations futures
+
+Voici quelques améliorations qui pourraient être apportées au projet à l'avenir :
+
+1. **Standardisation des noms de variables** : Uniformiser davantage les noms de variables dans tous les scripts pour une meilleure cohérence.
+2. **Tests automatisés** : Ajouter des tests automatisés pour vérifier le bon fonctionnement des scripts et des déploiements.
+3. **Documentation API** : Ajouter une documentation complète des API exposées par les services.
+4. **Monitoring amélioré** : Étendre les capacités de monitoring pour inclure plus de métriques et d'alertes.
+5. **Sécurité renforcée** : Limiter l'accès SSH aux adresses IP spécifiques plutôt que d'utiliser 0.0.0.0/0.
+6. **Gestion des secrets** : Améliorer la gestion des secrets en utilisant AWS Secrets Manager ou HashiCorp Vault.
+
+## Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.

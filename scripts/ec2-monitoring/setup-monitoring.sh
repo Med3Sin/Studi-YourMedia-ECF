@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script unifié d'installation et de configuration pour l'instance EC2 Monitoring
-# Ce script combine les fonctionnalités de setup.sh, init-instance-env.sh, install-docker.sh, 
+# Ce script combine les fonctionnalités de setup.sh, init-instance-env.sh, install-docker.sh,
 # fix_permissions.sh, fix-containers.sh et fix-exporters.sh
 
 set -e
@@ -153,10 +153,10 @@ if ! command -v docker &> /dev/null; then
     dnf install -y docker
     systemctl start docker
     systemctl enable docker
-    
+
     # Créer le groupe docker s'il n'existe pas
     getent group docker &>/dev/null || groupadd docker
-    
+
     # Ajouter l'utilisateur ec2-user au groupe docker
     usermod -aG docker ec2-user
     log "Utilisateur ec2-user ajouté au groupe docker"
@@ -178,7 +178,7 @@ log "Installation de Docker Compose"
 if ! command -v docker-compose &> /dev/null; then
     curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
-    
+
     # Créer un lien symbolique
     if [ ! -f "/usr/bin/docker-compose" ] && [ ! -L "/usr/bin/docker-compose" ]; then
         ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
@@ -427,11 +427,18 @@ scrape_configs:
       - targets: ['cloudwatch-exporter:9106']
 EOF
 
-# Création du script docker-manager.sh
-log "Création du script docker-manager.sh"
-cat > /opt/monitoring/docker-manager.sh << 'EOF'
+# Télécharger le script docker-manager.sh depuis S3 si disponible
+log "Téléchargement du script docker-manager.sh depuis S3"
+if [ ! -z "$S3_BUCKET_NAME" ]; then
+    aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
+fi
+
+# Si le téléchargement a échoué, créer une version simplifiée du script
+if [ ! -f "/opt/monitoring/docker-manager.sh" ]; then
+    log "Création d'une version simplifiée du script docker-manager.sh"
+    cat > /opt/monitoring/docker-manager.sh << 'EOF'
 #!/bin/bash
-# Script de gestion des conteneurs Docker
+# Script simplifié de gestion des conteneurs Docker
 # Usage: docker-manager.sh [start|stop|restart|status|deploy] [service_name]
 
 # Fonction pour afficher les messages
@@ -524,13 +531,13 @@ status_containers() {
 deploy_containers() {
     log "Déploiement des conteneurs..."
     cd /opt/monitoring
-    
+
     # Arrêter les conteneurs existants
     docker-compose down
-    
+
     # Démarrer les conteneurs
     docker-compose up -d
-    
+
     if [ $? -eq 0 ]; then
         log "Conteneurs déployés avec succès"
     else
@@ -564,6 +571,7 @@ esac
 
 exit 0
 EOF
+fi
 
 # Rendre le script exécutable
 chmod +x /opt/monitoring/docker-manager.sh
