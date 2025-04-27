@@ -199,24 +199,24 @@ cat > /opt/yourmedia/env.sh << 'EOL'
 # Date de génération: $(date)
 
 # Variables EC2
-export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
-export EC2_INSTANCE_PUBLIC_IP="${EC2_INSTANCE_PUBLIC_IP}"
-export EC2_INSTANCE_ID="${EC2_INSTANCE_ID}"
-export EC2_INSTANCE_REGION="${EC2_INSTANCE_REGION}"
+export EC2_INSTANCE_PRIVATE_IP="$${EC2_INSTANCE_PRIVATE_IP}"
+export EC2_INSTANCE_PUBLIC_IP="$${EC2_INSTANCE_PUBLIC_IP}"
+export EC2_INSTANCE_ID="$${EC2_INSTANCE_ID}"
+export EC2_INSTANCE_REGION="$${EC2_INSTANCE_REGION}"
 
 # Variables S3
-export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+export S3_BUCKET_NAME="$${S3_BUCKET_NAME}"
 
 # Variables RDS
-export RDS_USERNAME="${RDS_USERNAME}"
-export RDS_ENDPOINT="${RDS_ENDPOINT}"
+export RDS_USERNAME="$${RDS_USERNAME}"
+export RDS_ENDPOINT="$${RDS_ENDPOINT}"
 
 # Variables de compatibilité
-export DB_USERNAME="${DB_USERNAME}"
-export DB_ENDPOINT="${RDS_ENDPOINT}"
+export DB_USERNAME="$${DB_USERNAME}"
+export DB_ENDPOINT="$${RDS_ENDPOINT}"
 
 # Variable Tomcat
-export TOMCAT_VERSION="${TOMCAT_VERSION}"
+export TOMCAT_VERSION="$${TOMCAT_VERSION}"
 
 # Charger les variables sensibles
 source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
@@ -231,10 +231,10 @@ cat > /opt/yourmedia/secure/sensitive-env.sh << 'EOL'
 # Date de génération: $(date)
 
 # Variables RDS
-export RDS_PASSWORD="${RDS_PASSWORD}"
+export RDS_PASSWORD="$${RDS_PASSWORD}"
 
 # Variables de compatibilité
-export DB_PASSWORD="${DB_PASSWORD}"
+export DB_PASSWORD="$${DB_PASSWORD}"
 EOL
 
 # Définir les permissions
