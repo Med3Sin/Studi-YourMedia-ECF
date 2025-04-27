@@ -1,0 +1,13 @@
+[Unit]
+Description=Container Tests Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/monitoring/container-tests.sh
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

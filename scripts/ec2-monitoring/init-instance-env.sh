@@ -530,6 +530,344 @@ fi
 log "Exécution du script de correction des permissions"
 sudo /opt/monitoring/fix_permissions.sh || log "AVERTISSEMENT: L'exécution du script fix_permissions.sh a échoué."
 
+# Télécharger ou créer le script fix-containers.sh
+log "Vérification du script fix-containers.sh"
+if [ ! -f "/opt/monitoring/fix-containers.sh" ]; then
+    log "Le script fix-containers.sh n'existe pas, tentative de téléchargement depuis S3..."
+    if [ "$BUCKET_EXISTS" = true ]; then
+        if ! sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix-containers.sh /opt/monitoring/fix-containers.sh; then
+            log "Impossible de télécharger fix-containers.sh depuis S3, création d'un script par défaut..."
+            sudo bash -c 'cat > /opt/monitoring/fix-containers.sh << "EOF"
+#!/bin/bash
+# Script pour corriger les problèmes des conteneurs Docker de monitoring
+# Auteur: Med3Sin
+
+# Fonction de journalisation
+log() {
+    echo "[$(date +"%Y-%m-%d %H:%M:%S")] $1"
+}
+
+# Vérifier si le script est exécuté avec les privilèges root
+if [ "$(id -u)" -ne 0 ]; then
+    log "Ce script doit être exécuté avec les privilèges root (sudo)."
+    exit 1
+fi
+
+# 1. Corriger le problème de cloudwatch-exporter
+log "Correction du problème de cloudwatch-exporter..."
+mkdir -p /opt/monitoring/cloudwatch-config
+if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
+    log "Création du fichier de configuration cloudwatch-config.yml..."
+    cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << "EOF2"
+---
+region: eu-west-3
+metrics:
+  # Métriques EC2
+  - aws_namespace: AWS/EC2
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average, Maximum]
+    aws_dimension_select:
+      InstanceId: "*"
+
+  # Métriques S3
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName, StorageType]
+    aws_statistics: [Average]
+    aws_dimension_select:
+      BucketName: "*"
+      StorageType: "StandardStorage"
+
+  # Métriques RDS
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, Maximum]
+    aws_dimension_select:
+      DBInstanceIdentifier: "*"
+EOF2
+    log "Fichier de configuration cloudwatch-config.yml créé avec succès."
+else
+    log "Le fichier cloudwatch-config.yml existe déjà."
+fi
+
+# Définir les permissions
+log "Définition des permissions..."
+chmod 644 /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+chown -R ec2-user:ec2-user /opt/monitoring/cloudwatch-config
+
+# 2. Corriger le problème de mysql-exporter
+log "Correction du problème de mysql-exporter..."
+cat > /opt/monitoring/mysql-exporter-fix.yml << EOF2
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.0
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=\${RDS_USERNAME:-yourmedia}:\${RDS_PASSWORD:-password}@tcp(\${RDS_HOST:-localhost}:\${RDS_PORT:-3306})/
+    entrypoint:
+      - /bin/mysqld_exporter
+    command:
+      - --web.listen-address=:9104
+      - --collect.info_schema.tables
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+EOF2
+
+# 3. Corriger le problème de SonarQube (Elasticsearch)
+log "Correction du problème de SonarQube (Elasticsearch)..."
+
+# Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
+log "Augmentation de la limite de mmap count..."
+sysctl -w vm.max_map_count=262144
+if grep -q "vm.max_map_count" /etc/sysctl.conf; then
+    sed -i "s/vm.max_map_count=.*/vm.max_map_count=262144/" /etc/sysctl.conf
+else
+    echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+fi
+sysctl -p
+
+# Augmenter la limite de fichiers ouverts
+log "Augmentation de la limite de fichiers ouverts..."
+sysctl -w fs.file-max=65536
+if grep -q "fs.file-max" /etc/sysctl.conf; then
+    sed -i "s/fs.file-max=.*/fs.file-max=65536/" /etc/sysctl.conf
+else
+    echo "fs.file-max=65536" >> /etc/sysctl.conf
+fi
+sysctl -p
+
+# Configurer les limites de ressources pour l'utilisateur ec2-user
+log "Configuration des limites de ressources pour l'utilisateur ec2-user..."
+if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
+    echo "ec2-user soft nofile 65536" >> /etc/security/limits.conf
+    echo "ec2-user hard nofile 65536" >> /etc/security/limits.conf
+fi
+if ! grep -q "ec2-user.*nproc" /etc/security/limits.conf; then
+    echo "ec2-user soft nproc 4096" >> /etc/security/limits.conf
+    echo "ec2-user hard nproc 4096" >> /etc/security/limits.conf
+fi
+
+# Créer les répertoires pour SonarQube s'ils n'existent pas
+log "Création des répertoires pour SonarQube..."
+mkdir -p /opt/monitoring/sonarqube-data/data
+mkdir -p /opt/monitoring/sonarqube-data/logs
+mkdir -p /opt/monitoring/sonarqube-data/extensions
+mkdir -p /opt/monitoring/sonarqube-data/db
+
+# Définir les permissions appropriées pour SonarQube
+log "Configuration des permissions pour SonarQube..."
+chown -R 999:999 /opt/monitoring/sonarqube-data/data
+chown -R 999:999 /opt/monitoring/sonarqube-data/logs
+chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
+chown -R 999:999 /opt/monitoring/sonarqube-data/db
+chmod -R 755 /opt/monitoring/sonarqube-data/data
+chmod -R 755 /opt/monitoring/sonarqube-data/logs
+chmod -R 755 /opt/monitoring/sonarqube-data/extensions
+chmod -R 700 /opt/monitoring/sonarqube-data/db
+
+# 4. Mettre à jour le fichier docker-compose.yml
+log "Mise à jour du fichier docker-compose.yml..."
+
+# Sauvegarder le fichier original
+if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+    cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak
+
+    # Remplacer la section mysql-exporter dans docker-compose.yml
+    log "Remplacement de la section mysql-exporter dans docker-compose.yml..."
+    sed -i "/mysql-exporter:/,/cpu_shares: 256/c\\" /opt/monitoring/docker-compose.yml
+    sed -i "/mysql-exporter:/d" /opt/monitoring/docker-compose.yml
+    cat /opt/monitoring/mysql-exporter-fix.yml >> /opt/monitoring/docker-compose.yml
+
+    # Mettre à jour la section cloudwatch-exporter dans docker-compose.yml
+    log "Mise à jour de la section cloudwatch-exporter dans docker-compose.yml..."
+    sed -i "/cloudwatch-exporter:/,/cpu_shares: 256/c\\  cloudwatch-exporter:\\n    image: prom/cloudwatch-exporter:latest\\n    container_name: cloudwatch-exporter\\n    ports:\\n      - \\"9106:9106\\"\\n    volumes:\\n      - /opt/monitoring/cloudwatch-config:/config\\n    command:\\n      - --config.file=/config/cloudwatch-config.yml\\n    restart: always\\n    logging:\\n      driver: \\"json-file\\"\\n      options:\\n        max-size: \\"10m\\"\\n        max-file: \\"3\\"\\n    mem_limit: 256m\\n    cpu_shares: 256" /opt/monitoring/docker-compose.yml
+
+    # Mettre à jour la section sonarqube dans docker-compose.yml pour réduire la mémoire initiale d'Elasticsearch
+    log "Mise à jour de la section sonarqube dans docker-compose.yml..."
+    sed -i "s/SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m/SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m/" /opt/monitoring/docker-compose.yml
+fi
+
+log "Correction des conteneurs terminée avec succès."
+EOF'
+        fi
+    else
+        log "Le bucket S3 n'est pas accessible, création d'un script fix-containers.sh par défaut..."
+        sudo bash -c 'cat > /opt/monitoring/fix-containers.sh << "EOF"
+#!/bin/bash
+# Script pour corriger les problèmes des conteneurs Docker de monitoring
+# Auteur: Med3Sin
+
+# Fonction de journalisation
+log() {
+    echo "[$(date +"%Y-%m-%d %H:%M:%S")] $1"
+}
+
+# Vérifier si le script est exécuté avec les privilèges root
+if [ "$(id -u)" -ne 0 ]; then
+    log "Ce script doit être exécuté avec les privilèges root (sudo)."
+    exit 1
+fi
+
+# 1. Corriger le problème de cloudwatch-exporter
+log "Correction du problème de cloudwatch-exporter..."
+mkdir -p /opt/monitoring/cloudwatch-config
+if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
+    log "Création du fichier de configuration cloudwatch-config.yml..."
+    cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << "EOF2"
+---
+region: eu-west-3
+metrics:
+  # Métriques EC2
+  - aws_namespace: AWS/EC2
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [InstanceId]
+    aws_statistics: [Average, Maximum]
+    aws_dimension_select:
+      InstanceId: "*"
+
+  # Métriques S3
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName, StorageType]
+    aws_statistics: [Average]
+    aws_dimension_select:
+      BucketName: "*"
+      StorageType: "StandardStorage"
+
+  # Métriques RDS
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average, Maximum]
+    aws_dimension_select:
+      DBInstanceIdentifier: "*"
+EOF2
+    log "Fichier de configuration cloudwatch-config.yml créé avec succès."
+else
+    log "Le fichier cloudwatch-config.yml existe déjà."
+fi
+
+# Définir les permissions
+log "Définition des permissions..."
+chmod 644 /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+chown -R ec2-user:ec2-user /opt/monitoring/cloudwatch-config
+
+# 2. Corriger le problème de mysql-exporter
+log "Correction du problème de mysql-exporter..."
+cat > /opt/monitoring/mysql-exporter-fix.yml << EOF2
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.0
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=\${RDS_USERNAME:-yourmedia}:\${RDS_PASSWORD:-password}@tcp(\${RDS_HOST:-localhost}:\${RDS_PORT:-3306})/
+    entrypoint:
+      - /bin/mysqld_exporter
+    command:
+      - --web.listen-address=:9104
+      - --collect.info_schema.tables
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+EOF2
+
+# 3. Corriger le problème de SonarQube (Elasticsearch)
+log "Correction du problème de SonarQube (Elasticsearch)..."
+
+# Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
+log "Augmentation de la limite de mmap count..."
+sysctl -w vm.max_map_count=262144
+if grep -q "vm.max_map_count" /etc/sysctl.conf; then
+    sed -i "s/vm.max_map_count=.*/vm.max_map_count=262144/" /etc/sysctl.conf
+else
+    echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+fi
+sysctl -p
+
+# Augmenter la limite de fichiers ouverts
+log "Augmentation de la limite de fichiers ouverts..."
+sysctl -w fs.file-max=65536
+if grep -q "fs.file-max" /etc/sysctl.conf; then
+    sed -i "s/fs.file-max=.*/fs.file-max=65536/" /etc/sysctl.conf
+else
+    echo "fs.file-max=65536" >> /etc/sysctl.conf
+fi
+sysctl -p
+
+# Configurer les limites de ressources pour l'utilisateur ec2-user
+log "Configuration des limites de ressources pour l'utilisateur ec2-user..."
+if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
+    echo "ec2-user soft nofile 65536" >> /etc/security/limits.conf
+    echo "ec2-user hard nofile 65536" >> /etc/security/limits.conf
+fi
+if ! grep -q "ec2-user.*nproc" /etc/security/limits.conf; then
+    echo "ec2-user soft nproc 4096" >> /etc/security/limits.conf
+    echo "ec2-user hard nproc 4096" >> /etc/security/limits.conf
+fi
+
+# Créer les répertoires pour SonarQube s'ils n'existent pas
+log "Création des répertoires pour SonarQube..."
+mkdir -p /opt/monitoring/sonarqube-data/data
+mkdir -p /opt/monitoring/sonarqube-data/logs
+mkdir -p /opt/monitoring/sonarqube-data/extensions
+mkdir -p /opt/monitoring/sonarqube-data/db
+
+# Définir les permissions appropriées pour SonarQube
+log "Configuration des permissions pour SonarQube..."
+chown -R 999:999 /opt/monitoring/sonarqube-data/data
+chown -R 999:999 /opt/monitoring/sonarqube-data/logs
+chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
+chown -R 999:999 /opt/monitoring/sonarqube-data/db
+chmod -R 755 /opt/monitoring/sonarqube-data/data
+chmod -R 755 /opt/monitoring/sonarqube-data/logs
+chmod -R 755 /opt/monitoring/sonarqube-data/extensions
+chmod -R 700 /opt/monitoring/sonarqube-data/db
+
+# 4. Mettre à jour le fichier docker-compose.yml
+log "Mise à jour du fichier docker-compose.yml..."
+
+# Sauvegarder le fichier original
+if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+    cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak
+
+    # Remplacer la section mysql-exporter dans docker-compose.yml
+    log "Remplacement de la section mysql-exporter dans docker-compose.yml..."
+    sed -i "/mysql-exporter:/,/cpu_shares: 256/c\\" /opt/monitoring/docker-compose.yml
+    sed -i "/mysql-exporter:/d" /opt/monitoring/docker-compose.yml
+    cat /opt/monitoring/mysql-exporter-fix.yml >> /opt/monitoring/docker-compose.yml
+
+    # Mettre à jour la section cloudwatch-exporter dans docker-compose.yml
+    log "Mise à jour de la section cloudwatch-exporter dans docker-compose.yml..."
+    sed -i "/cloudwatch-exporter:/,/cpu_shares: 256/c\\  cloudwatch-exporter:\\n    image: prom/cloudwatch-exporter:latest\\n    container_name: cloudwatch-exporter\\n    ports:\\n      - \\"9106:9106\\"\\n    volumes:\\n      - /opt/monitoring/cloudwatch-config:/config\\n    command:\\n      - --config.file=/config/cloudwatch-config.yml\\n    restart: always\\n    logging:\\n      driver: \\"json-file\\"\\n      options:\\n        max-size: \\"10m\\"\\n        max-file: \\"3\\"\\n    mem_limit: 256m\\n    cpu_shares: 256" /opt/monitoring/docker-compose.yml
+
+    # Mettre à jour la section sonarqube dans docker-compose.yml pour réduire la mémoire initiale d'Elasticsearch
+    log "Mise à jour de la section sonarqube dans docker-compose.yml..."
+    sed -i "s/SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m/SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m/" /opt/monitoring/docker-compose.yml
+fi
+
+log "Correction des conteneurs terminée avec succès."
+EOF'
+    fi
+
+    # Rendre le script exécutable
+    sudo chmod +x /opt/monitoring/fix-containers.sh
+fi
+
 # Exécution du script d'installation
 log "Exécution du script d'installation"
 if [ -f "/opt/monitoring/setup.sh" ]; then
@@ -573,6 +911,56 @@ else
     else
         log "AVERTISSEMENT: Aucun fichier docker-compose.yml trouvé"
     fi
+fi
+
+# Exécuter le script de correction des conteneurs
+log "Exécution du script de correction des conteneurs..."
+if [ -f "/opt/monitoring/fix-containers.sh" ]; then
+    sudo -E /opt/monitoring/fix-containers.sh > /var/log/fix-containers.log 2>&1
+    if [ $? -eq 0 ]; then
+        log "Le script fix-containers.sh a été exécuté avec succès"
+    else
+        log "AVERTISSEMENT: L'exécution du script fix-containers.sh a échoué, consultez /var/log/fix-containers.log pour plus de détails"
+    fi
+else
+    log "AVERTISSEMENT: Le script fix-containers.sh n'existe pas"
+fi
+
+# Installer les améliorations de surveillance
+log "Installation des améliorations de surveillance..."
+if [ "$BUCKET_EXISTS" = true ]; then
+    # Télécharger les scripts d'amélioration de surveillance depuis S3
+    log "Téléchargement des scripts d'amélioration de surveillance depuis S3..."
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-health-check.sh /opt/monitoring/ || log "Impossible de télécharger container-health-check.sh"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-health-check.service /opt/monitoring/ || log "Impossible de télécharger container-health-check.service"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-health-check.timer /opt/monitoring/ || log "Impossible de télécharger container-health-check.timer"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-tests.sh /opt/monitoring/ || log "Impossible de télécharger container-tests.sh"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-tests.service /opt/monitoring/ || log "Impossible de télécharger container-tests.service"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-tests.timer /opt/monitoring/ || log "Impossible de télécharger container-tests.timer"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/loki-config.yml /opt/monitoring/ || log "Impossible de télécharger loki-config.yml"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/promtail-config.yml /opt/monitoring/ || log "Impossible de télécharger promtail-config.yml"
+    sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup-monitoring-improvements.sh /opt/monitoring/ || log "Impossible de télécharger setup-monitoring-improvements.sh"
+    sudo aws s3 cp --recursive s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/prometheus-rules/ /opt/monitoring/prometheus-rules/ || log "Impossible de télécharger les règles Prometheus"
+
+    # Rendre les scripts exécutables
+    sudo chmod +x /opt/monitoring/container-health-check.sh
+    sudo chmod +x /opt/monitoring/container-tests.sh
+    sudo chmod +x /opt/monitoring/setup-monitoring-improvements.sh
+
+    # Exécuter le script d'installation des améliorations
+    if [ -f "/opt/monitoring/setup-monitoring-improvements.sh" ]; then
+        log "Exécution du script d'installation des améliorations..."
+        sudo -E /opt/monitoring/setup-monitoring-improvements.sh > /var/log/setup-monitoring-improvements.log 2>&1
+        if [ $? -eq 0 ]; then
+            log "Le script setup-monitoring-improvements.sh a été exécuté avec succès"
+        else
+            log "AVERTISSEMENT: L'exécution du script setup-monitoring-improvements.sh a échoué, consultez /var/log/setup-monitoring-improvements.log pour plus de détails"
+        fi
+    else
+        log "AVERTISSEMENT: Le script setup-monitoring-improvements.sh n'existe pas"
+    fi
+else
+    log "AVERTISSEMENT: Le bucket S3 n'est pas accessible, impossible d'installer les améliorations de surveillance"
 fi
 
 # Vérifier si les conteneurs sont en cours d'exécution

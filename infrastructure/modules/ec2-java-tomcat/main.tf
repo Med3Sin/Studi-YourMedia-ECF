@@ -167,11 +167,11 @@ fi
 
 # Mettre à jour le système
 log "Mise à jour du système"
-dnf update -y
+sudo dnf update -y
 
 # Installer les dépendances nécessaires
 log "Installation des dépendances"
-dnf install -y aws-cli curl jq
+sudo dnf install -y aws-cli curl jq
 
 # Définir les variables d'environnement
 log "Configuration des variables d'environnement"

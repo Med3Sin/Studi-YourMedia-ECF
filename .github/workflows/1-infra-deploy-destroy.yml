@@ -425,6 +425,39 @@ jobs:
           if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring" ]; then
             echo "Téléchargement des scripts de monitoring..."
             aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/ s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+
+            # Vérifier et télécharger les scripts d'amélioration de surveillance
+            echo "Vérification des scripts d'amélioration de surveillance..."
+            if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh" ]; then
+              echo "Téléchargement des scripts d'amélioration de surveillance..."
+              # S'assurer que les scripts sont exécutables
+              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh
+              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.sh
+              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/setup-monitoring-improvements.sh
+
+              # Télécharger les scripts individuellement pour s'assurer qu'ils sont correctement téléchargés
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.service s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.timer s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.service s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.timer s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/loki-config.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/promtail-config.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/setup-monitoring-improvements.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+
+              # Créer le répertoire prometheus-rules dans S3 s'il n'existe pas
+              aws s3api put-object --bucket ${S3_BUCKET_NAME} --key scripts/ec2-monitoring/prometheus-rules/
+
+              # Télécharger les règles Prometheus
+              if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring/prometheus-rules" ]; then
+                aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/prometheus-rules/ s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/prometheus-rules/
+              fi
+
+              echo "Scripts d'amélioration de surveillance téléchargés avec succès."
+            else
+              echo "AVERTISSEMENT: Les scripts d'amélioration de surveillance n'ont pas été trouvés."
+            fi
           else
             echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-monitoring n'existe pas."
           fi

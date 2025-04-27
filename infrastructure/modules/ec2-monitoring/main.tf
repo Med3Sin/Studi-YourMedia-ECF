@@ -664,6 +664,19 @@ else
   echo "AVERTISSEMENT: Le script setup.sh n'existe pas"
 fi
 
+# Exécuter le script de correction des conteneurs
+echo "Exécution du script de correction des conteneurs..."
+if [ -f "/opt/monitoring/fix-containers.sh" ]; then
+  sudo chmod +x /opt/monitoring/fix-containers.sh
+  if sudo -E /opt/monitoring/fix-containers.sh > /var/log/fix-containers.log 2>&1; then
+    echo "Le script fix-containers.sh a été exécuté avec succès"
+  else
+    echo "AVERTISSEMENT: L'exécution du script fix-containers.sh a échoué, consultez /var/log/fix-containers.log pour plus de détails"
+  fi
+else
+  echo "AVERTISSEMENT: Le script fix-containers.sh n'existe pas"
+fi
+
 # Vérifier si les conteneurs sont en cours d'exécution
 echo "Vérification des conteneurs en cours d'exécution..."
 RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)

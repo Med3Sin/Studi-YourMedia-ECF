@@ -82,7 +82,7 @@ services:
       - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
       - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
       # Limiter la mémoire utilisée par Elasticsearch pour éviter les erreurs OOM
-      - SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m
       # Limiter la mémoire globale de SonarQube
       - SONAR_WEB_JAVA_OPTS=-Xmx512m -Xms256m
       - SONAR_CE_JAVA_OPTS=-Xmx512m -Xms256m
@@ -137,6 +137,45 @@ services:
     command:
       - --web.listen-address=:9104
       - --collect.info_schema.tables
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+
+  # Loki pour la centralisation des logs
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - /opt/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - /opt/monitoring/loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
+
+  # Promtail pour collecter les logs des conteneurs
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /opt/monitoring/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
     restart: always
     logging:
       driver: "json-file"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run container health check every 5 minutes
+Requires=container-health-check.service
+
+[Timer]
+Unit=container-health-check.service
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
