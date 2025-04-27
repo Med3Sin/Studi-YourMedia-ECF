@@ -111,7 +111,11 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config:/config
+      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_DEFAULT_REGION:-eu-west-3}
     command:
       - --config.file=/config/cloudwatch-config.yml
     restart: always
@@ -129,14 +133,21 @@ services:
     container_name: mysql-exporter
     ports:
       - "9104:9104"
+    volumes:
+      - /opt/monitoring/mysql-exporter-config.cnf:/etc/mysql-exporter/config.cnf
     environment:
       # Format correct pour la connexion MySQL: user:password@protocol(host:port)/
       - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@tcp(${RDS_HOST:-localhost}:${RDS_PORT:-3306})/
+      - RDS_HOST=${RDS_HOST:-localhost}
+      - RDS_PORT=${RDS_PORT:-3306}
+      - RDS_USERNAME=${RDS_USERNAME:-yourmedia}
+      - RDS_PASSWORD=${RDS_PASSWORD:-password}
     entrypoint:
       - /bin/mysqld_exporter
     command:
       - --web.listen-address=:9104
       - --collect.info_schema.tables
+      - --config.my-cnf=/etc/mysql-exporter/config.cnf
     restart: always
     logging:
       driver: "json-file"

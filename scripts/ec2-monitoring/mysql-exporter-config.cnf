@@ -1,0 +1,5 @@
+[client]
+host=${RDS_HOST}
+port=${RDS_PORT}
+user=${RDS_USERNAME}
+password=${RDS_PASSWORD}
