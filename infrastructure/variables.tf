@@ -385,3 +385,16 @@ variable "TF_S3_BUCKET_NAME" {
   type        = string
   default     = ""
 }
+
+variable "EC2_SSH_PUBLIC_KEY" {
+  description = "Contenu de la clé publique SSH pour les instances EC2 (format spécifique)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "TF_WORKSPACE_ID" {
+  description = "ID de l'espace de travail Terraform Cloud (version majuscule)."
+  type        = string
+  default     = ""
+}
