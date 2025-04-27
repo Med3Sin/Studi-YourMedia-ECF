@@ -128,19 +128,19 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation"
 
 # Mettre à jour le système
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Mise à jour du système"
-dnf update -y
+sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-dnf install -y aws-cli curl jq wget
+sudo dnf install -y aws-cli curl jq wget
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
-mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-chmod 700 /home/ec2-user/.ssh
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+sudo mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+sudo chmod 700 /home/ec2-user/.ssh
+sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Définir les variables d'environnement
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
@@ -153,34 +153,34 @@ export TOMCAT_VERSION="9.0.104"
 
 # Télécharger et exécuter le script d'installation depuis S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
-mkdir -p /opt/yourmedia
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/setup-java-tomcat.sh /opt/yourmedia/ || echo "Échec du téléchargement du script setup-java-tomcat.sh"
+sudo mkdir -p /opt/yourmedia
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/setup-java-tomcat.sh /opt/yourmedia/ || echo "Échec du téléchargement du script setup-java-tomcat.sh"
 
 if [ -f "/opt/yourmedia/setup-java-tomcat.sh" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-java-tomcat.sh"
-    chmod +x /opt/yourmedia/setup-java-tomcat.sh
-    /opt/yourmedia/setup-java-tomcat.sh
+    sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
+    sudo /opt/yourmedia/setup-java-tomcat.sh
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Java et Tomcat"
     # Installation de Java
-    dnf install -y java-17-amazon-corretto-devel
+    sudo dnf install -y java-17-amazon-corretto-devel
 
     # Création de l'utilisateur et groupe Tomcat
-    groupadd tomcat 2>/dev/null || true
-    useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
+    sudo groupadd tomcat 2>/dev/null || true
+    sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
 
     # Téléchargement et installation de Tomcat
     cd /tmp
-    wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.104/bin/apache-tomcat-9.0.104.tar.gz
-    mkdir -p /opt/tomcat
-    tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
+    sudo wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.104/bin/apache-tomcat-9.0.104.tar.gz
+    sudo mkdir -p /opt/tomcat
+    sudo tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
 
     # Configuration des permissions
-    chown -R tomcat:tomcat /opt/tomcat
-    chmod +x /opt/tomcat/bin/*.sh
+    sudo chown -R tomcat:tomcat /opt/tomcat
+    sudo chmod +x /opt/tomcat/bin/*.sh
 
     # Création du service Tomcat
-    cat > /etc/systemd/system/tomcat.service << "EOL"
+    sudo cat > /etc/systemd/system/tomcat.service << "EOL"
 [Unit]
 Description=Apache Tomcat Web Application Container
 After=network.target
@@ -209,9 +209,9 @@ WantedBy=multi-user.target
 EOL
 
     # Démarrage de Tomcat
-    systemctl daemon-reload
-    systemctl enable tomcat
-    systemctl start tomcat
+    sudo systemctl daemon-reload
+    sudo systemctl enable tomcat
+    sudo systemctl start tomcat
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"

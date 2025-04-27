@@ -229,19 +229,19 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation"
 
 # Mettre à jour le système
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Mise à jour du système"
-dnf update -y
+sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-dnf install -y aws-cli curl jq wget amazon-cloudwatch-agent
+sudo dnf install -y aws-cli curl jq wget amazon-cloudwatch-agent
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
-mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-chmod 700 /home/ec2-user/.ssh
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+sudo mkdir -p /home/ec2-user/.ssh
+echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+sudo chmod 700 /home/ec2-user/.ssh
+sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Définir les variables d'environnement
 export S3_BUCKET_NAME="${var.s3_bucket_name}"
@@ -263,41 +263,41 @@ export EC2_APP_IP="${var.ec2_instance_private_ip}"
 
 # Télécharger et exécuter le script d'installation depuis S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
-mkdir -p /opt/monitoring
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/setup-monitoring.sh /opt/monitoring/ || echo "Échec du téléchargement du script setup-monitoring.sh"
-aws s3 cp s3://${var.s3_bucket_name}/scripts/docker/docker-manager.sh /opt/monitoring/ || echo "Échec du téléchargement du script docker-manager.sh"
+sudo mkdir -p /opt/monitoring
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/setup-monitoring.sh /opt/monitoring/ || echo "Échec du téléchargement du script setup-monitoring.sh"
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/docker/docker-manager.sh /opt/monitoring/ || echo "Échec du téléchargement du script docker-manager.sh"
 
 if [ -f "/opt/monitoring/setup-monitoring.sh" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-monitoring.sh"
-    chmod +x /opt/monitoring/setup-monitoring.sh
-    /opt/monitoring/setup-monitoring.sh
+    sudo chmod +x /opt/monitoring/setup-monitoring.sh
+    sudo /opt/monitoring/setup-monitoring.sh
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Docker"
     # Installation de Docker
-    dnf install -y docker
-    systemctl start docker
-    systemctl enable docker
-    usermod -aG docker ec2-user
+    sudo dnf install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker ec2-user
 
     # Installation de Docker Compose
-    dnf install -y docker-compose
+    sudo dnf install -y docker-compose
 
     # Création des répertoires nécessaires
-    mkdir -p /opt/monitoring/secure
-    mkdir -p /opt/monitoring/prometheus-data
-    mkdir -p /opt/monitoring/grafana-data
-    mkdir -p /opt/monitoring/sonarqube-data/data
-    mkdir -p /opt/monitoring/sonarqube-data/logs
-    mkdir -p /opt/monitoring/sonarqube-data/extensions
-    mkdir -p /opt/monitoring/sonarqube-data/db
+    sudo mkdir -p /opt/monitoring/secure
+    sudo mkdir -p /opt/monitoring/prometheus-data
+    sudo mkdir -p /opt/monitoring/grafana-data
+    sudo mkdir -p /opt/monitoring/sonarqube-data/data
+    sudo mkdir -p /opt/monitoring/sonarqube-data/logs
+    sudo mkdir -p /opt/monitoring/sonarqube-data/extensions
+    sudo mkdir -p /opt/monitoring/sonarqube-data/db
 
     # Définir les permissions
-    chmod 755 /opt/monitoring
-    chmod 700 /opt/monitoring/secure
-    chown -R ec2-user:ec2-user /opt/monitoring
+    sudo chmod 755 /opt/monitoring
+    sudo chmod 700 /opt/monitoring/secure
+    sudo chown -R ec2-user:ec2-user /opt/monitoring
 
     # Créer un fichier docker-compose.yml minimal
-    cat > /opt/monitoring/docker-compose.yml << "EOL"
+    sudo cat > /opt/monitoring/docker-compose.yml << "EOL"
 version: '3'
 
 services:
@@ -324,7 +324,7 @@ services:
 EOL
 
     # Créer un fichier prometheus.yml minimal
-    cat > /opt/monitoring/prometheus.yml << "EOL"
+    sudo cat > /opt/monitoring/prometheus.yml << "EOL"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -337,14 +337,14 @@ EOL
 
     # Démarrer les conteneurs
     cd /opt/monitoring
-    docker-compose up -d
+    sudo docker-compose up -d
 fi
 
 # Copier docker-manager.sh dans /usr/local/bin si disponible
 if [ -f "/opt/monitoring/docker-manager.sh" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation du script docker-manager.sh"
-    cp /opt/monitoring/docker-manager.sh /usr/local/bin/
-    chmod +x /usr/local/bin/docker-manager.sh
+    sudo cp /opt/monitoring/docker-manager.sh /usr/local/bin/
+    sudo chmod +x /usr/local/bin/docker-manager.sh
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
