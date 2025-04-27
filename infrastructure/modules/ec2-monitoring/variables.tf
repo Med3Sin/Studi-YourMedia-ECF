@@ -195,3 +195,22 @@ variable "tf_workspace_id" {
   type        = string
   default     = ""
 }
+
+variable "docker_username" {
+  description = "Nom d'utilisateur Docker Hub pour télécharger les images Docker."
+  type        = string
+  default     = "medsin"
+}
+
+variable "docker_repo" {
+  description = "Nom du dépôt Docker Hub pour les images Docker."
+  type        = string
+  default     = "yourmedia-ecf"
+}
+
+variable "dockerhub_token" {
+  description = "Token d'accès Docker Hub pour l'authentification."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

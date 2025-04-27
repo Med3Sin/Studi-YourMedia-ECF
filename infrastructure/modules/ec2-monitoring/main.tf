@@ -223,7 +223,7 @@ resource "aws_instance" "monitoring_instance" {
 
 # Mettre à jour le système et installer les dépendances
 sudo dnf update -y
-sudo dnf install -y amazon-cloudwatch-agent
+sudo dnf install -y amazon-cloudwatch-agent jq
 
 # Créer le répertoire .ssh s'il n'existe pas
 sudo mkdir -p /home/ec2-user/.ssh
@@ -234,10 +234,16 @@ echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys
 sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
+# Créer les répertoires nécessaires
+sudo mkdir -p /opt/monitoring/secure
+sudo chmod 755 /opt/monitoring
+sudo chmod 700 /opt/monitoring/secure
+
 # Définir les variables d'environnement pour le script
 # Utiliser des valeurs par défaut si les variables ne sont pas définies
 S3_BUCKET_NAME="${var.s3_bucket_name}"
 EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 DB_USERNAME="${var.db_username}"
 DB_PASSWORD="${var.db_password}"
 RDS_ENDPOINT="${var.rds_endpoint}"
@@ -245,6 +251,9 @@ SONAR_JDBC_USERNAME="${var.sonar_jdbc_username}"
 SONAR_JDBC_PASSWORD="${var.sonar_jdbc_password}"
 SONAR_JDBC_URL="${var.sonar_jdbc_url}"
 GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
+DOCKER_USERNAME="${var.docker_username}"
+DOCKER_REPO="${var.docker_repo}"
+DOCKERHUB_TOKEN="${var.dockerhub_token}"
 
 # Vérifier que le nom du bucket S3 est défini
 if [ -z "$S3_BUCKET_NAME" ]; then
@@ -252,23 +261,122 @@ if [ -z "$S3_BUCKET_NAME" ]; then
   exit 1
 fi
 
+# Créer le fichier de variables d'environnement non sensibles
+cat > /opt/monitoring/env.sh << 'EOL'
+#!/bin/bash
+# Variables d'environnement pour le monitoring
+# Généré automatiquement par Terraform
+
+# Variables EC2
+export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
+export EC2_INSTANCE_PUBLIC_IP="${EC2_INSTANCE_PUBLIC_IP}"
+export EC2_APP_IP="${var.ec2_instance_private_ip}"
+
+# Variables S3
+export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+export AWS_REGION="eu-west-3"
+
+# Variables Docker
+export DOCKER_USERNAME="${DOCKER_USERNAME}"
+export DOCKER_REPO="${DOCKER_REPO}"
+export DOCKERHUB_USERNAME="${DOCKER_USERNAME}"
+export DOCKERHUB_REPO="${DOCKER_REPO}"
+EOL
+
+# Créer le fichier de variables sensibles
+cat > /opt/monitoring/secure/sensitive-env.sh << 'EOL'
+#!/bin/bash
+# Variables sensibles pour le monitoring
+# Généré automatiquement par Terraform
+
+# Variables Docker Hub
+export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
+
+# Variables RDS
+export RDS_USERNAME="${DB_USERNAME}"
+export RDS_PASSWORD="${DB_PASSWORD}"
+export RDS_ENDPOINT="${RDS_ENDPOINT}"
+
+# Extraire l'hôte et le port de RDS_ENDPOINT
+if [[ "${RDS_ENDPOINT}" == *":"* ]]; then
+  export RDS_HOST=$(echo "${RDS_ENDPOINT}" | cut -d':' -f1)
+  export RDS_PORT=$(echo "${RDS_ENDPOINT}" | cut -d':' -f2)
+else
+  export RDS_HOST="${RDS_ENDPOINT}"
+  export RDS_PORT="3306"
+fi
+
+# Variables de compatibilité
+export DB_USERNAME="${DB_USERNAME}"
+export DB_PASSWORD="${DB_PASSWORD}"
+export DB_ENDPOINT="${RDS_ENDPOINT}"
+
+# Variables SonarQube
+export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME}"
+export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
+export SONAR_JDBC_URL="${SONAR_JDBC_URL}"
+
+# Variables Grafana
+export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
+export GF_SECURITY_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
+EOL
+
+# Définir les permissions
+sudo chmod 755 /opt/monitoring/env.sh
+sudo chmod 600 /opt/monitoring/secure/sensitive-env.sh
+sudo chown -R ec2-user:ec2-user /opt/monitoring
+
+# Charger les variables d'environnement
+source /opt/monitoring/env.sh
+source /opt/monitoring/secure/sensitive-env.sh
+
+# Se connecter à Docker Hub
+echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+# Télécharger les scripts depuis S3
+echo "Téléchargement des scripts depuis S3..."
+sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/ /opt/monitoring/ --recursive
+sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/ /opt/monitoring/docker/ --recursive
+
+# Rendre les scripts exécutables
+sudo chmod +x /opt/monitoring/*.sh
+sudo chmod +x /opt/monitoring/docker/*.sh
+
+# Copier docker-manager.sh dans /usr/local/bin
+sudo cp /opt/monitoring/docker/docker-manager.sh /usr/local/bin/
+sudo chmod +x /usr/local/bin/docker-manager.sh
+
 # Télécharger et exécuter le script d'initialisation depuis S3
 sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/init-instance-env.sh /tmp/init-instance.sh
 sudo chmod +x /tmp/init-instance.sh
 
 # Exporter les variables d'environnement pour le script
 export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
+export EC2_INSTANCE_PUBLIC_IP="$EC2_INSTANCE_PUBLIC_IP"
 export DB_USERNAME="$DB_USERNAME"
 export DB_PASSWORD="$DB_PASSWORD"
+export RDS_USERNAME="$DB_USERNAME"
+export RDS_PASSWORD="$DB_PASSWORD"
 export RDS_ENDPOINT="$RDS_ENDPOINT"
 export SONAR_JDBC_USERNAME="$SONAR_JDBC_USERNAME"
 export SONAR_JDBC_PASSWORD="$SONAR_JDBC_PASSWORD"
 export SONAR_JDBC_URL="$SONAR_JDBC_URL"
 export GRAFANA_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
+export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
 export S3_BUCKET_NAME="$S3_BUCKET_NAME"
+export DOCKER_USERNAME="$DOCKER_USERNAME"
+export DOCKER_REPO="$DOCKER_REPO"
+export DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN"
+export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
+export DOCKERHUB_REPO="$DOCKER_REPO"
 
 # Exécuter le script d'initialisation avec les variables d'environnement
 sudo -E /tmp/init-instance.sh
+
+# Exécuter le script de configuration
+cd /opt/monitoring
+sudo chmod +x setup.sh
+sudo -E ./setup.sh
 EOF
 
   tags = {

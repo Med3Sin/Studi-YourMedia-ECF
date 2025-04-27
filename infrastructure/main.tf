@@ -239,6 +239,9 @@ module "ec2-monitoring" {
   grafana_admin_password       = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
   tf_api_token                 = var.tf_api_token
   tf_workspace_id              = var.tf_workspace_id
+  docker_username              = var.dockerhub_username
+  docker_repo                  = var.dockerhub_repo
+  dockerhub_token              = var.dockerhub_token
 }
 
 # -----------------------------------------------------------------------------

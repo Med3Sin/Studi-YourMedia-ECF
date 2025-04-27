@@ -528,8 +528,33 @@ fi
 
 # Connexion à Docker Hub si les identifiants sont disponibles
 if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
-    log "Connexion à Docker Hub..."
+    log "Connexion à Docker Hub avec l'utilisateur $DOCKERHUB_USERNAME..."
     echo "$DOCKERHUB_TOKEN" | sudo docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "Connexion à Docker Hub réussie."
+    else
+        log "AVERTISSEMENT: Échec de la connexion à Docker Hub. Les images privées ne seront pas accessibles."
+    fi
+elif [ ! -z "$DOCKER_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
+    log "Connexion à Docker Hub avec l'utilisateur $DOCKER_USERNAME..."
+    echo "$DOCKERHUB_TOKEN" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "Connexion à Docker Hub réussie."
+    else
+        log "AVERTISSEMENT: Échec de la connexion à Docker Hub. Les images privées ne seront pas accessibles."
+    fi
+else
+    log "AVERTISSEMENT: Variables Docker Hub non définies. Utilisation des images publiques."
+    # Modifier le fichier docker-compose.yml pour utiliser des images publiques
+    if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+        log "Modification du fichier docker-compose.yml pour utiliser des images publiques..."
+        sudo sed -i 's|image: ${DOCKER_USERNAME}/${DOCKER_REPO}:prometheus-latest|image: prom/prometheus:v2.45.0|g' /opt/monitoring/docker-compose.yml
+        sudo sed -i 's|image: ${DOCKER_USERNAME}/${DOCKER_REPO}:grafana-latest|image: grafana/grafana:10.0.3|g' /opt/monitoring/docker-compose.yml
+        sudo sed -i 's|image: ${DOCKER_USERNAME}/${DOCKER_REPO}:sonarqube-latest|image: sonarqube:9.9-community|g' /opt/monitoring/docker-compose.yml
+        sudo sed -i 's|image: medsin/yourmedia-ecf:prometheus-latest|image: prom/prometheus:v2.45.0|g' /opt/monitoring/docker-compose.yml
+        sudo sed -i 's|image: medsin/yourmedia-ecf:grafana-latest|image: grafana/grafana:10.0.3|g' /opt/monitoring/docker-compose.yml
+        sudo sed -i 's|image: medsin/yourmedia-ecf:sonarqube-latest|image: sonarqube:9.9-community|g' /opt/monitoring/docker-compose.yml
+    fi
 fi
 
 # Utiliser docker-manager.sh si disponible, sinon utiliser docker-compose directement
