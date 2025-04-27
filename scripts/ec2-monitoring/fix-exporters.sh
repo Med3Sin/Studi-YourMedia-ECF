@@ -17,14 +17,14 @@ fi
 
 # Créer le répertoire pour le fichier de configuration CloudWatch
 log "Création du répertoire pour le fichier de configuration CloudWatch..."
-mkdir -p /opt/monitoring
+sudo mkdir -p /opt/monitoring/cloudwatch-config
 
 # Copier le fichier de configuration CloudWatch
 log "Copie du fichier de configuration CloudWatch..."
-if [ -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+if [ -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
     log "Le fichier de configuration CloudWatch existe déjà."
 else
-    cat > /opt/monitoring/cloudwatch-config.yml << 'EOF'
+    sudo bash -c 'cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << "EOF"'
 ---
 region: eu-west-3
 metrics:
@@ -108,12 +108,43 @@ fi
 
 # Définir les permissions
 log "Définition des permissions..."
-chmod 644 /opt/monitoring/cloudwatch-config.yml
-chown -R ec2-user:ec2-user /opt/monitoring
+sudo chmod 644 /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+sudo chown -R ec2-user:ec2-user /opt/monitoring
+
+# Corriger la configuration de mysql-exporter dans docker-compose.yml
+log "Correction de la configuration de mysql-exporter dans docker-compose.yml..."
+sudo bash -c 'cat > /opt/monitoring/mysql-exporter-fix.yml << EOF
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.0
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=\${RDS_USERNAME:-yourmedia}:\${RDS_PASSWORD:-password}@tcp(\${RDS_HOST:-localhost}:\${RDS_PORT:-3306})/
+    entrypoint:
+      - /bin/mysqld_exporter
+    command:
+      - --web.listen-address=:9104
+      - --collect.info_schema.tables
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    cpu_shares: 256
+EOF'
+
+# Remplacer la section mysql-exporter dans docker-compose.yml
+log "Remplacement de la section mysql-exporter dans docker-compose.yml..."
+sudo sed -i '/mysql-exporter:/,/cpu_shares: 256/c\\' /opt/monitoring/docker-compose.yml
+sudo sed -i '/mysql-exporter:/d' /opt/monitoring/docker-compose.yml
+sudo bash -c 'cat /opt/monitoring/mysql-exporter-fix.yml >> /opt/monitoring/docker-compose.yml'
 
 # Redémarrer les conteneurs
 log "Redémarrage des conteneurs..."
-docker-compose -f /opt/monitoring/docker-compose.yml down
-docker-compose -f /opt/monitoring/docker-compose.yml up -d
+sudo docker-compose -f /opt/monitoring/docker-compose.yml down
+sudo docker-compose -f /opt/monitoring/docker-compose.yml up -d
 
 log "Correction des exporters terminée avec succès."

@@ -184,11 +184,12 @@ log "RDS_ENDPOINT: $RDS_ENDPOINT"
 log "EC2_INSTANCE_PRIVATE_IP: $EC2_INSTANCE_PRIVATE_IP"
 log "EC2_INSTANCE_PUBLIC_IP: $EC2_INSTANCE_PUBLIC_IP"
 
-# Créer les répertoires nécessaires
+# Créer les répertoires nécessaires avec des droits root
 log "Création des répertoires nécessaires"
-sudo mkdir -p /opt/yourmedia/secure
-sudo chmod 755 /opt/yourmedia
-sudo chmod 700 /opt/yourmedia/secure
+sudo rm -rf /opt/yourmedia 2>/dev/null || true
+sudo mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
+sudo chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
+sudo chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"

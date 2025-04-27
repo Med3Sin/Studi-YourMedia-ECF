@@ -111,7 +111,7 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+      - /opt/monitoring/cloudwatch-config:/config
     command:
       - --config.file=/config/cloudwatch-config.yml
     restart: always
