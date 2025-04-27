@@ -122,7 +122,7 @@ sudo chmod +x /tmp/fix-ssh-keys.sh
 sudo cp /tmp/fix-ssh-keys.sh /usr/local/bin/fix-ssh-keys.sh
 
 # Créer un service systemd pour exécuter le script périodiquement
-sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.service << "EOF"'
+sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.service << EOF
 [Unit]
 Description=SSH Key Format Checker
 After=network.target
@@ -132,9 +132,9 @@ Type=oneshot
 ExecStart=/usr/local/bin/fix-ssh-keys.sh
 User=ec2-user
 Group=ec2-user
-EOF
+EOF'
 
-sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.timer << "EOF"'
+sudo bash -c 'cat > /etc/systemd/system/ssh-key-checker.timer << EOF
 [Unit]
 Description=Run SSH Key Format Checker periodically
 
@@ -145,7 +145,7 @@ RandomizedDelaySec=5min
 
 [Install]
 WantedBy=timers.target
-EOF
+EOF'
 
 # Activer et démarrer le timer
 systemctl daemon-reload
@@ -181,8 +181,21 @@ sudo dnf install -y java-17-amazon-corretto-devel
 java -version
 
 echo "--- Création de l'utilisateur et groupe Tomcat ---"
-sudo groupadd tomcat
-sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat
+# Vérifier si le groupe tomcat existe déjà
+if ! getent group tomcat > /dev/null; then
+  sudo groupadd tomcat
+  echo "Groupe tomcat créé"
+else
+  echo "Le groupe tomcat existe déjà"
+fi
+
+# Vérifier si l'utilisateur tomcat existe déjà
+if ! id -u tomcat > /dev/null 2>&1; then
+  sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat
+  echo "Utilisateur tomcat créé"
+else
+  echo "L'utilisateur tomcat existe déjà"
+fi
 
 echo "--- Téléchargement et Extraction de Tomcat 9 ---"
 # La version de Tomcat est passée via la variable TOMCAT_VERSION depuis le template Terraform
@@ -211,6 +224,19 @@ if [ ! -f "/opt/tomcat/bin/startup.sh" ]; then
 fi
 
 echo "--- Configuration des Permissions Tomcat ---"
+# Vérifier que le répertoire /opt/tomcat existe
+if [ ! -d "/opt/tomcat" ]; then
+  error_exit "Le répertoire /opt/tomcat n'existe pas"
+fi
+
+# Vérifier que les sous-répertoires existent
+for dir in conf webapps work temp logs; do
+  if [ ! -d "/opt/tomcat/$dir" ]; then
+    echo "Le répertoire /opt/tomcat/$dir n'existe pas, création..."
+    sudo mkdir -p /opt/tomcat/$dir
+  fi
+done
+
 cd /opt/tomcat
 sudo chgrp -R tomcat /opt/tomcat
 sudo chmod -R g+r conf
@@ -218,7 +244,7 @@ sudo chmod g+x conf
 sudo chown -R tomcat webapps/ work/ temp/ logs/
 
 echo "--- Création du fichier de service Systemd pour Tomcat ---"
-sudo bash -c 'cat > /etc/systemd/system/tomcat.service' << EOF
+sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
 [Unit]
 Description=Apache Tomcat Web Application Container
 After=network.target
@@ -230,8 +256,8 @@ Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
 Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
 Environment=CATALINA_HOME=/opt/tomcat
 Environment=CATALINA_BASE=/opt/tomcat
-Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'
-Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'
+Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
 
 ExecStart=/opt/tomcat/bin/startup.sh
 ExecStop=/opt/tomcat/bin/shutdown.sh
@@ -244,15 +270,26 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF'
 
 echo "--- Rechargement de Systemd et Démarrage de Tomcat ---"
 sudo systemctl daemon-reload
-sudo systemctl start tomcat
 sudo systemctl enable tomcat # Activer le démarrage automatique au boot
 
-# Vérifier le statut de Tomcat (optionnel, pour le log)
-sudo systemctl status tomcat
+# Démarrer Tomcat et vérifier son statut
+echo "Démarrage de Tomcat..."
+sudo systemctl start tomcat || true
+
+# Attendre quelques secondes pour que Tomcat démarre
+sleep 10
+
+# Vérifier le statut de Tomcat
+if sudo systemctl is-active --quiet tomcat; then
+  echo "Tomcat a démarré avec succès"
+else
+  echo "AVERTISSEMENT: Tomcat n'a pas démarré correctement. Vérifiez les logs avec 'sudo journalctl -u tomcat'"
+  # Ne pas quitter avec erreur pour permettre à l'installation de continuer
+fi
 
 echo "--- Installation de Node Exporter pour Prometheus ---"
 # Télécharger et installer Node Exporter pour la surveillance Prometheus
@@ -263,7 +300,7 @@ sudo mv node_exporter-1.7.0.linux-amd64/node_exporter /usr/local/bin/
 sudo useradd -rs /bin/false node_exporter
 
 # Créer un service systemd pour Node Exporter
-sudo bash -c 'cat > /etc/systemd/system/node_exporter.service' << EOF
+sudo bash -c 'cat > /etc/systemd/system/node_exporter.service << EOF
 [Unit]
 Description=Node Exporter
 After=network.target
@@ -276,15 +313,26 @@ ExecStart=/usr/local/bin/node_exporter
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF'
 
 # Démarrer et activer Node Exporter
 sudo systemctl daemon-reload
-sudo systemctl start node_exporter
 sudo systemctl enable node_exporter
 
+# Démarrer Node Exporter et vérifier son statut
+echo "Démarrage de Node Exporter..."
+sudo systemctl start node_exporter || true
+
+# Attendre quelques secondes pour que Node Exporter démarre
+sleep 5
+
 # Vérifier le statut de Node Exporter
-sudo systemctl status node_exporter
+if sudo systemctl is-active --quiet node_exporter; then
+  echo "Node Exporter a démarré avec succès"
+else
+  echo "AVERTISSEMENT: Node Exporter n'a pas démarré correctement. Vérifiez les logs avec 'sudo journalctl -u node_exporter'"
+  # Ne pas quitter avec erreur pour permettre à l'installation de continuer
+fi
 
 echo "--- Exécution du script de correction des clés SSH ---"
 # Exécuter le script en tant qu'utilisateur ec2-user

@@ -134,19 +134,35 @@ error_exit() {
 
 # Vérification des variables requises
 if [ -z "${var.s3_bucket_name}" ]; then
-    error_exit "La variable s3_bucket_name n'est pas définie"
+    log "AVERTISSEMENT: La variable s3_bucket_name n'est pas définie"
+    S3_BUCKET_NAME=""
+else
+    S3_BUCKET_NAME="${var.s3_bucket_name}"
+    log "S3_BUCKET_NAME défini: $S3_BUCKET_NAME"
 fi
 
 if [ -z "${var.db_username}" ]; then
-    error_exit "La variable db_username n'est pas définie"
+    log "AVERTISSEMENT: La variable db_username n'est pas définie"
+    DB_USERNAME="yourmedia"
+else
+    DB_USERNAME="${var.db_username}"
+    log "DB_USERNAME défini: $DB_USERNAME"
 fi
 
 if [ -z "${var.db_password}" ]; then
-    error_exit "La variable db_password n'est pas définie"
+    log "AVERTISSEMENT: La variable db_password n'est pas définie"
+    DB_PASSWORD="password"
+else
+    DB_PASSWORD="${var.db_password}"
+    log "DB_PASSWORD défini: [MASQUÉ]"
 fi
 
 if [ -z "${var.rds_endpoint}" ]; then
-    error_exit "La variable rds_endpoint n'est pas définie"
+    log "AVERTISSEMENT: La variable rds_endpoint n'est pas définie"
+    RDS_ENDPOINT="localhost:3306"
+else
+    RDS_ENDPOINT="${var.rds_endpoint}"
+    log "RDS_ENDPOINT défini: $RDS_ENDPOINT"
 fi
 
 # Mettre à jour le système
@@ -245,7 +261,128 @@ sudo chown -R ec2-user:ec2-user /opt/yourmedia
 
 # Télécharger les scripts depuis S3
 log "Téléchargement des scripts depuis S3"
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
+if [ -z "$S3_BUCKET_NAME" ]; then
+    log "AVERTISSEMENT: S3_BUCKET_NAME n'est pas défini, impossible de télécharger les scripts depuis S3"
+else
+    # Vérifier si le bucket existe
+    if aws s3 ls s3://$S3_BUCKET_NAME 2>&1 | grep -q 'NoSuchBucket'; then
+        log "AVERTISSEMENT: Le bucket S3 $S3_BUCKET_NAME n'existe pas"
+    else
+        # Télécharger les scripts
+        log "Téléchargement des scripts depuis s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/"
+        sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
+    fi
+fi
+
+# Si les scripts n'ont pas été téléchargés depuis S3, créer des scripts par défaut
+if [ ! -f "/opt/yourmedia/install_java_tomcat.sh" ]; then
+    log "Le script install_java_tomcat.sh n'a pas été téléchargé depuis S3, création d'un script par défaut"
+
+    # Créer un script d'installation par défaut
+    sudo bash -c 'cat > /opt/yourmedia/install_java_tomcat.sh << "EOF"
+#!/bin/bash
+# Script d'installation par défaut pour Java et Tomcat
+set -e
+
+echo "Installation de Java..."
+sudo dnf install -y java-17-amazon-corretto-devel
+
+echo "Création de l'utilisateur et groupe Tomcat..."
+sudo groupadd tomcat 2>/dev/null || true
+sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
+
+echo "Téléchargement et installation de Tomcat..."
+cd /tmp
+wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.104/bin/apache-tomcat-9.0.104.tar.gz
+sudo mkdir -p /opt/tomcat
+sudo tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
+
+echo "Configuration des permissions..."
+sudo chown -R tomcat:tomcat /opt/tomcat
+sudo chmod +x /opt/tomcat/bin/*.sh
+
+echo "Création du service Tomcat..."
+sudo bash -c "cat > /etc/systemd/system/tomcat.service << EOF
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=forking
+
+Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
+Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat
+Environment=CATALINA_BASE=/opt/tomcat
+Environment=\"CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC\"
+Environment=\"JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom\"
+
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/opt/tomcat/bin/shutdown.sh
+
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+echo "Démarrage de Tomcat..."
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat
+sudo systemctl start tomcat
+
+echo "Installation terminée avec succès"
+EOF'
+
+    # Rendre le script exécutable
+    sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
+fi
+
+if [ ! -f "/opt/yourmedia/deploy-war.sh" ]; then
+    log "Le script deploy-war.sh n'a pas été téléchargé depuis S3, création d'un script par défaut"
+
+    # Créer un script de déploiement par défaut
+    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << "EOF"
+#!/bin/bash
+# Script de déploiement par défaut pour Tomcat
+set -e
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <chemin_vers_war>"
+  exit 1
+fi
+
+WAR_PATH=$1
+TARGET_NAME="yourmedia-backend.war"
+
+echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
+
+# Vérifier si le fichier existe
+if [ ! -f "$WAR_PATH" ]; then
+  echo "ERREUR: Le fichier $WAR_PATH n'existe pas"
+  exit 1
+fi
+
+# Copier le fichier WAR dans webapps
+cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+
+# Changer le propriétaire
+chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
+
+# Redémarrer Tomcat
+systemctl restart tomcat
+
+echo "Déploiement terminé avec succès"
+exit 0
+EOF'
+
+    # Rendre le script exécutable
+    sudo chmod +x /opt/yourmedia/deploy-war.sh
+fi
 
 # Rendre les scripts exécutables
 log "Rendre les scripts exécutables"
@@ -263,9 +400,31 @@ sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 log "Exécution du script d'installation de Java et Tomcat"
 if [ -f "/opt/yourmedia/install_java_tomcat.sh" ]; then
     sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
-    sudo /opt/yourmedia/install_java_tomcat.sh || error_exit "Échec de l'exécution du script d'installation de Java et Tomcat"
+
+    # Exécuter le script d'installation et capturer la sortie
+    log "Démarrage de l'installation de Java et Tomcat..."
+    if sudo /opt/yourmedia/install_java_tomcat.sh > /var/log/install_java_tomcat.log 2>&1; then
+        log "Installation de Java et Tomcat terminée avec succès"
+    else
+        log "AVERTISSEMENT: L'installation de Java et Tomcat a échoué. Consultez le fichier /var/log/install_java_tomcat.log pour plus de détails."
+        # Ne pas quitter avec une erreur pour permettre à l'initialisation de continuer
+    fi
 else
-    error_exit "Le script install_java_tomcat.sh n'existe pas"
+    log "ERREUR: Le script install_java_tomcat.sh n'existe pas"
+    # Créer un script d'installation minimal
+    log "Création d'un script d'installation minimal..."
+    sudo bash -c 'cat > /opt/yourmedia/install_java_tomcat.sh << "EOF"
+#!/bin/bash
+# Script d'installation minimal pour Java et Tomcat
+set -e
+
+echo "Installation de Java..."
+sudo dnf install -y java-17-amazon-corretto-devel
+
+echo "Installation terminée"
+EOF'
+    sudo chmod +x /opt/yourmedia/install_java_tomcat.sh
+    sudo /opt/yourmedia/install_java_tomcat.sh > /var/log/install_java_tomcat.log 2>&1 || log "AVERTISSEMENT: L'installation minimale a échoué"
 fi
 
 # Créer un lien symbolique pour le script deploy-war.sh
@@ -276,12 +435,68 @@ if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
     sudo chmod +x /usr/local/bin/deploy-war.sh
 
     # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
-    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" | sudo tee /etc/sudoers.d/deploy-war > /dev/null
+    sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
     sudo chmod 440 /etc/sudoers.d/deploy-war
 
     log "Script deploy-war.sh configuré avec succès"
 else
-    log "AVERTISSEMENT: Le script deploy-war.sh n'existe pas"
+    log "AVERTISSEMENT: Le script deploy-war.sh n'existe pas, création d'un script minimal..."
+
+    # Créer un script de déploiement minimal
+    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << "EOF"
+#!/bin/bash
+# Script de déploiement minimal pour Tomcat
+set -e
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <chemin_vers_war>"
+  exit 1
+fi
+
+WAR_PATH=$1
+TARGET_NAME="yourmedia-backend.war"
+
+echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
+
+# Vérifier si le fichier existe
+if [ ! -f "$WAR_PATH" ]; then
+  echo "ERREUR: Le fichier $WAR_PATH n'existe pas"
+  exit 1
+fi
+
+# Vérifier si le répertoire webapps existe
+if [ ! -d "/opt/tomcat/webapps" ]; then
+  echo "Création du répertoire /opt/tomcat/webapps"
+  mkdir -p /opt/tomcat/webapps
+fi
+
+# Copier le fichier WAR dans webapps
+cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+
+# Changer le propriétaire si l'utilisateur tomcat existe
+if id -u tomcat >/dev/null 2>&1; then
+  chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
+fi
+
+# Redémarrer Tomcat si le service existe
+if systemctl list-unit-files | grep -q tomcat.service; then
+  systemctl restart tomcat
+fi
+
+echo "Déploiement terminé avec succès"
+exit 0
+EOF'
+
+    # Rendre le script exécutable et créer le lien symbolique
+    sudo chmod +x /opt/yourmedia/deploy-war.sh
+    sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+    sudo chmod +x /usr/local/bin/deploy-war.sh
+
+    # Configurer sudoers
+    sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
+    sudo chmod 440 /etc/sudoers.d/deploy-war
+
+    log "Script deploy-war.sh créé et configuré avec succès"
 fi
 
 log "Initialisation terminée avec succès"

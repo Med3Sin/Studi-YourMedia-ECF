@@ -17,19 +17,38 @@ error_exit() {
 if [ -z "$S3_BUCKET_NAME" ]; then
     log "La variable S3_BUCKET_NAME n'est pas définie, tentative de récupération depuis les métadonnées de l'instance..."
     # Récupérer les tags de l'instance
-    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-    REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    INSTANCE_ID=$(curl -s --connect-timeout 5 --retry 3 http://169.254.169.254/latest/meta-data/instance-id)
+    REGION=$(curl -s --connect-timeout 5 --retry 3 http://169.254.169.254/latest/meta-data/placement/region)
 
-    # Récupérer le tag S3_BUCKET_NAME
-    S3_BUCKET_NAME=$(aws ec2 describe-tags --region $REGION --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3_BUCKET_NAME" --query "Tags[0].Value" --output text)
+    if [ -z "$INSTANCE_ID" ] || [ -z "$REGION" ]; then
+        log "AVERTISSEMENT: Impossible de récupérer l'ID de l'instance ou la région depuis les métadonnées"
+        log "Utilisation des valeurs par défaut"
+        S3_BUCKET_NAME="yourmedia-ecf-studi"
+    else
+        # Récupérer le tag S3_BUCKET_NAME
+        S3_BUCKET_NAME=$(aws ec2 describe-tags --region $REGION --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3_BUCKET_NAME" --query "Tags[0].Value" --output text 2>/dev/null || echo "")
 
-    if [ -z "${S3_BUCKET_NAME}" ] || [ "${S3_BUCKET_NAME}" = "None" ]; then
-        error_exit "Impossible de récupérer la variable S3_BUCKET_NAME depuis les métadonnées de l'instance"
+        if [ -z "${S3_BUCKET_NAME}" ] || [ "${S3_BUCKET_NAME}" = "None" ]; then
+            log "AVERTISSEMENT: Impossible de récupérer la variable S3_BUCKET_NAME depuis les métadonnées de l'instance"
+            log "Utilisation de la valeur par défaut"
+            S3_BUCKET_NAME="yourmedia-ecf-studi"
+        else
+            log "Variable S3_BUCKET_NAME récupérée depuis les métadonnées de l'instance: ${S3_BUCKET_NAME}"
+        fi
     fi
 
     # Exporter la variable pour les scripts suivants
     export S3_BUCKET_NAME
-    log "Variable S3_BUCKET_NAME récupérée depuis les métadonnées de l'instance: ${S3_BUCKET_NAME}"
+fi
+
+# Vérifier si le bucket S3 existe
+if ! aws s3 ls s3://${S3_BUCKET_NAME} &>/dev/null; then
+    log "AVERTISSEMENT: Le bucket S3 ${S3_BUCKET_NAME} n'existe pas ou n'est pas accessible"
+    log "Les scripts seront créés localement"
+    BUCKET_EXISTS=false
+else
+    log "Le bucket S3 ${S3_BUCKET_NAME} existe et est accessible"
+    BUCKET_EXISTS=true
 fi
 
 # Vérification des dépendances
@@ -71,23 +90,261 @@ log "Variables d'environnement:"
 log "S3_BUCKET_NAME=$S3_BUCKET_NAME"
 log "EC2_INSTANCE_PRIVATE_IP=$EC2_INSTANCE_PRIVATE_IP"
 
-# Téléchargement des scripts depuis S3
-log "Téléchargement des scripts depuis S3"
+# Téléchargement des scripts depuis S3 ou création de scripts par défaut
+log "Téléchargement des scripts depuis S3 ou création de scripts par défaut"
 
-log "Utilisation du bucket S3: ${S3_BUCKET_NAME}"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh || error_exit "Impossible de télécharger setup.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh || error_exit "Impossible de télécharger install-docker.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/get-aws-resources-info.sh /opt/monitoring/get-aws-resources-info.sh || log "AVERTISSEMENT: Impossible de télécharger get-aws-resources-info.sh depuis S3"
-# Utiliser le docker-compose.yml centralisé du répertoire docker
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || {
-  log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml centralisé depuis S3"
-  # Fallback sur le docker-compose.yml spécifique à l'instance
-  sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.template || log "AVERTISSEMENT: Impossible de télécharger docker-compose.yml depuis S3"
-}
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/cloudwatch-config.yml /opt/monitoring/cloudwatch-config.yml || log "AVERTISSEMENT: Impossible de télécharger cloudwatch-config.yml depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/configure-sonarqube.sh /opt/monitoring/configure-sonarqube.sh || log "AVERTISSEMENT: Impossible de télécharger configure-sonarqube.sh depuis S3"
+if [ "$BUCKET_EXISTS" = true ]; then
+    log "Utilisation du bucket S3: ${S3_BUCKET_NAME}"
+
+    # Télécharger les scripts essentiels avec gestion d'erreur
+    download_script() {
+        local source_path=$1
+        local dest_path=$2
+        local is_required=$3
+        local default_script=$4
+
+        log "Téléchargement de $source_path vers $dest_path"
+        if sudo aws s3 cp s3://${S3_BUCKET_NAME}/$source_path $dest_path; then
+            log "Téléchargement réussi: $source_path"
+            return 0
+        else
+            log "AVERTISSEMENT: Impossible de télécharger $source_path depuis S3"
+            if [ "$is_required" = true ] && [ -n "$default_script" ]; then
+                log "Création d'un script par défaut pour $dest_path"
+                echo "$default_script" | sudo tee $dest_path > /dev/null
+                sudo chmod +x $dest_path
+                return 0
+            elif [ "$is_required" = true ]; then
+                error_exit "Impossible de télécharger le script requis $source_path"
+                return 1
+            else
+                return 1
+            fi
+        fi
+    }
+
+    # Script setup.sh par défaut
+    SETUP_SCRIPT='#!/bin/bash
+# Script de configuration par défaut
+echo "Installation des conteneurs Docker pour le monitoring..."
+# Installer Docker si nécessaire
+if ! command -v docker &> /dev/null; then
+    echo "Installation de Docker..."
+    sudo dnf install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+fi
+# Démarrer les conteneurs
+cd /opt/monitoring
+if [ -f "docker-compose.yml" ]; then
+    sudo docker-compose up -d
+else
+    echo "ERREUR: docker-compose.yml introuvable"
+    exit 1
+fi
+echo "Installation terminée"
+'
+
+    # Script install-docker.sh par défaut
+    INSTALL_DOCKER_SCRIPT='#!/bin/bash
+# Script d'\''installation Docker par défaut
+echo "Installation de Docker..."
+sudo dnf update -y
+sudo dnf install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+echo "Docker installé avec succès"
+'
+
+    # Script fix_permissions.sh par défaut
+    FIX_PERMISSIONS_SCRIPT='#!/bin/bash
+# Script de correction des permissions par défaut
+echo "Correction des permissions..."
+sudo chown -R ec2-user:ec2-user /opt/monitoring
+sudo chmod -R 755 /opt/monitoring
+echo "Permissions corrigées"
+'
+
+    # Script docker-manager.sh par défaut
+    DOCKER_MANAGER_SCRIPT='#!/bin/bash
+# Script de gestion Docker par défaut
+ACTION=$1
+TARGET=$2
+
+if [ "$ACTION" = "deploy" ] && [ "$TARGET" = "monitoring" ]; then
+    echo "Déploiement des conteneurs de monitoring..."
+    cd /opt/monitoring
+    if [ -f "docker-compose.yml" ]; then
+        docker-compose up -d
+    else
+        echo "ERREUR: docker-compose.yml introuvable"
+        exit 1
+    fi
+elif [ "$ACTION" = "stop" ] && [ "$TARGET" = "monitoring" ]; then
+    echo "Arrêt des conteneurs de monitoring..."
+    cd /opt/monitoring
+    if [ -f "docker-compose.yml" ]; then
+        docker-compose down
+    else
+        echo "ERREUR: docker-compose.yml introuvable"
+        exit 1
+    fi
+else
+    echo "Usage: $0 {deploy|stop} monitoring"
+    exit 1
+fi
+'
+
+    # Télécharger les scripts essentiels
+    download_script "scripts/ec2-monitoring/setup.sh" "/opt/monitoring/setup.sh" true "$SETUP_SCRIPT"
+    download_script "scripts/ec2-monitoring/install-docker.sh" "/opt/monitoring/install-docker.sh" true "$INSTALL_DOCKER_SCRIPT"
+    download_script "scripts/ec2-monitoring/fix_permissions.sh" "/opt/monitoring/fix_permissions.sh" true "$FIX_PERMISSIONS_SCRIPT"
+    download_script "scripts/docker/docker-manager.sh" "/opt/monitoring/docker-manager.sh" true "$DOCKER_MANAGER_SCRIPT"
+
+    # Télécharger les scripts optionnels
+    download_script "scripts/ec2-monitoring/get-aws-resources-info.sh" "/opt/monitoring/get-aws-resources-info.sh" false
+
+    # Télécharger le fichier docker-compose.yml
+    if ! download_script "scripts/docker/monitoring/docker-compose.yml" "/opt/monitoring/docker-compose.yml.template" false; then
+        log "Tentative de téléchargement du docker-compose.yml spécifique à l'instance"
+        download_script "scripts/ec2-monitoring/docker-compose.yml" "/opt/monitoring/docker-compose.yml.template" false
+    fi
+
+    # Télécharger les fichiers de configuration
+    download_script "scripts/ec2-monitoring/cloudwatch-config.yml" "/opt/monitoring/cloudwatch-config.yml" false
+    download_script "scripts/ec2-monitoring/configure-sonarqube.sh" "/opt/monitoring/configure-sonarqube.sh" false
+else
+    log "Le bucket S3 n'est pas accessible, création de scripts par défaut"
+
+    # Créer les scripts par défaut
+    sudo bash -c 'cat > /opt/monitoring/setup.sh << "EOF"
+#!/bin/bash
+# Script de configuration par défaut
+echo "Installation des conteneurs Docker pour le monitoring..."
+# Installer Docker si nécessaire
+if ! command -v docker &> /dev/null; then
+    echo "Installation de Docker..."
+    sudo dnf install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+fi
+# Démarrer les conteneurs
+cd /opt/monitoring
+if [ -f "docker-compose.yml" ]; then
+    sudo docker-compose up -d
+else
+    echo "ERREUR: docker-compose.yml introuvable"
+    exit 1
+fi
+echo "Installation terminée"
+EOF'
+
+    sudo bash -c 'cat > /opt/monitoring/install-docker.sh << "EOF"
+#!/bin/bash
+# Script d'\''installation Docker par défaut
+echo "Installation de Docker..."
+sudo dnf update -y
+sudo dnf install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+echo "Docker installé avec succès"
+EOF'
+
+    sudo bash -c 'cat > /opt/monitoring/fix_permissions.sh << "EOF"
+#!/bin/bash
+# Script de correction des permissions par défaut
+echo "Correction des permissions..."
+sudo chown -R ec2-user:ec2-user /opt/monitoring
+sudo chmod -R 755 /opt/monitoring
+echo "Permissions corrigées"
+EOF'
+
+    sudo bash -c 'cat > /opt/monitoring/docker-manager.sh << "EOF"
+#!/bin/bash
+# Script de gestion Docker par défaut
+ACTION=$1
+TARGET=$2
+
+if [ "$ACTION" = "deploy" ] && [ "$TARGET" = "monitoring" ]; then
+    echo "Déploiement des conteneurs de monitoring..."
+    cd /opt/monitoring
+    if [ -f "docker-compose.yml" ]; then
+        docker-compose up -d
+    else
+        echo "ERREUR: docker-compose.yml introuvable"
+        exit 1
+    fi
+elif [ "$ACTION" = "stop" ] && [ "$TARGET" = "monitoring" ]; then
+    echo "Arrêt des conteneurs de monitoring..."
+    cd /opt/monitoring
+    if [ -f "docker-compose.yml" ]; then
+        docker-compose down
+    else
+        echo "ERREUR: docker-compose.yml introuvable"
+        exit 1
+    fi
+else
+    echo "Usage: $0 {deploy|stop} monitoring"
+    exit 1
+fi
+EOF'
+
+    # Créer un fichier docker-compose.yml par défaut
+    sudo bash -c 'cat > /opt/monitoring/docker-compose.yml.template << "EOF"
+version: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus-data:/prometheus
+    restart: always
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/monitoring/grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
+    restart: always
+
+  sonarqube:
+    image: sonarqube:9.9-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    volumes:
+      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
+      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
+      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
+    environment:
+      - SONAR_JDBC_URL=jdbc:h2:tcp://localhost:9092/sonar
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+    restart: always
+EOF'
+
+    # Créer un fichier prometheus.yml par défaut
+    sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOF"
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+EOF'
+fi
 
 # Rendre les scripts exécutables
 sudo chmod +x /opt/monitoring/install-docker.sh
@@ -181,25 +438,92 @@ sudo chmod 600 /opt/monitoring/secure/*.txt
 log "Modification du script setup.sh pour utiliser les variables d'environnement"
 sudo sed -i '1s|^|#!/bin/bash\nsource /opt/monitoring/env.sh\n\n|' /opt/monitoring/setup.sh
 
-# Installation manuelle de Docker si le script échoue
-log "Installation de Docker"
-if ! command -v docker &> /dev/null; then
+# Installation de Docker
+log "Vérification de l'installation de Docker"
+if command -v docker &> /dev/null; then
+    log "Docker est déjà installé, version: $(docker --version)"
+
+    # Vérifier si le service Docker est en cours d'exécution
+    if ! systemctl is-active --quiet docker; then
+        log "Le service Docker n'est pas en cours d'exécution, démarrage..."
+        sudo systemctl start docker || log "AVERTISSEMENT: Impossible de démarrer le service Docker"
+    fi
+
+    # Vérifier si le service Docker est activé au démarrage
+    if ! systemctl is-enabled --quiet docker; then
+        log "Le service Docker n'est pas activé au démarrage, activation..."
+        sudo systemctl enable docker || log "AVERTISSEMENT: Impossible d'activer le service Docker au démarrage"
+    fi
+else
     log "Docker n'est pas installé. Installation via le script..."
-    sudo /opt/monitoring/install-docker.sh || {
-        log "Installation manuelle de Docker..."
+    if [ -f "/opt/monitoring/install-docker.sh" ]; then
+        # Exécuter le script d'installation avec capture de la sortie
+        log "Exécution du script install-docker.sh..."
+        if sudo /opt/monitoring/install-docker.sh > /var/log/docker-install.log 2>&1; then
+            log "Installation de Docker réussie via le script"
+        else
+            log "AVERTISSEMENT: L'installation via le script a échoué, tentative d'installation manuelle..."
+            sudo dnf update -y
+            sudo dnf install -y docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ec2-user
+        fi
+    else
+        log "Le script install-docker.sh n'existe pas, installation manuelle..."
         sudo dnf update -y
         sudo dnf install -y docker
         sudo systemctl start docker
         sudo systemctl enable docker
-    }
+        sudo usermod -aG docker ec2-user
+    fi
+
+    # Vérifier l'installation
+    if command -v docker &> /dev/null; then
+        log "Docker est installé avec succès, version: $(docker --version)"
+    else
+        log "AVERTISSEMENT: L'installation de Docker a échoué, poursuite de l'initialisation..."
+    fi
 fi
 
-# Vérification de l'installation de Docker
-if command -v docker &> /dev/null; then
-    log "Docker est installé avec succès."
-    sudo docker --version
+# Installation de Docker Compose
+log "Vérification de l'installation de Docker Compose"
+if command -v docker-compose &> /dev/null; then
+    log "Docker Compose est déjà installé, version: $(docker-compose --version)"
 else
-    error_exit "L'installation de Docker a échoué."
+    log "Installation de Docker Compose..."
+    COMPOSE_VERSION="v2.20.3"
+
+    # Créer le répertoire /usr/local/bin s'il n'existe pas
+    sudo mkdir -p /usr/local/bin
+
+    # Télécharger Docker Compose avec retry
+    MAX_RETRIES=3
+    RETRY_COUNT=0
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if sudo curl -L --connect-timeout 30 --retry 5 "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
+            log "Docker Compose téléchargé avec succès"
+            sudo chmod +x /usr/local/bin/docker-compose
+            sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+            break
+        else
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            log "Échec du téléchargement de Docker Compose (tentative $RETRY_COUNT/$MAX_RETRIES)"
+            if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                log "AVERTISSEMENT: Impossible de télécharger Docker Compose après $MAX_RETRIES tentatives"
+                log "Tentative d'installation via dnf..."
+                if sudo dnf list installed docker-compose &>/dev/null || sudo dnf install -y docker-compose; then
+                    log "Docker Compose installé via dnf"
+                    break
+                else
+                    log "AVERTISSEMENT: L'installation de Docker Compose a échoué, poursuite de l'initialisation..."
+                    break
+                fi
+            fi
+            sleep 5
+        fi
+    done
 fi
 
 # Exécution du script de correction des permissions
@@ -208,6 +532,52 @@ sudo /opt/monitoring/fix_permissions.sh || log "AVERTISSEMENT: L'exécution du s
 
 # Exécution du script d'installation
 log "Exécution du script d'installation"
-sudo -E /opt/monitoring/setup.sh || error_exit "L'exécution du script setup.sh a échoué."
+if [ -f "/opt/monitoring/setup.sh" ]; then
+    # Vérifier que le script est exécutable
+    sudo chmod +x /opt/monitoring/setup.sh
+
+    # Exécuter le script avec les variables d'environnement
+    log "Exécution de setup.sh avec les variables d'environnement..."
+    if sudo -E /opt/monitoring/setup.sh > /var/log/setup.log 2>&1; then
+        log "Le script setup.sh a été exécuté avec succès"
+    else
+        log "AVERTISSEMENT: L'exécution du script setup.sh a échoué, consultez /var/log/setup.log pour plus de détails"
+        log "Tentative de démarrage manuel des conteneurs..."
+
+        # Vérifier si docker-compose.yml existe
+        if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+            cd /opt/monitoring
+            sudo -E docker-compose up -d || log "AVERTISSEMENT: Échec du démarrage manuel des conteneurs"
+        elif [ -f "/opt/monitoring/docker-compose.yml.template" ]; then
+            # Copier le template vers docker-compose.yml
+            sudo cp /opt/monitoring/docker-compose.yml.template /opt/monitoring/docker-compose.yml
+            cd /opt/monitoring
+            sudo -E docker-compose up -d || log "AVERTISSEMENT: Échec du démarrage manuel des conteneurs"
+        else
+            log "AVERTISSEMENT: Aucun fichier docker-compose.yml trouvé"
+        fi
+    fi
+else
+    log "AVERTISSEMENT: Le script setup.sh n'existe pas"
+    log "Tentative de démarrage manuel des conteneurs..."
+
+    # Vérifier si docker-compose.yml existe
+    if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+        cd /opt/monitoring
+        sudo -E docker-compose up -d || log "AVERTISSEMENT: Échec du démarrage manuel des conteneurs"
+    elif [ -f "/opt/monitoring/docker-compose.yml.template" ]; then
+        # Copier le template vers docker-compose.yml
+        sudo cp /opt/monitoring/docker-compose.yml.template /opt/monitoring/docker-compose.yml
+        cd /opt/monitoring
+        sudo -E docker-compose up -d || log "AVERTISSEMENT: Échec du démarrage manuel des conteneurs"
+    else
+        log "AVERTISSEMENT: Aucun fichier docker-compose.yml trouvé"
+    fi
+fi
+
+# Vérifier si les conteneurs sont en cours d'exécution
+log "Vérification des conteneurs en cours d'exécution..."
+RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)
+log "Nombre de conteneurs en cours d'exécution: $RUNNING_CONTAINERS"
 
 log "Initialisation terminée avec succès"

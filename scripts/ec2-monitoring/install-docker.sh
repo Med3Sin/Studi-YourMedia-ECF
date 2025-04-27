@@ -36,13 +36,30 @@ log "Mise à jour des paquets"
 dnf update -y || error_exit "Impossible de mettre à jour les paquets"
 
 log "Installation de Docker natif pour Amazon Linux 2023"
-dnf install -y docker || error_exit "Impossible d'installer Docker"
+# Vérifier si Docker est déjà installé
+if command -v docker &> /dev/null; then
+  log "Docker est déjà installé, version: $(docker --version)"
+else
+  # Installer Docker
+  log "Installation de Docker..."
+  dnf install -y docker || error_exit "Impossible d'installer Docker"
+fi
 
-log "Démarrage du service Docker"
-systemctl start docker || error_exit "Impossible de démarrer le service Docker"
+log "Vérification du statut du service Docker"
+if systemctl is-active --quiet docker; then
+  log "Le service Docker est déjà en cours d'exécution"
+else
+  log "Démarrage du service Docker"
+  systemctl start docker || error_exit "Impossible de démarrer le service Docker"
+fi
 
-log "Activation du service Docker au démarrage"
-systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
+log "Vérification de l'activation du service Docker"
+if systemctl is-enabled --quiet docker; then
+  log "Le service Docker est déjà activé au démarrage"
+else
+  log "Activation du service Docker au démarrage"
+  systemctl enable docker || error_exit "Impossible d'activer le service Docker au démarrage"
+fi
 
 log "Vérification du statut du service Docker"
 systemctl status docker
@@ -55,11 +72,47 @@ usermod -aG docker ec2-user || log "ATTENTION: Impossible d'ajouter l'utilisateu
 log "Utilisateur ec2-user ajouté au groupe docker"
 
 # Installer Docker Compose
-log "Installation de Docker Compose"
-COMPOSE_VERSION="v2.20.3"
-curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || error_exit "Impossible de télécharger Docker Compose"
-chmod +x /usr/local/bin/docker-compose || error_exit "Impossible de rendre Docker Compose exécutable"
-ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+log "Vérification de l'installation de Docker Compose"
+if command -v docker-compose &> /dev/null; then
+  log "Docker Compose est déjà installé, version: $(docker-compose --version)"
+else
+  log "Installation de Docker Compose"
+  COMPOSE_VERSION="v2.20.3"
+
+  # Créer le répertoire /usr/local/bin s'il n'existe pas
+  mkdir -p /usr/local/bin
+
+  # Télécharger Docker Compose avec retry
+  MAX_RETRIES=3
+  RETRY_COUNT=0
+
+  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -L --connect-timeout 30 --retry 5 "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
+      log "Docker Compose téléchargé avec succès"
+      break
+    else
+      RETRY_COUNT=$((RETRY_COUNT+1))
+      log "Échec du téléchargement de Docker Compose (tentative $RETRY_COUNT/$MAX_RETRIES)"
+      if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+        log "AVERTISSEMENT: Impossible de télécharger Docker Compose après $MAX_RETRIES tentatives"
+        log "Tentative d'installation via dnf..."
+        if dnf list installed docker-compose &>/dev/null || dnf install -y docker-compose; then
+          log "Docker Compose installé via dnf"
+          break
+        else
+          error_exit "Impossible d'installer Docker Compose"
+        fi
+      fi
+      sleep 5
+    fi
+  done
+
+  # Rendre Docker Compose exécutable
+  chmod +x /usr/local/bin/docker-compose || error_exit "Impossible de rendre Docker Compose exécutable"
+
+  # Créer un lien symbolique
+  ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+fi
 
 # Vérifier l'installation
 log "Vérification de l'installation de Docker"
