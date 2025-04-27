@@ -202,7 +202,7 @@ Pour des raisons de sécurité, les secrets sont accessibles via l'interface web
 3. Les secrets sont listés mais leurs valeurs sont masquées pour des raisons de sécurité
 4. Vous pouvez mettre à jour les secrets existants ou en créer de nouveaux
 
-> **Note importante** : Si vous avez besoin de consulter la valeur d'un secret existant, consultez le document [CONSULTER-SECRETS-GITHUB.md](./CONSULTER-SECRETS-GITHUB.md) qui explique comment le faire de manière sécurisée.
+> **Note importante** : La consultation des secrets GitHub n'est pas possible directement via l'interface GitHub pour des raisons de sécurité. Si vous avez besoin de consulter un secret, vous devrez créer un workflow temporaire spécifique à cet effet.
 
 ### Sécurité renforcée
 

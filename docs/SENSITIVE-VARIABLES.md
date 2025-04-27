@@ -84,7 +84,7 @@ Pour configurer les secrets GitHub :
 5. Entrez le nom du secret et sa valeur
 6. Cliquez sur "Add secret"
 
-> **Note importante** : Pour consulter la valeur d'un secret existant (ce qui n'est pas possible directement via l'interface GitHub), consultez le document [CONSULTER-SECRETS-GITHUB.md](./CONSULTER-SECRETS-GITHUB.md) qui explique comment le faire de manière sécurisée.
+> **Note importante** : La consultation des secrets GitHub n'est pas possible directement via l'interface GitHub pour des raisons de sécurité. Si vous avez besoin de consulter un secret, vous devrez créer un workflow temporaire spécifique à cet effet.
 
 ## Utilisation des secrets dans les workflows
 

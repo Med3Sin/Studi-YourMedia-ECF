@@ -18,13 +18,12 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 
 - [Architecture détaillée](docs/ARCHITECTURE.md) : Description détaillée de l'architecture technique
 - [Migration vers Amazon Linux 2023](docs/AMAZON-LINUX-2023-MIGRATION.md) : Documentation de la migration vers Amazon Linux 2023
-- [Gestion du Bucket S3 dans les Workflows](docs/WORKFLOW-S3-BUCKET-MANAGEMENT.md) : Documentation de la gestion du bucket S3 dans les workflows GitHub Actions
+
 - [Initialisation des Instances EC2](docs/INSTANCE-INITIALIZATION.md) : Documentation du processus d'initialisation des instances EC2
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
 - [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
-- [Consultation sécurisée des secrets GitHub](docs/CONSULTER-SECRETS-GITHUB.md) : Guide pour consulter les secrets GitHub en toute sécurité
-- [Consultation des secrets via Terraform Cloud](docs/CONSULTER-SECRETS-TERRAFORM.md) : Guide pour consulter les secrets GitHub via Terraform Cloud
+
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
@@ -56,17 +55,16 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
     * [Configuration des Secrets](#configuration-des-secrets)
 9.  [Utilisation des Secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md)
 10. [Gestion de l'état Terraform (tfstate)](docs/TERRAFORM-CLOUD-TFSTATE.md)
-11. [Consultation sécurisée des secrets GitHub](docs/CONSULTER-SECRETS-GITHUB.md)
-12. [Consultation des secrets via Terraform Cloud](docs/CONSULTER-SECRETS-TERRAFORM.md)
-13. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
-14. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
-15. [Dépannage Docker](docs/DOCKER-TROUBLESHOOTING.md)
-16. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
-17. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
-18. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+
+11. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
+12. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
+13. [Dépannage Docker](docs/DOCKER-TROUBLESHOOTING.md)
+14. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
+15. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
+16. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-19. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
-20. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
+17. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
+18. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
 
