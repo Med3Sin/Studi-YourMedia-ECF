@@ -2,18 +2,25 @@
 #==============================================================================
 # Nom du script : setup-monitoring.sh
 # Description   : Script unifié d'installation et de configuration pour l'instance EC2 Monitoring.
-#                 Ce script combine les fonctionnalités de setup.sh, init-instance-env.sh,
-#                 install-docker.sh, fix_permissions.sh, fix-containers.sh et fix-exporters.sh.
+#                 Ce script combine les fonctionnalités d'installation, configuration,
+#                 vérification et correction des problèmes pour les services de monitoring.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.1
+# Version       : 2.0
 # Date          : 2025-04-27
 #==============================================================================
-# Utilisation   : sudo ./setup-monitoring.sh
+# Utilisation   : sudo ./setup-monitoring.sh [options]
 #
-# Options       : Aucune
+# Options       :
+#   --check     : Vérifie uniquement l'état de l'installation sans rien installer
+#   --fix       : Corrige les problèmes détectés
+#   --force     : Force la réinstallation même si déjà installé
+#   --help      : Affiche l'aide
 #
 # Exemples      :
 #   sudo ./setup-monitoring.sh
+#   sudo ./setup-monitoring.sh --check
+#   sudo ./setup-monitoring.sh --fix
+#   sudo ./setup-monitoring.sh --force
 #==============================================================================
 # Dépendances   :
 #   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
@@ -21,6 +28,7 @@
 #   - aws-cli   : Pour interagir avec les services AWS
 #   - docker    : Sera installé par le script
 #   - docker-compose : Sera installé par le script
+#   - netstat   : Pour vérifier les ports ouverts
 #==============================================================================
 # Variables d'environnement :
 #   - S3_BUCKET_NAME : Nom du bucket S3 contenant les scripts
@@ -39,6 +47,9 @@
 
 set -e
 
+# Rediriger stdout et stderr vers un fichier log pour le débogage
+exec > >(tee /var/log/setup-monitoring.log|logger -t setup-monitoring -s 2>/dev/console) 2>&1
+
 # Fonction pour afficher les messages
 log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
@@ -48,6 +59,673 @@ log() {
 error_exit() {
     log "ERREUR: $1"
     exit 1
+}
+
+# Fonction pour installer Docker
+install_docker() {
+    log "Installation de Docker"
+    if ! command -v docker &> /dev/null; then
+        log "Installation de Docker natif pour Amazon Linux 2023"
+        dnf install -y docker
+        systemctl start docker
+        systemctl enable docker
+
+        # Créer le groupe docker s'il n'existe pas
+        getent group docker &>/dev/null || groupadd docker
+
+        # Ajouter l'utilisateur ec2-user au groupe docker
+        usermod -aG docker ec2-user
+        log "Utilisateur ec2-user ajouté au groupe docker"
+    else
+        log "Docker est déjà installé"
+        # S'assurer que Docker est démarré
+        if ! systemctl is-active --quiet docker; then
+            systemctl start docker
+            systemctl enable docker
+        fi
+        # S'assurer que l'utilisateur ec2-user est dans le groupe docker
+        if ! groups ec2-user | grep -q docker; then
+            usermod -a -G docker ec2-user
+        fi
+    fi
+
+    log "Docker installé avec succès"
+    return 0
+}
+
+# Fonction pour installer Docker Compose
+install_docker_compose() {
+    log "Installation de Docker Compose"
+    if ! command -v docker-compose &> /dev/null; then
+        curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+
+        # Créer un lien symbolique
+        if [ ! -f "/usr/bin/docker-compose" ] && [ ! -L "/usr/bin/docker-compose" ]; then
+            ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+        fi
+    else
+        log "Docker Compose est déjà installé"
+    fi
+
+    log "Docker Compose installé avec succès"
+    return 0
+}
+
+# Fonction pour configurer les prérequis système pour SonarQube
+configure_sonarqube_prerequisites() {
+    log "Configuration des prérequis système pour SonarQube"
+
+    # Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
+    if grep -q "vm.max_map_count" /etc/sysctl.conf; then
+        sed -i 's/vm.max_map_count=.*/vm.max_map_count=262144/' /etc/sysctl.conf
+    else
+        echo "vm.max_map_count=262144" | tee -a /etc/sysctl.conf
+    fi
+    sysctl -w vm.max_map_count=262144
+
+    # Augmenter la limite de fichiers ouverts
+    if grep -q "fs.file-max" /etc/sysctl.conf; then
+        sed -i 's/fs.file-max=.*/fs.file-max=65536/' /etc/sysctl.conf
+    else
+        echo "fs.file-max=65536" | tee -a /etc/sysctl.conf
+    fi
+    sysctl -w fs.file-max=65536
+
+    # Configurer les limites de ressources pour l'utilisateur ec2-user
+    if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
+        echo "ec2-user soft nofile 65536" | tee -a /etc/security/limits.conf
+        echo "ec2-user hard nofile 65536" | tee -a /etc/security/limits.conf
+        echo "ec2-user soft nproc 4096" | tee -a /etc/security/limits.conf
+        echo "ec2-user hard nproc 4096" | tee -a /etc/security/limits.conf
+    fi
+
+    log "Prérequis système pour SonarQube configurés avec succès"
+    return 0
+}
+
+# Fonction pour créer le fichier docker-compose.yml
+create_docker_compose_file() {
+    log "Création du fichier docker-compose.yml"
+    cat > /opt/monitoring/docker-compose.yml << 'EOF'
+version: '3'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=1GB'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/monitoring/grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    depends_on:
+      - prometheus
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+
+  # Base de données PostgreSQL pour SonarQube
+  sonarqube-db:
+    image: postgres:13
+    container_name: sonarqube-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${SONAR_JDBC_USERNAME}
+      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD}
+      - POSTGRES_DB=sonar
+    volumes:
+      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+
+  # SonarQube pour l'analyse de code
+  sonarqube:
+    image: sonarqube:9.9-community
+    container_name: sonarqube
+    depends_on:
+      - sonarqube-db
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_URL=${SONAR_JDBC_URL}
+      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME}
+      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD}
+    volumes:
+      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
+      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
+      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 1g
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # Exportateur CloudWatch pour surveiller les services AWS
+  cloudwatch-exporter:
+    image: prom/cloudwatch-exporter:latest
+    container_name: cloudwatch-exporter
+    ports:
+      - "9106:9106"
+    volumes:
+      - /opt/monitoring/cloudwatch-config:/config
+    command: "--config.file=/config/cloudwatch-config.yml"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+
+  # Exportateur MySQL pour surveiller RDS
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.0
+    container_name: mysql-exporter
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=${RDS_USERNAME}:${RDS_PASSWORD}@(${RDS_HOST}:${RDS_PORT})/
+    command:
+      - '--collect.info_schema.tables'
+      - '--collect.info_schema.innodb_metrics'
+      - '--collect.global_status'
+      - '--collect.global_variables'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+EOF
+
+    log "Fichier docker-compose.yml créé avec succès"
+    return 0
+}
+
+# Fonction pour créer le fichier de configuration CloudWatch Exporter
+create_cloudwatch_config() {
+    log "Création du fichier de configuration CloudWatch Exporter"
+    mkdir -p /opt/monitoring/cloudwatch-config
+    cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
+---
+region: ${AWS_REGION:-eu-west-3}
+metrics:
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/S3
+    aws_metric_name: NumberOfObjects
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+EOF
+
+    log "Fichier de configuration CloudWatch Exporter créé avec succès"
+    return 0
+}
+
+# Fonction pour créer le fichier prometheus.yml
+create_prometheus_config() {
+    log "Création du fichier prometheus.yml"
+    cat > /opt/monitoring/prometheus.yml << "EOF"
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'mysql-exporter'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+
+  - job_name: 'cloudwatch-exporter'
+    static_configs:
+      - targets: ['cloudwatch-exporter:9106']
+EOF
+
+    log "Fichier prometheus.yml créé avec succès"
+    return 0
+}
+
+# Fonction pour créer le script docker-manager.sh
+create_docker_manager_script() {
+    log "Création du script docker-manager.sh"
+
+    # Télécharger le script docker-manager.sh depuis S3 si disponible
+    if [ ! -z "$S3_BUCKET_NAME" ]; then
+        aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
+    fi
+
+    # Si le téléchargement a échoué, créer une version simplifiée du script
+    if [ ! -f "/opt/monitoring/docker-manager.sh" ]; then
+        log "Création d'une version simplifiée du script docker-manager.sh"
+        cat > /opt/monitoring/docker-manager.sh << 'EOF'
+#!/bin/bash
+# Script simplifié de gestion des conteneurs Docker
+# Usage: docker-manager.sh [start|stop|restart|status|deploy] [service_name]
+
+# Fonction pour afficher les messages
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+}
+
+# Fonction pour afficher les erreurs et quitter
+error_exit() {
+    log "ERREUR: $1"
+    exit 1
+}
+
+# Vérification des droits sudo
+if [ "$(id -u)" -ne 0 ]; then
+    error_exit "Ce script doit être exécuté avec sudo ou en tant que root"
+fi
+
+# Charger les variables d'environnement
+if [ -f "/opt/monitoring/env.sh" ]; then
+    source /opt/monitoring/env.sh
+fi
+
+if [ -f "/opt/monitoring/secure/sensitive-env.sh" ]; then
+    source /opt/monitoring/secure/sensitive-env.sh
+fi
+
+# Vérifier si Docker est installé
+if ! command -v docker &> /dev/null; then
+    error_exit "Docker n'est pas installé"
+fi
+
+# Vérifier si Docker Compose est installé
+if ! command -v docker-compose &> /dev/null; then
+    error_exit "Docker Compose n'est pas installé"
+fi
+
+# Vérifier les arguments
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 [start|stop|restart|status|deploy] [service_name]"
+    exit 1
+fi
+
+ACTION=$1
+SERVICE=${2:-all}
+
+# Fonction pour démarrer les conteneurs
+start_containers() {
+    log "Démarrage des conteneurs..."
+    cd /opt/monitoring
+    docker-compose up -d $SERVICE
+    if [ $? -eq 0 ]; then
+        log "Conteneurs démarrés avec succès"
+    else
+        error_exit "Échec du démarrage des conteneurs"
+    fi
+}
+
+# Fonction pour arrêter les conteneurs
+stop_containers() {
+    log "Arrêt des conteneurs..."
+    cd /opt/monitoring
+    docker-compose down $SERVICE
+    if [ $? -eq 0 ]; then
+        log "Conteneurs arrêtés avec succès"
+    else
+        error_exit "Échec de l'arrêt des conteneurs"
+    fi
+}
+
+# Fonction pour redémarrer les conteneurs
+restart_containers() {
+    log "Redémarrage des conteneurs..."
+    cd /opt/monitoring
+    docker-compose restart $SERVICE
+    if [ $? -eq 0 ]; then
+        log "Conteneurs redémarrés avec succès"
+    else
+        error_exit "Échec du redémarrage des conteneurs"
+    fi
+}
+
+# Fonction pour afficher le statut des conteneurs
+status_containers() {
+    log "Statut des conteneurs:"
+    docker ps -a
+}
+
+# Fonction pour déployer les conteneurs
+deploy_containers() {
+    log "Déploiement des conteneurs..."
+    cd /opt/monitoring
+
+    # Arrêter les conteneurs existants
+    docker-compose down
+
+    # Démarrer les conteneurs
+    docker-compose up -d
+
+    if [ $? -eq 0 ]; then
+        log "Conteneurs déployés avec succès"
+    else
+        error_exit "Échec du déploiement des conteneurs"
+    fi
+}
+
+# Exécuter l'action demandée
+case $ACTION in
+    start)
+        start_containers
+        ;;
+    stop)
+        stop_containers
+        ;;
+    restart)
+        restart_containers
+        ;;
+    status)
+        status_containers
+        ;;
+    deploy)
+        deploy_containers
+        ;;
+    *)
+        echo "Action non reconnue: $ACTION"
+        echo "Usage: $0 [start|stop|restart|status|deploy] [service_name]"
+        exit 1
+        ;;
+esac
+
+exit 0
+EOF
+    fi
+
+    # Rendre le script exécutable
+    chmod +x /opt/monitoring/docker-manager.sh
+
+    # Créer un lien symbolique pour le script docker-manager.sh
+    log "Création d'un lien symbolique pour le script docker-manager.sh"
+    ln -sf /opt/monitoring/docker-manager.sh /usr/local/bin/docker-manager.sh
+    chmod +x /usr/local/bin/docker-manager.sh
+
+    log "Script docker-manager.sh créé avec succès"
+    return 0
+}
+
+# Fonction pour démarrer les conteneurs
+start_containers() {
+    log "Démarrage des conteneurs"
+
+    # Connexion à Docker Hub si les identifiants sont disponibles
+    if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
+        log "Connexion à Docker Hub avec l'utilisateur $DOCKERHUB_USERNAME"
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    fi
+
+    cd /opt/monitoring
+    docker-compose up -d
+
+    # Vérification du statut des conteneurs
+    log "Vérification du statut des conteneurs"
+    docker ps
+
+    log "Conteneurs démarrés avec succès"
+    return 0
+}
+
+# Fonction pour vérifier l'état des conteneurs
+check_containers() {
+    local fix_issues=$1
+    local status=0
+
+    log "Vérification de l'installation de Docker..."
+    if command -v docker &> /dev/null; then
+        log "✅ Docker est installé"
+    else
+        log "❌ Docker n'est pas installé"
+        if [ "$fix_issues" = "true" ]; then
+            log "Installation de Docker..."
+            install_docker
+            if [ $? -eq 0 ]; then
+                log "✅ Docker a été installé avec succès"
+            else
+                log "❌ L'installation de Docker a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification de l'installation de Docker Compose..."
+    if command -v docker-compose &> /dev/null; then
+        log "✅ Docker Compose est installé"
+    else
+        log "❌ Docker Compose n'est pas installé"
+        if [ "$fix_issues" = "true" ]; then
+            log "Installation de Docker Compose..."
+            install_docker_compose
+            if [ $? -eq 0 ]; then
+                log "✅ Docker Compose a été installé avec succès"
+            else
+                log "❌ L'installation de Docker Compose a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification des répertoires de données..."
+    local missing_dirs=0
+    for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config; do
+        if [ ! -d "/opt/monitoring/$dir" ]; then
+            log "❌ Le répertoire /opt/monitoring/$dir n'existe pas"
+            missing_dirs=1
+        fi
+    done
+
+    if [ $missing_dirs -eq 1 ]; then
+        if [ "$fix_issues" = "true" ]; then
+            log "Création des répertoires manquants..."
+            for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config; do
+                mkdir -p "/opt/monitoring/$dir"
+            done
+            log "✅ Répertoires créés avec succès"
+        else
+            status=1
+        fi
+    else
+        log "✅ Tous les répertoires de données existent"
+    fi
+
+    log "Vérification des fichiers de configuration..."
+    if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+        log "❌ Le fichier docker-compose.yml n'existe pas"
+        if [ "$fix_issues" = "true" ]; then
+            log "Création du fichier docker-compose.yml..."
+            create_docker_compose_file
+            if [ $? -eq 0 ]; then
+                log "✅ Fichier docker-compose.yml créé avec succès"
+            else
+                log "❌ La création du fichier docker-compose.yml a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    else
+        log "✅ Le fichier docker-compose.yml existe"
+    fi
+
+    if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
+        log "❌ Le fichier cloudwatch-config.yml n'existe pas"
+        if [ "$fix_issues" = "true" ]; then
+            log "Création du fichier cloudwatch-config.yml..."
+            create_cloudwatch_config
+            if [ $? -eq 0 ]; then
+                log "✅ Fichier cloudwatch-config.yml créé avec succès"
+            else
+                log "❌ La création du fichier cloudwatch-config.yml a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    else
+        log "✅ Le fichier cloudwatch-config.yml existe"
+    fi
+
+    if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+        log "❌ Le fichier prometheus.yml n'existe pas"
+        if [ "$fix_issues" = "true" ]; then
+            log "Création du fichier prometheus.yml..."
+            create_prometheus_config
+            if [ $? -eq 0 ]; then
+                log "✅ Fichier prometheus.yml créé avec succès"
+            else
+                log "❌ La création du fichier prometheus.yml a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    else
+        log "✅ Le fichier prometheus.yml existe"
+    fi
+
+    log "Vérification des conteneurs Docker..."
+    local running_containers=$(docker ps --format "{{.Names}}" | grep -E "prometheus|grafana|sonarqube|mysql-exporter|cloudwatch-exporter" | wc -l)
+    if [ $running_containers -lt 5 ]; then
+        log "❌ Certains conteneurs ne sont pas en cours d'exécution ($running_containers/5)"
+        if [ "$fix_issues" = "true" ]; then
+            log "Démarrage des conteneurs..."
+            start_containers
+            if [ $? -eq 0 ]; then
+                log "✅ Conteneurs démarrés avec succès"
+            else
+                log "❌ Le démarrage des conteneurs a échoué"
+                return 1
+            fi
+        else
+            status=1
+        fi
+    else
+        log "✅ Tous les conteneurs sont en cours d'exécution"
+    fi
+
+    log "Vérification des ports..."
+    local missing_ports=0
+    for port in 9090 3000 9000 9104 9106; do
+        if ! netstat -tuln | grep -q ":$port"; then
+            log "❌ Le port $port n'est pas ouvert"
+            missing_ports=1
+        fi
+    done
+
+    if [ $missing_ports -eq 1 ]; then
+        if [ "$fix_issues" = "true" ]; then
+            log "Redémarrage des conteneurs pour ouvrir les ports manquants..."
+            cd /opt/monitoring
+            docker-compose restart
+            sleep 10
+
+            # Vérifier à nouveau les ports
+            missing_ports=0
+            for port in 9090 3000 9000 9104 9106; do
+                if ! netstat -tuln | grep -q ":$port"; then
+                    log "❌ Le port $port n'est toujours pas ouvert"
+                    missing_ports=1
+                fi
+            done
+
+            if [ $missing_ports -eq 1 ]; then
+                log "❌ Certains ports sont toujours fermés après redémarrage"
+                return 1
+            else
+                log "✅ Tous les ports sont maintenant ouverts"
+            fi
+        else
+            status=1
+        fi
+    else
+        log "✅ Tous les ports sont ouverts"
+    fi
+
+    # Afficher un résumé
+    log "Résumé de la vérification des conteneurs:"
+    log "- Docker installé: $(command -v docker &> /dev/null && echo "Oui" || echo "Non")"
+    log "- Docker Compose installé: $(command -v docker-compose &> /dev/null && echo "Oui" || echo "Non")"
+    log "- Conteneurs en cours d'exécution: $running_containers/5"
+    log "- Ports ouverts: $([ $missing_ports -eq 0 ] && echo "Tous" || echo "Certains manquants")"
+
+    return $status
 }
 
 # Vérification des droits sudo
@@ -663,24 +1341,125 @@ log "Création d'un lien symbolique pour le script docker-manager.sh"
 ln -sf /opt/monitoring/docker-manager.sh /usr/local/bin/docker-manager.sh
 chmod +x /usr/local/bin/docker-manager.sh
 
-# Connexion à Docker Hub si les identifiants sont disponibles
-if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
-    log "Connexion à Docker Hub avec l'utilisateur $DOCKERHUB_USERNAME"
-    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-fi
+# Traitement des arguments de ligne de commande
+MODE="install"
+FORCE=false
 
-# Démarrage des conteneurs
-log "Démarrage des conteneurs"
-cd /opt/monitoring
-docker-compose up -d
+# Analyser les arguments
+for arg in "$@"; do
+    case $arg in
+        --check)
+            MODE="check"
+            shift
+            ;;
+        --fix)
+            MODE="fix"
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [--check] [--fix] [--force]"
+            echo ""
+            echo "Options:"
+            echo "  --check    Vérifie uniquement l'état de l'installation sans rien installer"
+            echo "  --fix      Corrige les problèmes détectés"
+            echo "  --force    Force la réinstallation même si déjà installé"
+            echo "  --help     Affiche cette aide"
+            exit 0
+            ;;
+        *)
+            # Argument inconnu
+            log "Argument inconnu: $arg"
+            echo "Utilisez --help pour afficher l'aide"
+            exit 1
+            ;;
+    esac
+done
 
-# Vérification du statut des conteneurs
-log "Vérification du statut des conteneurs"
-docker ps
+# Exécuter le mode approprié
+case $MODE in
+    check)
+        log "Mode vérification uniquement"
+        check_containers false
+        if [ $? -eq 0 ]; then
+            log "✅ Vérification terminée avec succès. Tout est correctement configuré."
+            exit 0
+        else
+            log "❌ Vérification terminée avec des erreurs. Utilisez --fix pour corriger les problèmes."
+            exit 1
+        fi
+        ;;
+    fix)
+        log "Mode correction des problèmes"
+        check_containers true
+        if [ $? -eq 0 ]; then
+            log "✅ Correction terminée avec succès. Tout est correctement configuré."
+            exit 0
+        else
+            log "❌ Correction terminée avec des erreurs. Veuillez vérifier les journaux."
+            exit 1
+        fi
+        ;;
+    install)
+        # Si les conteneurs sont déjà installés et que --force n'est pas spécifié, vérifier seulement
+        if [ -d "/opt/monitoring" ] && [ -f "/opt/monitoring/docker-compose.yml" ] && [ "$FORCE" = "false" ]; then
+            log "Les conteneurs semblent déjà installés. Vérification de l'installation..."
+            check_containers true
+            if [ $? -eq 0 ]; then
+                log "✅ Installation et configuration terminées avec succès."
+                log "Grafana est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:3000"
+                log "Prometheus est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9090"
+                log "SonarQube est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9000"
+                exit 0
+            else
+                log "❌ Des problèmes ont été détectés et n'ont pas pu être corrigés automatiquement."
+                exit 1
+            fi
+        else
+            # Installation complète
+            log "Mode installation complète"
+            if [ "$FORCE" = "true" ]; then
+                log "Mode force activé. Réinstallation complète."
+                # Arrêter les conteneurs s'ils sont déjà installés
+                if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+                    log "Arrêt des conteneurs existants..."
+                    cd /opt/monitoring
+                    docker-compose down
+                fi
+            fi
 
-log "Installation et configuration terminées avec succès"
-log "Grafana est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:3000"
-log "Prometheus est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9090"
-log "SonarQube est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9000"
+            # Connexion à Docker Hub si les identifiants sont disponibles
+            if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
+                log "Connexion à Docker Hub avec l'utilisateur $DOCKERHUB_USERNAME"
+                echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            fi
+
+            # Démarrage des conteneurs
+            log "Démarrage des conteneurs"
+            cd /opt/monitoring
+            docker-compose up -d
+
+            # Vérification du statut des conteneurs
+            log "Vérification du statut des conteneurs"
+            docker ps
+
+            # Vérifier l'installation
+            check_containers true
+            if [ $? -eq 0 ]; then
+                log "✅ Installation et configuration terminées avec succès."
+                log "Grafana est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:3000"
+                log "Prometheus est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9090"
+                log "SonarQube est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9000"
+                exit 0
+            else
+                log "❌ L'installation a échoué. Veuillez vérifier les journaux."
+                exit 1
+            fi
+        fi
+        ;;
+esac
 
 exit 0
