@@ -155,19 +155,20 @@ dnf update -y
 
 # Installer les dépendances nécessaires
 log "Installation des dépendances"
-dnf install -y aws-cli curl
+dnf install -y aws-cli curl jq
 
-# Télécharger le script d'initialisation depuis S3
-log "Téléchargement du script d'initialisation depuis S3: ${var.s3_bucket_name}"
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-instance-env.sh /tmp/init-instance.sh || error_exit "Échec du téléchargement du script d'initialisation"
-chmod +x /tmp/init-instance.sh
-
-# Définir les variables d'environnement pour le script
+# Définir les variables d'environnement
 log "Configuration des variables d'environnement"
 EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+EC2_INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 
-# Exporter les variables pour le script d'initialisation
+# Exporter les variables
 export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
+export EC2_INSTANCE_PUBLIC_IP="$EC2_INSTANCE_PUBLIC_IP"
+export EC2_INSTANCE_ID="$EC2_INSTANCE_ID"
+export EC2_INSTANCE_REGION="$EC2_INSTANCE_REGION"
 export DB_USERNAME="${var.db_username}"
 export DB_PASSWORD="${var.db_password}"
 export RDS_ENDPOINT="${var.rds_endpoint}"
@@ -181,10 +182,73 @@ log "Vérification des variables d'environnement"
 log "S3_BUCKET_NAME: $S3_BUCKET_NAME"
 log "RDS_ENDPOINT: $RDS_ENDPOINT"
 log "EC2_INSTANCE_PRIVATE_IP: $EC2_INSTANCE_PRIVATE_IP"
+log "EC2_INSTANCE_PUBLIC_IP: $EC2_INSTANCE_PUBLIC_IP"
 
-# Exécuter le script d'initialisation
-log "Exécution du script d'initialisation"
-/tmp/init-instance.sh || error_exit "Échec de l'exécution du script d'initialisation"
+# Créer les répertoires nécessaires
+log "Création des répertoires nécessaires"
+mkdir -p /opt/yourmedia/secure
+chmod 755 /opt/yourmedia
+chmod 700 /opt/yourmedia/secure
+
+# Créer le fichier de variables d'environnement
+log "Création du fichier de variables d'environnement"
+cat > /opt/yourmedia/env.sh << 'EOL'
+#!/bin/bash
+# Variables d'environnement pour l'application Java Tomcat
+# Généré automatiquement par user_data
+# Date de génération: $(date)
+
+# Variables EC2
+export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
+export EC2_INSTANCE_PUBLIC_IP="${EC2_INSTANCE_PUBLIC_IP}"
+export EC2_INSTANCE_ID="${EC2_INSTANCE_ID}"
+export EC2_INSTANCE_REGION="${EC2_INSTANCE_REGION}"
+
+# Variables S3
+export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+
+# Variables RDS
+export RDS_USERNAME="${RDS_USERNAME}"
+export RDS_ENDPOINT="${RDS_ENDPOINT}"
+
+# Variables de compatibilité
+export DB_USERNAME="${DB_USERNAME}"
+export DB_ENDPOINT="${RDS_ENDPOINT}"
+
+# Variable Tomcat
+export TOMCAT_VERSION="${TOMCAT_VERSION}"
+
+# Charger les variables sensibles
+source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
+EOL
+
+# Créer le fichier de variables sensibles
+log "Création du fichier de variables sensibles"
+cat > /opt/yourmedia/secure/sensitive-env.sh << 'EOL'
+#!/bin/bash
+# Variables sensibles pour l'application Java Tomcat
+# Généré automatiquement par user_data
+# Date de génération: $(date)
+
+# Variables RDS
+export RDS_PASSWORD="${RDS_PASSWORD}"
+
+# Variables de compatibilité
+export DB_PASSWORD="${DB_PASSWORD}"
+EOL
+
+# Définir les permissions
+chmod 755 /opt/yourmedia/env.sh
+chmod 600 /opt/yourmedia/secure/sensitive-env.sh
+chown -R ec2-user:ec2-user /opt/yourmedia
+
+# Télécharger les scripts depuis S3
+log "Téléchargement des scripts depuis S3"
+aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
+
+# Rendre les scripts exécutables
+log "Rendre les scripts exécutables"
+find /opt/yourmedia -name "*.sh" -exec chmod +x {} \;
 
 # Configurer la clé SSH
 log "Configuration de la clé SSH"
@@ -193,6 +257,31 @@ echo "${var.ssh_public_key}" >> /home/ec2-user/.ssh/authorized_keys
 chmod 700 /home/ec2-user/.ssh
 chmod 600 /home/ec2-user/.ssh/authorized_keys
 chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+
+# Exécuter le script d'installation de Java et Tomcat
+log "Exécution du script d'installation de Java et Tomcat"
+if [ -f "/opt/yourmedia/install_java_tomcat.sh" ]; then
+    chmod +x /opt/yourmedia/install_java_tomcat.sh
+    /opt/yourmedia/install_java_tomcat.sh || error_exit "Échec de l'exécution du script d'installation de Java et Tomcat"
+else
+    error_exit "Le script install_java_tomcat.sh n'existe pas"
+fi
+
+# Créer un lien symbolique pour le script deploy-war.sh
+log "Création d'un lien symbolique pour le script deploy-war.sh"
+if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+    chmod +x /opt/yourmedia/deploy-war.sh
+    ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+    chmod +x /usr/local/bin/deploy-war.sh
+
+    # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
+    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war
+    chmod 440 /etc/sudoers.d/deploy-war
+
+    log "Script deploy-war.sh configuré avec succès"
+else
+    log "AVERTISSEMENT: Le script deploy-war.sh n'existe pas"
+fi
 
 log "Initialisation terminée avec succès"
 EOF
