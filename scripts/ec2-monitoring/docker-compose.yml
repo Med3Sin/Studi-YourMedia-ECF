@@ -2,7 +2,7 @@ version: '3'
 
 services:
   prometheus:
-    image: medsin/yourmedia-ecf:prometheus-latest
+    image: ${DOCKER_USERNAME:-medsin}/${DOCKER_REPO:-yourmedia-ecf}:prometheus-latest
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -26,7 +26,7 @@ services:
     cpu_shares: 512
 
   grafana:
-    image: medsin/yourmedia-ecf:grafana-latest
+    image: ${DOCKER_USERNAME:-medsin}/${DOCKER_REPO:-yourmedia-ecf}:grafana-latest
     container_name: grafana
     ports:
       - "3000:3000"
@@ -71,7 +71,7 @@ services:
 
   # SonarQube pour l'analyse de code
   sonarqube:
-    image: medsin/yourmedia-ecf:sonarqube-latest
+    image: ${DOCKER_USERNAME:-medsin}/${DOCKER_REPO:-yourmedia-ecf}:sonarqube-latest
     container_name: sonarqube
     depends_on:
       - sonarqube-db
