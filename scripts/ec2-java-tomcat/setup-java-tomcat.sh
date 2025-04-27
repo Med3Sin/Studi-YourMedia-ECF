@@ -2,18 +2,23 @@
 #==============================================================================
 # Nom du script : setup-java-tomcat.sh
 # Description   : Script unifié d'installation et de configuration pour l'instance EC2 Java Tomcat.
-#                 Ce script combine les fonctionnalités de install_java_tomcat.sh,
-#                 init-instance-env.sh et fix_permissions.sh.
+#                 Ce script combine les fonctionnalités de installation, configuration,
+#                 vérification et correction des permissions pour Java et Tomcat.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.1
+# Version       : 2.0
 # Date          : 2025-04-27
 #==============================================================================
-# Utilisation   : sudo ./setup-java-tomcat.sh
+# Utilisation   : sudo ./setup-java-tomcat.sh [options]
 #
-# Options       : Aucune
+# Options       :
+#   --check     : Vérifie uniquement l'état de l'installation sans rien installer
+#   --fix       : Corrige les problèmes détectés
+#   --force     : Force la réinstallation même si déjà installé
 #
 # Exemples      :
 #   sudo ./setup-java-tomcat.sh
+#   sudo ./setup-java-tomcat.sh --check
+#   sudo ./setup-java-tomcat.sh --fix
 #==============================================================================
 # Dépendances   :
 #   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
@@ -21,6 +26,7 @@
 #   - jq        : Pour le traitement JSON
 #   - aws-cli   : Pour interagir avec les services AWS
 #   - java      : Java 17 (Amazon Corretto) sera installé par le script
+#   - netstat   : Pour vérifier les ports ouverts
 #==============================================================================
 # Variables d'environnement :
 #   - S3_BUCKET_NAME : Nom du bucket S3 contenant les scripts
@@ -48,6 +54,337 @@ log() {
 error_exit() {
     log "ERREUR: $1"
     exit 1
+}
+
+# Fonction pour installer Java
+install_java() {
+    log "Installation de Java"
+    sudo dnf install -y java-17-amazon-corretto-devel
+    if [ $? -ne 0 ]; then
+        error_exit "L'installation de Java a échoué"
+    fi
+    log "Java installé avec succès"
+    return 0
+}
+
+# Fonction pour installer Tomcat
+install_tomcat() {
+    log "Installation de Tomcat"
+
+    # Création de l'utilisateur et groupe Tomcat
+    log "Création de l'utilisateur et groupe Tomcat"
+    sudo groupadd tomcat 2>/dev/null || true
+    sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
+
+    # Téléchargement et installation de Tomcat
+    log "Téléchargement et installation de Tomcat"
+    cd /tmp
+    sudo wget https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz
+    if [ $? -ne 0 ]; then
+        error_exit "Le téléchargement de Tomcat a échoué"
+    fi
+
+    sudo mkdir -p /opt/tomcat
+    sudo tar xzvf apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1
+    if [ $? -ne 0 ]; then
+        error_exit "L'extraction de Tomcat a échoué"
+    fi
+
+    # Configuration des permissions
+    log "Configuration des permissions"
+    sudo chown -R tomcat:tomcat /opt/tomcat
+    sudo chmod +x /opt/tomcat/bin/*.sh
+
+    log "Tomcat installé avec succès"
+    return 0
+}
+
+# Fonction pour configurer le service Tomcat
+configure_tomcat_service() {
+    log "Création du service Tomcat"
+    sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=forking
+
+Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
+Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat
+Environment=CATALINA_BASE=/opt/tomcat
+Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
+
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/opt/tomcat/bin/shutdown.sh
+
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+    if [ $? -ne 0 ]; then
+        error_exit "La création du service Tomcat a échoué"
+    fi
+
+    # Rechargement des services systemd
+    sudo systemctl daemon-reload
+
+    log "Service Tomcat configuré avec succès"
+    return 0
+}
+
+# Fonction pour démarrer Tomcat
+start_tomcat() {
+    log "Démarrage de Tomcat"
+    sudo systemctl enable tomcat
+    sudo systemctl start tomcat
+
+    # Vérifier si Tomcat a démarré correctement
+    sleep 5
+    if ! systemctl is-active --quiet tomcat; then
+        log "Échec du démarrage de Tomcat. Vérification des journaux..."
+        journalctl -u tomcat --no-pager -n 50
+        return 1
+    fi
+
+    log "Tomcat démarré avec succès"
+    return 0
+}
+
+# Fonction pour créer le script de déploiement WAR
+create_deploy_war_script() {
+    log "Création du script de déploiement WAR"
+
+    # Créer le répertoire s'il n'existe pas
+    sudo mkdir -p /opt/yourmedia
+
+    # Créer le script
+    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << "EOF"
+#!/bin/bash
+# Script pour déployer un fichier WAR dans Tomcat
+# Ce script doit être exécuté avec sudo
+
+# Vérifier si un argument a été fourni
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <chemin_vers_war>"
+  exit 1
+fi
+
+WAR_PATH=$1
+WAR_NAME=$(basename $WAR_PATH)
+TARGET_NAME="yourmedia-backend.war"
+
+echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
+
+# Vérifier si le fichier existe
+if [ ! -f "$WAR_PATH" ]; then
+  echo "ERREUR: Le fichier $WAR_PATH n\'existe pas"
+  exit 1
+fi
+
+# Copier le fichier WAR dans webapps
+cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+
+# Vérifier si la copie a réussi
+if [ $? -ne 0 ]; then
+  echo "ERREUR: Échec de la copie du fichier WAR dans /opt/tomcat/webapps/"
+  exit 1
+fi
+
+# Changer le propriétaire
+chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
+
+# Vérifier si le changement de propriétaire a réussi
+if [ $? -ne 0 ]; then
+  echo "ERREUR: Échec du changement de propriétaire du fichier WAR"
+  exit 1
+fi
+
+# Redémarrer Tomcat
+systemctl restart tomcat
+
+# Vérifier si le redémarrage a réussi
+if [ $? -ne 0 ]; then
+  echo "ERREUR: Échec du redémarrage de Tomcat"
+  exit 1
+fi
+
+echo "Déploiement terminé avec succès"
+exit 0
+EOF'
+
+    # Rendre le script exécutable
+    sudo chmod +x /opt/yourmedia/deploy-war.sh
+
+    # Créer un lien symbolique vers le script dans /usr/local/bin
+    sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+    sudo chmod +x /usr/local/bin/deploy-war.sh
+
+    log "Script de déploiement WAR créé avec succès"
+    return 0
+}
+
+# Fonction pour vérifier l'état de Tomcat
+check_tomcat() {
+    local fix_issues=$1
+    local status=0
+
+    log "Vérification de l'installation de Java..."
+    if command -v java &> /dev/null; then
+        java_version=$(java -version 2>&1 | head -n 1)
+        log "✅ Java est installé: $java_version"
+    else
+        log "❌ Java n'est pas installé."
+        if [ "$fix_issues" = "true" ]; then
+            log "Installation de Java..."
+            sudo dnf install -y java-17-amazon-corretto-devel
+            if [ $? -eq 0 ]; then
+                log "✅ Java a été installé avec succès."
+            else
+                log "❌ L'installation de Java a échoué."
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification de l'installation de Tomcat..."
+    if [ -d "/opt/tomcat" ]; then
+        log "✅ Le répertoire Tomcat existe: /opt/tomcat"
+
+        # Vérifier si les fichiers binaires de Tomcat existent
+        if [ -f "/opt/tomcat/bin/startup.sh" ] && [ -f "/opt/tomcat/bin/shutdown.sh" ]; then
+            log "✅ Les fichiers binaires de Tomcat existent."
+        else
+            log "❌ Les fichiers binaires de Tomcat n'existent pas."
+            if [ "$fix_issues" = "true" ]; then
+                log "Réinstallation de Tomcat..."
+                install_tomcat
+                if [ $? -eq 0 ]; then
+                    log "✅ Tomcat a été réinstallé avec succès."
+                else
+                    log "❌ La réinstallation de Tomcat a échoué."
+                    return 1
+                fi
+            else
+                status=1
+            fi
+        fi
+    else
+        log "❌ Le répertoire Tomcat n'existe pas: /opt/tomcat"
+        if [ "$fix_issues" = "true" ]; then
+            log "Installation de Tomcat..."
+            install_tomcat
+            if [ $? -eq 0 ]; then
+                log "✅ Tomcat a été installé avec succès."
+            else
+                log "❌ L'installation de Tomcat a échoué."
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification de la configuration du service Tomcat..."
+    if [ -f "/etc/systemd/system/tomcat.service" ]; then
+        log "✅ Le service Tomcat est configuré."
+    else
+        log "❌ Le service Tomcat n'est pas configuré."
+        if [ "$fix_issues" = "true" ]; then
+            log "Configuration du service Tomcat..."
+            configure_tomcat_service
+            if [ $? -eq 0 ]; then
+                log "✅ Le service Tomcat a été configuré avec succès."
+            else
+                log "❌ La configuration du service Tomcat a échoué."
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification de l'activation du service Tomcat..."
+    if systemctl is-enabled --quiet tomcat; then
+        log "✅ Le service Tomcat est activé."
+    else
+        log "❌ Le service Tomcat n'est pas activé."
+        if [ "$fix_issues" = "true" ]; then
+            log "Activation du service Tomcat..."
+            sudo systemctl enable tomcat
+            log "✅ Le service Tomcat a été activé."
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification de l'état du service Tomcat..."
+    if systemctl is-active --quiet tomcat; then
+        log "✅ Le service Tomcat est en cours d'exécution."
+    else
+        log "❌ Le service Tomcat n'est pas en cours d'exécution."
+        if [ "$fix_issues" = "true" ]; then
+            log "Démarrage du service Tomcat..."
+            sudo systemctl start tomcat
+
+            # Attendre quelques secondes pour que Tomcat démarre
+            sleep 10
+
+            # Vérifier à nouveau l'état du service
+            if systemctl is-active --quiet tomcat; then
+                log "✅ Le service Tomcat a été démarré avec succès."
+            else
+                log "❌ Le démarrage du service Tomcat a échoué."
+                log "Vérification des journaux Tomcat..."
+                journalctl -u tomcat --no-pager -n 50
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    log "Vérification du port 8080..."
+    if netstat -tuln | grep -q ":8080"; then
+        log "✅ Le port 8080 est ouvert."
+    else
+        log "❌ Le port 8080 n'est pas ouvert."
+        if [ "$fix_issues" = "true" ]; then
+            log "Redémarrage du service Tomcat..."
+            sudo systemctl restart tomcat
+            sleep 10
+            if netstat -tuln | grep -q ":8080"; then
+                log "✅ Le port 8080 est maintenant ouvert."
+            else
+                log "❌ Le port 8080 n'est toujours pas ouvert."
+                log "Vérification des journaux Tomcat..."
+                journalctl -u tomcat --no-pager -n 50
+                return 1
+            fi
+        else
+            status=1
+        fi
+    fi
+
+    # Afficher un résumé
+    log "Résumé de la vérification de Tomcat:"
+    log "- Java est installé: $(java -version 2>&1 | head -n 1)"
+    log "- Tomcat est installé: $(ls -la /opt/tomcat/bin/startup.sh 2>/dev/null || echo "Non")"
+    log "- Service Tomcat configuré: $(systemctl is-enabled tomcat 2>/dev/null || echo "Non")"
+    log "- Service Tomcat en cours d'exécution: $(systemctl is-active tomcat 2>/dev/null || echo "Non")"
+    log "- Port 8080 ouvert: $(netstat -tuln | grep -q ":8080" && echo "Oui" || echo "Non")"
+    log "- Script de déploiement WAR: $(ls -la /opt/yourmedia/deploy-war.sh 2>/dev/null || echo "Non")"
+
+    return $status
 }
 
 # Vérification des droits sudo
@@ -187,309 +524,218 @@ chmod 755 /opt/yourmedia/env.sh
 chmod 600 /opt/yourmedia/secure/sensitive-env.sh
 chown -R ec2-user:ec2-user /opt/yourmedia
 
-# Mise à jour du système
-log "Mise à jour du système"
-dnf update -y
+# Fonction pour installer et configurer tout
+setup_java_tomcat() {
+    # Mise à jour du système
+    log "Mise à jour du système"
+    dnf update -y
 
-# Installation des dépendances nécessaires
-log "Installation des dépendances"
-dnf install -y aws-cli curl jq wget
+    # Installation des dépendances nécessaires
+    log "Installation des dépendances"
+    dnf install -y aws-cli curl jq wget
 
-# Configuration des clés SSH
-log "Configuration des clés SSH"
-mkdir -p /home/ec2-user/.ssh
-chmod 700 /home/ec2-user/.ssh
+    # Configuration des clés SSH
+    log "Configuration des clés SSH"
+    mkdir -p /home/ec2-user/.ssh
+    chmod 700 /home/ec2-user/.ssh
 
-# Récupérer la clé publique depuis les métadonnées de l'instance (si disponible)
-PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
-if [ ! -z "$PUBLIC_KEY" ]; then
-  echo "$PUBLIC_KEY" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-  log "Clé SSH publique AWS installée avec succès"
-fi
+    # Récupérer la clé publique depuis les métadonnées de l'instance (si disponible)
+    PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
+    if [ ! -z "$PUBLIC_KEY" ]; then
+        echo "$PUBLIC_KEY" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+        log "Clé SSH publique AWS installée avec succès"
+    fi
 
-chmod 600 /home/ec2-user/.ssh/authorized_keys
-chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+    chmod 600 /home/ec2-user/.ssh/authorized_keys
+    chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
-# Installation de Java
-log "Installation de Java (Amazon Corretto 17)"
-dnf install -y java-17-amazon-corretto-devel
+    # Créer les répertoires nécessaires
+    log "Création des répertoires nécessaires"
+    mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
+    chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
+    chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
 
-# Vérifier l'installation de Java
-java -version
-
-# Création de l'utilisateur et groupe Tomcat
-log "Création de l'utilisateur et groupe Tomcat"
-# Vérifier si le groupe tomcat existe déjà
-if ! getent group tomcat > /dev/null; then
-  groupadd tomcat
-  log "Groupe tomcat créé"
-else
-  log "Le groupe tomcat existe déjà"
-fi
-
-# Vérifier si l'utilisateur tomcat existe déjà
-if ! id -u tomcat > /dev/null 2>&1; then
-  useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat
-  log "Utilisateur tomcat créé"
-else
-  log "L'utilisateur tomcat existe déjà"
-fi
-
-# Téléchargement et installation de Tomcat
-log "Téléchargement et installation de Tomcat $TOMCAT_VERSION"
-TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
-
-cd /tmp
-wget $TOMCAT_URL || error_exit "Échec du téléchargement de Tomcat"
-
-# Vérifier que le téléchargement a réussi
-if [ ! -f "/tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz" ]; then
-  error_exit "Le fichier apache-tomcat-${TOMCAT_VERSION}.tar.gz n'a pas été téléchargé"
-fi
-
-# Créer le répertoire Tomcat s'il n'existe pas
-mkdir -p /opt/tomcat
-
-# Extraire l'archive
-tar xzvf apache-tomcat-${TOMCAT_VERSION}.tar.gz -C /opt/tomcat --strip-components=1 || error_exit "Échec de l'extraction de Tomcat"
-
-# Vérifier que l'extraction a réussi
-if [ ! -f "/opt/tomcat/bin/startup.sh" ]; then
-  error_exit "L'extraction de Tomcat a échoué, le fichier startup.sh est introuvable"
-fi
-
-# Configuration des permissions Tomcat
-log "Configuration des permissions Tomcat"
-cd /opt/tomcat
-chgrp -R tomcat /opt/tomcat
-chmod -R g+r conf
-chmod g+x conf
-chown -R tomcat webapps/ work/ temp/ logs/
-
-# Création du fichier de service Systemd pour Tomcat
-log "Création du fichier de service Systemd pour Tomcat"
-cat > /etc/systemd/system/tomcat.service << EOF
-[Unit]
-Description=Apache Tomcat Web Application Container
-After=network.target
-
-[Service]
-Type=forking
-
-Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
-Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
-Environment=CATALINA_HOME=/opt/tomcat
-Environment=CATALINA_BASE=/opt/tomcat
-Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
-Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
-
-ExecStart=/opt/tomcat/bin/startup.sh
-ExecStop=/opt/tomcat/bin/shutdown.sh
-
-User=tomcat
-Group=tomcat
-UMask=0007
-RestartSec=10
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Rechargement de Systemd et démarrage de Tomcat
-log "Rechargement de Systemd et démarrage de Tomcat"
-systemctl daemon-reload
-systemctl enable tomcat # Activer le démarrage automatique au boot
-
-# Démarrer Tomcat et vérifier son statut
-log "Démarrage de Tomcat"
-systemctl start tomcat || true
-
-# Attendre quelques secondes pour que Tomcat démarre
-sleep 10
-
-# Création du script de déploiement WAR
-log "Création du script de déploiement WAR"
-cat > /opt/yourmedia/deploy-war.sh << 'EOF'
+    # Créer le fichier de variables d'environnement
+    log "Création du fichier de variables d'environnement"
+    cat > /opt/yourmedia/env.sh << "EOL"
 #!/bin/bash
-# Script pour déployer un fichier WAR dans Tomcat
-# Ce script doit être exécuté avec sudo
+# Variables d'environnement pour l'application Java Tomcat
+# Généré automatiquement par setup-java-tomcat.sh
+# Date de génération: $(date)
 
-# Vérifier si un argument a été fourni
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <chemin_vers_war>"
-  exit 1
-fi
+# Variables EC2
+export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
+export EC2_INSTANCE_PUBLIC_IP="$EC2_INSTANCE_PUBLIC_IP"
+export EC2_INSTANCE_ID="$EC2_INSTANCE_ID"
+export EC2_INSTANCE_REGION="$EC2_INSTANCE_REGION"
 
-WAR_PATH=$1
-WAR_NAME=$(basename $WAR_PATH)
-TARGET_NAME="yourmedia-backend.war"
+# Variables S3
+export S3_BUCKET_NAME="${S3_BUCKET_NAME:-yourmedia-ecf-studi}"
 
-echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
+# Variables RDS
+export RDS_USERNAME="${RDS_USERNAME:-yourmedia}"
+export RDS_ENDPOINT="${RDS_ENDPOINT:-localhost:3306}"
 
-# Vérifier si le fichier existe
-if [ ! -f "$WAR_PATH" ]; then
-  echo "ERREUR: Le fichier $WAR_PATH n'existe pas"
-  exit 1
-fi
+# Variables de compatibilité
+export DB_USERNAME="$RDS_USERNAME"
+export DB_ENDPOINT="$RDS_ENDPOINT"
 
-# Copier le fichier WAR dans webapps
-cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+# Variable Tomcat
+export TOMCAT_VERSION="${TOMCAT_VERSION:-9.0.104}"
 
-# Vérifier si la copie a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec de la copie du fichier WAR dans /opt/tomcat/webapps/"
-  exit 1
-fi
+# Charger les variables sensibles
+source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
+EOL
 
-# Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
-
-# Vérifier si le changement de propriétaire a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec du changement de propriétaire du fichier WAR"
-  exit 1
-fi
-
-# Redémarrer Tomcat
-systemctl restart tomcat
-
-# Vérifier si le redémarrage a réussi
-if [ $? -ne 0 ]; then
-  echo "ERREUR: Échec du redémarrage de Tomcat"
-  exit 1
-fi
-
-echo "Déploiement terminé avec succès"
-exit 0
-EOF
-
-# Rendre le script exécutable
-chmod +x /opt/yourmedia/deploy-war.sh
-
-# Créer un lien symbolique pour le script deploy-war.sh
-log "Création d'un lien symbolique pour le script deploy-war.sh"
-ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
-chmod +x /usr/local/bin/deploy-war.sh
-
-# Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
-echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war
-chmod 440 /etc/sudoers.d/deploy-war
-
-# Création du script de vérification de Tomcat
-log "Création du script de vérification de Tomcat"
-cat > /opt/yourmedia/check-tomcat.sh << 'EOF'
+    # Créer le fichier de variables sensibles
+    log "Création du fichier de variables sensibles"
+    cat > /opt/yourmedia/secure/sensitive-env.sh << "EOL"
 #!/bin/bash
-# Script pour vérifier l'installation de Tomcat
+# Variables sensibles pour l'application Java Tomcat
+# Généré automatiquement par setup-java-tomcat.sh
+# Date de génération: $(date)
 
-# Fonction pour afficher les messages
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+# Variables RDS
+export RDS_PASSWORD="${RDS_PASSWORD:-password}"
+
+# Variables de compatibilité
+export DB_PASSWORD="$RDS_PASSWORD"
+EOL
+
+    # Définir les permissions
+    chmod 755 /opt/yourmedia/env.sh
+    chmod 600 /opt/yourmedia/secure/sensitive-env.sh
+    chown -R ec2-user:ec2-user /opt/yourmedia
+
+    # Installation de Java
+    install_java
+
+    # Installation de Tomcat
+    install_tomcat
+
+    # Configuration du service Tomcat
+    configure_tomcat_service
+
+    # Démarrage de Tomcat
+    start_tomcat
+
+    # Création du script de déploiement WAR
+    create_deploy_war_script
+
+    # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
+    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war
+    chmod 440 /etc/sudoers.d/deploy-war
+
+    return 0
 }
 
-# Vérifier si Java est installé
-log "Vérification de l'installation de Java..."
-if command -v java &> /dev/null; then
-    java_version=$(java -version 2>&1 | head -n 1)
-    log "✅ Java est installé: $java_version"
-else
-    log "❌ Java n'est pas installé."
-    exit 1
-fi
+# Traitement des arguments de ligne de commande
+MODE="install"
+FORCE=false
 
-# Vérifier si Tomcat est installé
-log "Vérification de l'installation de Tomcat..."
-if [ -d "/opt/tomcat" ]; then
-    log "✅ Le répertoire Tomcat existe: /opt/tomcat"
+# Analyser les arguments
+for arg in "$@"; do
+    case $arg in
+        --check)
+            MODE="check"
+            shift
+            ;;
+        --fix)
+            MODE="fix"
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [--check] [--fix] [--force]"
+            echo ""
+            echo "Options:"
+            echo "  --check    Vérifie uniquement l'état de l'installation sans rien installer"
+            echo "  --fix      Corrige les problèmes détectés"
+            echo "  --force    Force la réinstallation même si déjà installé"
+            echo "  --help     Affiche cette aide"
+            exit 0
+            ;;
+        *)
+            # Argument inconnu
+            log "Argument inconnu: $arg"
+            echo "Utilisez --help pour afficher l'aide"
+            exit 1
+            ;;
+    esac
+done
 
-    # Vérifier si les fichiers binaires de Tomcat existent
-    if [ -f "/opt/tomcat/bin/startup.sh" ] && [ -f "/opt/tomcat/bin/shutdown.sh" ]; then
-        log "✅ Les fichiers binaires de Tomcat existent"
-    else
-        log "❌ Les fichiers binaires de Tomcat n'existent pas"
-        exit 1
-    fi
-
-    # Vérifier si le service Tomcat est configuré
-    if systemctl list-unit-files | grep -q tomcat.service; then
-        log "✅ Le service Tomcat est configuré"
-
-        # Vérifier si le service Tomcat est activé
-        if systemctl is-enabled tomcat &> /dev/null; then
-            log "✅ Le service Tomcat est activé"
+# Exécuter le mode approprié
+case $MODE in
+    check)
+        log "Mode vérification uniquement"
+        check_tomcat false
+        if [ $? -eq 0 ]; then
+            log "✅ Vérification terminée avec succès. Tout est correctement configuré."
+            exit 0
         else
-            log "❌ Le service Tomcat n'est pas activé"
-            log "Activation du service Tomcat..."
-            sudo systemctl enable tomcat
+            log "❌ Vérification terminée avec des erreurs. Utilisez --fix pour corriger les problèmes."
+            exit 1
         fi
-
-        # Vérifier si le service Tomcat est en cours d'exécution
-        if systemctl is-active tomcat &> /dev/null; then
-            log "✅ Le service Tomcat est en cours d'exécution"
+        ;;
+    fix)
+        log "Mode correction des problèmes"
+        check_tomcat true
+        if [ $? -eq 0 ]; then
+            log "✅ Correction terminée avec succès. Tout est correctement configuré."
+            exit 0
         else
-            log "❌ Le service Tomcat n'est pas en cours d'exécution"
-            log "Démarrage du service Tomcat..."
-            sudo systemctl start tomcat
+            log "❌ Correction terminée avec des erreurs. Veuillez vérifier les journaux."
+            exit 1
         fi
-    else
-        log "❌ Le service Tomcat n'est pas configuré"
-        exit 1
-    fi
-else
-    log "❌ Le répertoire Tomcat n'existe pas: /opt/tomcat"
-    exit 1
-fi
+        ;;
+    install)
+        # Si Tomcat est déjà installé et que --force n'est pas spécifié, vérifier seulement
+        if [ -d "/opt/tomcat" ] && [ -f "/etc/systemd/system/tomcat.service" ] && [ "$FORCE" = "false" ]; then
+            log "Tomcat semble déjà installé. Vérification de l'installation..."
+            check_tomcat true
+            if [ $? -eq 0 ]; then
+                log "✅ Installation et configuration terminées avec succès."
+                exit 0
+            else
+                log "❌ Des problèmes ont été détectés et n'ont pas pu être corrigés automatiquement."
+                exit 1
+            fi
+        else
+            # Installation complète
+            log "Mode installation complète"
+            if [ "$FORCE" = "true" ]; then
+                log "Mode force activé. Réinstallation complète."
+                # Arrêter et désactiver Tomcat s'il est déjà installé
+                if [ -f "/etc/systemd/system/tomcat.service" ]; then
+                    log "Arrêt et désactivation de Tomcat..."
+                    systemctl stop tomcat
+                    systemctl disable tomcat
+                fi
+                # Supprimer les répertoires existants
+                if [ -d "/opt/tomcat" ]; then
+                    log "Suppression du répertoire /opt/tomcat..."
+                    rm -rf /opt/tomcat
+                fi
+            fi
 
-# Vérifier si le port 8080 est ouvert
-log "Vérification du port 8080..."
-if netstat -tuln | grep -q ":8080"; then
-    log "✅ Le port 8080 est ouvert"
-else
-    log "❌ Le port 8080 n'est pas ouvert"
-    log "Vérification des logs Tomcat..."
-    sudo tail -n 50 /opt/tomcat/logs/catalina.out
-fi
+            # Exécuter l'installation complète
+            setup_java_tomcat
 
-# Vérifier si le script de déploiement WAR existe
-log "Vérification du script de déploiement WAR..."
-if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
-    log "✅ Le script de déploiement WAR existe: /opt/yourmedia/deploy-war.sh"
-else
-    log "❌ Le script de déploiement WAR n'existe pas: /opt/yourmedia/deploy-war.sh"
-    exit 1
-fi
-
-# Vérifier si le lien symbolique vers le script de déploiement WAR existe
-log "Vérification du lien symbolique vers le script de déploiement WAR..."
-if [ -f "/usr/local/bin/deploy-war.sh" ]; then
-    log "✅ Le lien symbolique vers le script de déploiement WAR existe: /usr/local/bin/deploy-war.sh"
-else
-    log "❌ Le lien symbolique vers le script de déploiement WAR n'existe pas: /usr/local/bin/deploy-war.sh"
-    log "Création du lien symbolique..."
-    sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
-    sudo chmod +x /usr/local/bin/deploy-war.sh
-fi
-
-# Afficher un résumé
-log "Résumé de la vérification de Tomcat:"
-log "- Java est installé: $(java -version 2>&1 | head -n 1)"
-log "- Tomcat est installé: $(ls -la /opt/tomcat/bin/startup.sh 2>/dev/null || echo "Non")"
-log "- Service Tomcat configuré: $(systemctl is-enabled tomcat 2>/dev/null || echo "Non")"
-log "- Service Tomcat en cours d'exécution: $(systemctl is-active tomcat 2>/dev/null || echo "Non")"
-log "- Port 8080 ouvert: $(netstat -tuln | grep -q ":8080" && echo "Oui" || echo "Non")"
-log "- Script de déploiement WAR: $(ls -la /opt/yourmedia/deploy-war.sh 2>/dev/null || echo "Non")"
-log "- Lien symbolique vers le script de déploiement WAR: $(ls -la /usr/local/bin/deploy-war.sh 2>/dev/null || echo "Non")"
-
-log "Vérification terminée"
-exit 0
-EOF
-
-# Rendre le script exécutable
-chmod +x /opt/yourmedia/check-tomcat.sh
-
-# Exécuter le script de vérification de Tomcat
-log "Exécution du script de vérification de Tomcat"
-/opt/yourmedia/check-tomcat.sh
+            # Vérifier l'installation
+            check_tomcat true
+            if [ $? -eq 0 ]; then
+                log "✅ Installation et configuration terminées avec succès."
+                exit 0
+            else
+                log "❌ L'installation a échoué. Veuillez vérifier les journaux."
+                exit 1
+            fi
+        fi
+        ;;
+esac
 
 log "Installation et configuration terminées avec succès"
 exit 0
