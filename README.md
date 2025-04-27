@@ -629,13 +629,16 @@ Pour plus de détails, consultez le [Plan d'amélioration de l'architecture](doc
 
 ## Corrections et Améliorations Récentes
 
-### Centralisation des fichiers Docker
+### Nettoyage des fichiers obsolètes et centralisation des configurations
 
-Les fichiers Docker ont été centralisés dans le dossier `scripts/docker/` pour améliorer la maintenance et éviter la duplication :
+Les fichiers obsolètes ont été supprimés et les configurations ont été centralisées pour améliorer la maintenance et éviter la duplication :
 
-- Suppression du dossier `infrastructure/modules/ec2-monitoring/docker` qui dupliquait les fichiers
-- Mise à jour des références dans le code Terraform pour pointer vers le dossier centralisé
-- Vérification de la cohérence des fichiers entre les deux dossiers avant la suppression
+- Suppression du fichier obsolète `scripts/ec2-monitoring/fix-monitoring-legacy.sh`
+- Suppression du fichier obsolète `scripts/utils/install-docker-al2023.sh`
+- Centralisation des fichiers Docker dans le dossier `scripts/docker/` pour éviter la duplication
+- Centralisation des configurations Docker dans le dossier `scripts/docker/monitoring/`
+- Mise à jour des références dans le code Terraform pour pointer vers les dossiers centralisés
+- Vérification de la cohérence des fichiers entre les dossiers avant la suppression
 - Mise à jour de la documentation pour refléter cette centralisation
 
 ### Amélioration de l'ordre d'exécution des scripts
@@ -710,5 +713,25 @@ La version de MySQL a été mise à jour de 8.0.35 à 8.0.28 pour assurer une co
 Les fichiers temporaires suivants ont été supprimés pour maintenir la propreté du code source :
 
 - Fichiers `main.tf.new2` et `main.tf.new3` dans le module RDS MySQL
+
+### Standardisation des variables d'environnement
+
+Les variables d'environnement ont été standardisées dans tous les scripts pour améliorer la cohérence et faciliter la maintenance :
+
+- Standardisation des noms de variables (ex: `RDS_USERNAME`/`DB_USERNAME`)
+- Ajout d'exports pour toutes les variables d'environnement
+- Amélioration du chargement des variables d'environnement au début des scripts
+- Correction des problèmes de partage de variables entre jobs dans les workflows
+- Sécurisation des variables sensibles dans des répertoires dédiés
+- Séparation des variables sensibles des variables non sensibles
+
+### Correction des scripts pour Amazon Linux 2023
+
+Les scripts d'installation Docker ont été mis à jour pour être compatibles avec Amazon Linux 2023 :
+
+- Utilisation de la méthode d'installation native pour Amazon Linux 2023 (`dnf install -y docker`)
+- Correction des problèmes de permissions des scripts
+- Amélioration des tests de santé des conteneurs
+- Correction des références aux ports dans les tests
 
 Ces modifications améliorent la stabilité, la performance et la sécurité de l'infrastructure tout en maintenant la compatibilité avec le Free Tier AWS.
