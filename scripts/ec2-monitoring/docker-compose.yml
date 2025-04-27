@@ -111,8 +111,9 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config/cloudwatch-config.yml:/config/cloudwatch-config.yml
-    command: "--config.file=/config/cloudwatch-config.yml"
+      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+    command:
+      - --config.file=/config/cloudwatch-config.yml
     restart: always
     logging:
       driver: "json-file"
@@ -130,23 +131,12 @@ services:
       - "9104:9104"
     environment:
       # Format correct pour la connexion MySQL: user:password@protocol(host:port)/
-      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@tcp(${RDS_ENDPOINT:-localhost:3306})/
-      # Configuration explicite pour éviter les erreurs de configuration
-      - MYSQL_USER=${RDS_USERNAME:-yourmedia}
-      - MYSQL_PASSWORD=${RDS_PASSWORD:-password}
-      - MYSQL_HOST=${RDS_HOST:-localhost}
-      - MYSQL_PORT=${RDS_PORT:-3306}
-    # Créer un fichier de configuration .my.cnf pour mysqld_exporter
-    command: >
-      /bin/sh -c "
-      echo \"[client]\" > /tmp/.my.cnf &&
-      echo \"user=${RDS_USERNAME:-yourmedia}\" >> /tmp/.my.cnf &&
-      echo \"password=${RDS_PASSWORD:-password}\" >> /tmp/.my.cnf &&
-      echo \"host=${RDS_HOST:-localhost}\" >> /tmp/.my.cnf &&
-      echo \"port=${RDS_PORT:-3306}\" >> /tmp/.my.cnf &&
-      chmod 600 /tmp/.my.cnf &&
-      /bin/mysqld_exporter --config.my-cnf=/tmp/.my.cnf
-      "
+      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@tcp(${RDS_HOST:-localhost}:${RDS_PORT:-3306})/
+    entrypoint:
+      - /bin/mysqld_exporter
+    command:
+      - --web.listen-address=:9104
+      - --collect.info_schema.tables
     restart: always
     logging:
       driver: "json-file"
