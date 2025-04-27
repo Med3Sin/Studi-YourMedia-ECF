@@ -268,19 +268,19 @@ cat > /opt/monitoring/env.sh << 'EOL'
 # Généré automatiquement par Terraform
 
 # Variables EC2
-export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
-export EC2_INSTANCE_PUBLIC_IP="${EC2_INSTANCE_PUBLIC_IP}"
+export EC2_INSTANCE_PRIVATE_IP="$${EC2_INSTANCE_PRIVATE_IP}"
+export EC2_INSTANCE_PUBLIC_IP="$${EC2_INSTANCE_PUBLIC_IP}"
 export EC2_APP_IP="${var.ec2_instance_private_ip}"
 
 # Variables S3
-export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
+export S3_BUCKET_NAME="$${S3_BUCKET_NAME}"
 export AWS_REGION="eu-west-3"
 
 # Variables Docker
-export DOCKER_USERNAME="${DOCKER_USERNAME}"
-export DOCKER_REPO="${DOCKER_REPO}"
-export DOCKERHUB_USERNAME="${DOCKER_USERNAME}"
-export DOCKERHUB_REPO="${DOCKER_REPO}"
+export DOCKER_USERNAME="$${DOCKER_USERNAME}"
+export DOCKER_REPO="$${DOCKER_REPO}"
+export DOCKERHUB_USERNAME="$${DOCKER_USERNAME}"
+export DOCKERHUB_REPO="$${DOCKER_REPO}"
 EOL
 
 # Créer le fichier de variables sensibles
@@ -290,35 +290,35 @@ cat > /opt/monitoring/secure/sensitive-env.sh << 'EOL'
 # Généré automatiquement par Terraform
 
 # Variables Docker Hub
-export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
+export DOCKERHUB_TOKEN="$${DOCKERHUB_TOKEN}"
 
 # Variables RDS
-export RDS_USERNAME="${DB_USERNAME}"
-export RDS_PASSWORD="${DB_PASSWORD}"
-export RDS_ENDPOINT="${RDS_ENDPOINT}"
+export RDS_USERNAME="$${DB_USERNAME}"
+export RDS_PASSWORD="$${DB_PASSWORD}"
+export RDS_ENDPOINT="$${RDS_ENDPOINT}"
 
 # Extraire l'hôte et le port de RDS_ENDPOINT
-if [[ "${RDS_ENDPOINT}" == *":"* ]]; then
-  export RDS_HOST=$(echo "${RDS_ENDPOINT}" | cut -d':' -f1)
-  export RDS_PORT=$(echo "${RDS_ENDPOINT}" | cut -d':' -f2)
+if [[ "$${RDS_ENDPOINT}" == *":"* ]]; then
+  export RDS_HOST=$(echo "$${RDS_ENDPOINT}" | cut -d':' -f1)
+  export RDS_PORT=$(echo "$${RDS_ENDPOINT}" | cut -d':' -f2)
 else
-  export RDS_HOST="${RDS_ENDPOINT}"
+  export RDS_HOST="$${RDS_ENDPOINT}"
   export RDS_PORT="3306"
 fi
 
 # Variables de compatibilité
-export DB_USERNAME="${DB_USERNAME}"
-export DB_PASSWORD="${DB_PASSWORD}"
-export DB_ENDPOINT="${RDS_ENDPOINT}"
+export DB_USERNAME="$${DB_USERNAME}"
+export DB_PASSWORD="$${DB_PASSWORD}"
+export DB_ENDPOINT="$${RDS_ENDPOINT}"
 
 # Variables SonarQube
-export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME}"
-export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
-export SONAR_JDBC_URL="${SONAR_JDBC_URL}"
+export SONAR_JDBC_USERNAME="$${SONAR_JDBC_USERNAME}"
+export SONAR_JDBC_PASSWORD="$${SONAR_JDBC_PASSWORD}"
+export SONAR_JDBC_URL="$${SONAR_JDBC_URL}"
 
 # Variables Grafana
-export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
-export GF_SECURITY_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
+export GRAFANA_ADMIN_PASSWORD="$${GRAFANA_ADMIN_PASSWORD}"
+export GF_SECURITY_ADMIN_PASSWORD="$${GRAFANA_ADMIN_PASSWORD}"
 EOL
 
 # Définir les permissions
