@@ -186,13 +186,13 @@ log "EC2_INSTANCE_PUBLIC_IP: $EC2_INSTANCE_PUBLIC_IP"
 
 # Créer les répertoires nécessaires
 log "Création des répertoires nécessaires"
-mkdir -p /opt/yourmedia/secure
-chmod 755 /opt/yourmedia
-chmod 700 /opt/yourmedia/secure
+sudo mkdir -p /opt/yourmedia/secure
+sudo chmod 755 /opt/yourmedia
+sudo chmod 700 /opt/yourmedia/secure
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"
-cat > /opt/yourmedia/env.sh << 'EOL'
+sudo bash -c 'cat > /opt/yourmedia/env.sh << "EOL"'
 #!/bin/bash
 # Variables d'environnement pour l'application Java Tomcat
 # Généré automatiquement par user_data
@@ -224,7 +224,7 @@ EOL
 
 # Créer le fichier de variables sensibles
 log "Création du fichier de variables sensibles"
-cat > /opt/yourmedia/secure/sensitive-env.sh << 'EOL'
+sudo bash -c 'cat > /opt/yourmedia/secure/sensitive-env.sh << "EOL"'
 #!/bin/bash
 # Variables sensibles pour l'application Java Tomcat
 # Généré automatiquement par user_data
@@ -238,17 +238,17 @@ export DB_PASSWORD="$${DB_PASSWORD}"
 EOL
 
 # Définir les permissions
-chmod 755 /opt/yourmedia/env.sh
-chmod 600 /opt/yourmedia/secure/sensitive-env.sh
-chown -R ec2-user:ec2-user /opt/yourmedia
+sudo chmod 755 /opt/yourmedia/env.sh
+sudo chmod 600 /opt/yourmedia/secure/sensitive-env.sh
+sudo chown -R ec2-user:ec2-user /opt/yourmedia
 
 # Télécharger les scripts depuis S3
 log "Téléchargement des scripts depuis S3"
-aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/ /opt/yourmedia/ --recursive || log "AVERTISSEMENT: Échec du téléchargement de certains scripts depuis S3"
 
 # Rendre les scripts exécutables
 log "Rendre les scripts exécutables"
-find /opt/yourmedia -name "*.sh" -exec chmod +x {} \;
+sudo find /opt/yourmedia -name "*.sh" -exec chmod +x {} \;
 
 # Configurer la clé SSH
 log "Configuration de la clé SSH"

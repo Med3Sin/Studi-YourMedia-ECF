@@ -431,11 +431,11 @@ fi
 
 # Création du répertoire pour CloudWatch Exporter
 log "Création du répertoire pour CloudWatch Exporter..."
-mkdir -p /opt/monitoring/cloudwatch-config
+sudo mkdir -p /opt/monitoring/cloudwatch-config
 
 # Création du fichier de configuration CloudWatch Exporter
 log "Création du fichier de configuration CloudWatch Exporter..."
-cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
+sudo bash -c 'cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF'
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -471,7 +471,7 @@ EOF
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml..."
-cat > /opt/monitoring/prometheus.yml << 'EOF'
+sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOF"'
 global:
   scrape_interval: 15s
   evaluation_interval: 15s

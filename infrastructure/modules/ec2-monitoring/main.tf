@@ -262,7 +262,7 @@ if [ -z "$S3_BUCKET_NAME" ]; then
 fi
 
 # Créer le fichier de variables d'environnement non sensibles
-cat > /opt/monitoring/env.sh << 'EOL'
+sudo bash -c 'cat > /opt/monitoring/env.sh << "EOL"'
 #!/bin/bash
 # Variables d'environnement pour le monitoring
 # Généré automatiquement par Terraform
@@ -284,7 +284,7 @@ export DOCKERHUB_REPO="$${DOCKER_REPO}"
 EOL
 
 # Créer le fichier de variables sensibles
-cat > /opt/monitoring/secure/sensitive-env.sh << 'EOL'
+sudo bash -c 'cat > /opt/monitoring/secure/sensitive-env.sh << "EOL"'
 #!/bin/bash
 # Variables sensibles pour le monitoring
 # Généré automatiquement par Terraform
@@ -327,11 +327,11 @@ sudo chmod 600 /opt/monitoring/secure/sensitive-env.sh
 sudo chown -R ec2-user:ec2-user /opt/monitoring
 
 # Charger les variables d'environnement
-source /opt/monitoring/env.sh
-source /opt/monitoring/secure/sensitive-env.sh
+sudo -E bash -c 'source /opt/monitoring/env.sh'
+sudo -E bash -c 'source /opt/monitoring/secure/sensitive-env.sh'
 
 # Se connecter à Docker Hub
-echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+echo "$DOCKERHUB_TOKEN" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
 
 # Télécharger les scripts depuis S3
 echo "Téléchargement des scripts depuis S3..."
