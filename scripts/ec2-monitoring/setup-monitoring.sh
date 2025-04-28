@@ -610,11 +610,8 @@ check_containers() {
 
     # Vérifier si les fichiers de configuration existent
     if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
-       [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
-       [ ! -f "/opt/monitoring/prometheus.yml" ] ||
-       [ ! -f "/opt/monitoring/loki-config.yml" ] ||
-       [ ! -f "/opt/monitoring/promtail-config.yml" ] ||
-       [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
+       [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
+       [ ! -f "/opt/monitoring/prometheus.yml" ]; then
         log "❌ Certains fichiers de configuration sont manquants"
         config_files_missing=1
     else
@@ -656,7 +653,7 @@ check_containers() {
 
                 # Vérifier si les fichiers ont été créés
                 if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
-                   [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
+                   [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
                    [ ! -f "/opt/monitoring/prometheus.yml" ]; then
                     log "❌ La création des fichiers de configuration a échoué"
                     return 1
@@ -680,7 +677,7 @@ check_containers() {
 
             # Vérifier si les fichiers ont été créés
             if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
-               [ ! -f "/opt/monitoring/cloudwatch-config.yml" ] ||
+               [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
                [ ! -f "/opt/monitoring/prometheus.yml" ]; then
                 log "❌ La création des fichiers de configuration a échoué"
                 return 1
@@ -864,7 +861,7 @@ chmod 700 /opt/monitoring/secure
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"
-cat > /opt/monitoring/env.sh << "EOL"
+cat > /opt/monitoring/env.sh << EOL
 #!/bin/bash
 # Variables d'environnement pour le monitoring
 # Généré automatiquement par setup-monitoring.sh
@@ -892,7 +889,7 @@ EOL
 
 # Créer le fichier de variables sensibles
 log "Création du fichier de variables sensibles"
-cat > /opt/monitoring/secure/sensitive-env.sh << "EOL"
+cat > /opt/monitoring/secure/sensitive-env.sh << EOL
 #!/bin/bash
 # Variables sensibles pour le monitoring
 # Généré automatiquement par setup-monitoring.sh
