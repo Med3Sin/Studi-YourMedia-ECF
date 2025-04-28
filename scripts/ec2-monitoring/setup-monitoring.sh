@@ -357,6 +357,163 @@ EOF
     return 0
 }
 
+# Fonction pour créer le fichier loki-config.yml
+create_loki_config() {
+    log "Création du fichier loki-config.yml"
+    cat > /opt/monitoring/loki-config.yml << "EOF"
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /tmp/loki
+  storage:
+    filesystem:
+      chunks_directory: /tmp/loki/chunks
+      rules_directory: /tmp/loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+limits_config:
+  retention_period: 7d
+
+analytics:
+  reporting_enabled: false
+EOF
+
+    log "Fichier loki-config.yml créé avec succès"
+    return 0
+}
+
+# Fonction pour créer le fichier promtail-config.yml
+create_promtail_config() {
+    log "Création du fichier promtail-config.yml"
+    cat > /opt/monitoring/promtail-config.yml << "EOF"
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+    pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs: attrs
+            time: time
+            container_name: attrs.container_name
+      - labels:
+          container_name:
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: output
+
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+      - labels:
+          host:
+          app:
+          pid:
+      - timestamp:
+          source: timestamp
+          format: Jan 2 15:04:05
+      - output:
+          source: message
+EOF
+
+    log "Fichier promtail-config.yml créé avec succès"
+    return 0
+}
+
+# Fonction pour créer le fichier container-alerts.yml
+create_container_alerts() {
+    log "Création du fichier container-alerts.yml"
+    mkdir -p /opt/monitoring/prometheus-rules
+    cat > /opt/monitoring/prometheus-rules/container-alerts.yml << "EOF"
+groups:
+  - name: containers
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Container {{ $labels.name }} has been down for more than 1 minute."
+
+      - alert: ContainerHighCPU
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighRestarts
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high restart count"
+          description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
+EOF
+
+    log "Fichier container-alerts.yml créé avec succès"
+    return 0
+}
+
 # Fonction pour créer le script docker-manager.sh
 create_docker_manager_script() {
     log "Création du script docker-manager.sh"
@@ -611,7 +768,10 @@ check_containers() {
     # Vérifier si les fichiers de configuration existent
     if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
        [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
-       [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+       [ ! -f "/opt/monitoring/prometheus.yml" ] ||
+       [ ! -f "/opt/monitoring/loki-config.yml" ] ||
+       [ ! -f "/opt/monitoring/promtail-config.yml" ] ||
+       [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
         log "❌ Certains fichiers de configuration sont manquants"
         config_files_missing=1
     else
@@ -643,7 +803,7 @@ check_containers() {
                     create_docker_compose_file
                 fi
 
-                if [ ! -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+                if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
                     create_cloudwatch_config
                 fi
 
@@ -651,10 +811,25 @@ check_containers() {
                     create_prometheus_config
                 fi
 
+                if [ ! -f "/opt/monitoring/loki-config.yml" ]; then
+                    create_loki_config
+                fi
+
+                if [ ! -f "/opt/monitoring/promtail-config.yml" ]; then
+                    create_promtail_config
+                fi
+
+                if [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
+                    create_container_alerts
+                fi
+
                 # Vérifier si les fichiers ont été créés
                 if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
                    [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
-                   [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+                   [ ! -f "/opt/monitoring/prometheus.yml" ] ||
+                   [ ! -f "/opt/monitoring/loki-config.yml" ] ||
+                   [ ! -f "/opt/monitoring/promtail-config.yml" ] ||
+                   [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
                     log "❌ La création des fichiers de configuration a échoué"
                     return 1
                 fi
@@ -667,7 +842,7 @@ check_containers() {
                 create_docker_compose_file
             fi
 
-            if [ ! -f "/opt/monitoring/cloudwatch-config.yml" ]; then
+            if [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ]; then
                 create_cloudwatch_config
             fi
 
@@ -675,10 +850,25 @@ check_containers() {
                 create_prometheus_config
             fi
 
+            if [ ! -f "/opt/monitoring/loki-config.yml" ]; then
+                create_loki_config
+            fi
+
+            if [ ! -f "/opt/monitoring/promtail-config.yml" ]; then
+                create_promtail_config
+            fi
+
+            if [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
+                create_container_alerts
+            fi
+
             # Vérifier si les fichiers ont été créés
             if [ ! -f "/opt/monitoring/docker-compose.yml" ] ||
                [ ! -f "/opt/monitoring/cloudwatch-config/cloudwatch-config.yml" ] ||
-               [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+               [ ! -f "/opt/monitoring/prometheus.yml" ] ||
+               [ ! -f "/opt/monitoring/loki-config.yml" ] ||
+               [ ! -f "/opt/monitoring/promtail-config.yml" ] ||
+               [ ! -f "/opt/monitoring/prometheus-rules/container-alerts.yml" ]; then
                 log "❌ La création des fichiers de configuration a échoué"
                 return 1
             fi
@@ -1005,7 +1195,7 @@ fi
 
 # Création des répertoires pour les données persistantes
 log "Création des répertoires pour les données persistantes"
-for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config; do
+for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config prometheus-rules; do
     mkdir -p "/opt/monitoring/$dir"
 done
 
@@ -1184,6 +1374,7 @@ EOF
 
 # Création du fichier de configuration CloudWatch Exporter
 log "Création du fichier de configuration CloudWatch Exporter"
+mkdir -p /opt/monitoring/cloudwatch-config
 cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
@@ -1241,6 +1432,148 @@ scrape_configs:
   - job_name: 'cloudwatch-exporter'
     static_configs:
       - targets: ['cloudwatch-exporter:9106']
+EOF
+
+# Création du fichier loki-config.yml
+log "Création du fichier loki-config.yml"
+cat > /opt/monitoring/loki-config.yml << "EOF"
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /tmp/loki
+  storage:
+    filesystem:
+      chunks_directory: /tmp/loki/chunks
+      rules_directory: /tmp/loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  alertmanager_url: http://localhost:9093
+
+limits_config:
+  retention_period: 7d
+
+analytics:
+  reporting_enabled: false
+EOF
+
+# Création du fichier promtail-config.yml
+log "Création du fichier promtail-config.yml"
+cat > /opt/monitoring/promtail-config.yml << "EOF"
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+    pipeline_stages:
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs: attrs
+            time: time
+            container_name: attrs.container_name
+      - labels:
+          container_name:
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      - output:
+          source: output
+
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+      - labels:
+          host:
+          app:
+          pid:
+      - timestamp:
+          source: timestamp
+          format: Jan 2 15:04:05
+      - output:
+          source: message
+EOF
+
+# Création du fichier container-alerts.yml
+log "Création du fichier container-alerts.yml"
+mkdir -p /opt/monitoring/prometheus-rules
+cat > /opt/monitoring/prometheus-rules/container-alerts.yml << "EOF"
+groups:
+  - name: containers
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Container {{ $labels.name }} has been down for more than 1 minute."
+
+      - alert: ContainerHighCPU
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighRestarts
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high restart count"
+          description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
 EOF
 
 # Télécharger le script docker-manager.sh depuis S3 si disponible
