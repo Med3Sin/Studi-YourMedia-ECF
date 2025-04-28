@@ -37,13 +37,13 @@ variable "subnet_id" {
 variable "instance_type" {
   description = "Type d'instance EC2 pour le monitoring."
   type        = string
-  default     = "t2.micro"
+  default     = "t3.medium"
 }
 
 variable "root_volume_size" {
   description = "Taille du volume racine en Go."
   type        = number
-  default     = 20
+  default     = 50
 }
 
 variable "allowed_cidr_blocks" {
