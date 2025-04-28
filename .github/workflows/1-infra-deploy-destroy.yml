@@ -998,20 +998,36 @@ jobs:
           TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           TF_WORKSPACE_ID: ${{ secrets.TF_WORKSPACE_ID }}
-          # Exporter les secrets qui doivent être synchronisés
+          # Exporter les secrets AWS
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          # Exporter les secrets RDS/DB
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          # Exporter les secrets SSH et EC2
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_PUBLIC_KEY: ${{ secrets.EC2_SSH_PUBLIC_KEY }}
+          EC2_KEY_PAIR_NAME: ${{ secrets.EC2_KEY_PAIR_NAME }}
+          # Exporter les secrets Docker
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
+          DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO }}
+          # Exporter les secrets Grafana
+          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
+          # Exporter les secrets GitHub
+          GH_PAT: ${{ secrets.GH_PAT }}
           # Ajouter les variables d'infrastructure
           TF_EC2_PUBLIC_IP: ${{ env.EC2_PUBLIC_IP }}
           TF_S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
           TF_MONITORING_EC2_PUBLIC_IP: ${{ env.MONITORING_EC2_PUBLIC_IP }}
           TF_RDS_ENDPOINT: ${{ env.RDS_ENDPOINT }}
+          TF_GRAFANA_URL: ${{ env.GRAFANA_URL }}
         run: |
           echo "::group::Synchronisation des secrets GitHub vers Terraform Cloud"
           # Rendre le script exécutable

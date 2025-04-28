@@ -158,7 +158,12 @@ if [ ! -z "$AWS_SECRET_ACCESS_KEY" ]; then
     create_or_update_tf_variable "aws_secret_key" "$AWS_SECRET_ACCESS_KEY" "terraform" "true" "AWS Secret Access Key"
 fi
 
-# Synchroniser les secrets RDS
+if [ ! -z "$AWS_DEFAULT_REGION" ]; then
+    create_or_update_tf_variable "AWS_DEFAULT_REGION" "$AWS_DEFAULT_REGION" "env" "false" "AWS Default Region"
+    create_or_update_tf_variable "aws_region" "$AWS_DEFAULT_REGION" "terraform" "false" "AWS Region"
+fi
+
+# Synchroniser les secrets RDS/DB
 if [ ! -z "$RDS_USERNAME" ]; then
     create_or_update_tf_variable "RDS_USERNAME" "$RDS_USERNAME" "env" "true" "RDS Username"
     create_or_update_tf_variable "db_username" "$RDS_USERNAME" "terraform" "true" "RDS Username"
@@ -169,7 +174,20 @@ if [ ! -z "$RDS_PASSWORD" ]; then
     create_or_update_tf_variable "db_password" "$RDS_PASSWORD" "terraform" "true" "RDS Password"
 fi
 
-# Synchroniser les secrets SSH
+if [ ! -z "$DB_NAME" ]; then
+    create_or_update_tf_variable "DB_NAME" "$DB_NAME" "env" "true" "Database Name"
+    create_or_update_tf_variable "db_name" "$DB_NAME" "terraform" "true" "Database Name"
+fi
+
+if [ ! -z "$DB_USERNAME" ]; then
+    create_or_update_tf_variable "DB_USERNAME" "$DB_USERNAME" "env" "true" "Database Username"
+fi
+
+if [ ! -z "$DB_PASSWORD" ]; then
+    create_or_update_tf_variable "DB_PASSWORD" "$DB_PASSWORD" "env" "true" "Database Password"
+fi
+
+# Synchroniser les secrets SSH et EC2
 if [ ! -z "$EC2_SSH_PRIVATE_KEY" ]; then
     create_or_update_tf_variable "EC2_SSH_PRIVATE_KEY" "$EC2_SSH_PRIVATE_KEY" "env" "true" "EC2 SSH Private Key"
     create_or_update_tf_variable "ssh_private_key_content" "$EC2_SSH_PRIVATE_KEY" "terraform" "true" "EC2 SSH Private Key"
@@ -180,15 +198,56 @@ if [ ! -z "$EC2_SSH_PUBLIC_KEY" ]; then
     create_or_update_tf_variable "ssh_public_key" "$EC2_SSH_PUBLIC_KEY" "terraform" "true" "EC2 SSH Public Key"
 fi
 
+if [ ! -z "$EC2_KEY_PAIR_NAME" ]; then
+    create_or_update_tf_variable "EC2_KEY_PAIR_NAME" "$EC2_KEY_PAIR_NAME" "env" "false" "EC2 Key Pair Name"
+    create_or_update_tf_variable "ec2_key_pair_name" "$EC2_KEY_PAIR_NAME" "terraform" "false" "EC2 Key Pair Name"
+fi
+
 # Synchroniser les secrets Docker
 if [ ! -z "$DOCKER_USERNAME" ]; then
     create_or_update_tf_variable "DOCKER_USERNAME" "$DOCKER_USERNAME" "env" "true" "Docker Username"
     create_or_update_tf_variable "dockerhub_username" "$DOCKER_USERNAME" "terraform" "true" "Docker Username"
 fi
 
+if [ ! -z "$DOCKERHUB_USERNAME" ]; then
+    create_or_update_tf_variable "DOCKERHUB_USERNAME" "$DOCKERHUB_USERNAME" "env" "true" "Docker Hub Username"
+fi
+
 if [ ! -z "$DOCKERHUB_TOKEN" ]; then
     create_or_update_tf_variable "DOCKERHUB_TOKEN" "$DOCKERHUB_TOKEN" "env" "true" "Docker Hub Token"
     create_or_update_tf_variable "dockerhub_token" "$DOCKERHUB_TOKEN" "terraform" "true" "Docker Hub Token"
+fi
+
+if [ ! -z "$DOCKER_REPO" ]; then
+    create_or_update_tf_variable "DOCKER_REPO" "$DOCKER_REPO" "env" "false" "Docker Repository"
+    create_or_update_tf_variable "dockerhub_repo" "$DOCKER_REPO" "terraform" "false" "Docker Repository"
+fi
+
+if [ ! -z "$DOCKERHUB_REPO" ]; then
+    create_or_update_tf_variable "DOCKERHUB_REPO" "$DOCKERHUB_REPO" "env" "false" "Docker Hub Repository"
+fi
+
+# Synchroniser les secrets Grafana
+if [ ! -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
+    create_or_update_tf_variable "GF_SECURITY_ADMIN_PASSWORD" "$GF_SECURITY_ADMIN_PASSWORD" "env" "true" "Grafana Admin Password"
+    create_or_update_tf_variable "grafana_admin_password" "$GF_SECURITY_ADMIN_PASSWORD" "terraform" "true" "Grafana Admin Password"
+fi
+
+# Synchroniser les secrets GitHub
+if [ ! -z "$GH_PAT" ]; then
+    create_or_update_tf_variable "GH_PAT" "$GH_PAT" "env" "true" "GitHub Personal Access Token"
+    create_or_update_tf_variable "github_token" "$GH_PAT" "terraform" "true" "GitHub Token"
+fi
+
+# Synchroniser les secrets Terraform
+if [ ! -z "$TF_API_TOKEN" ]; then
+    create_or_update_tf_variable "TF_API_TOKEN" "$TF_API_TOKEN" "env" "true" "Terraform API Token"
+    create_or_update_tf_variable "tf_api_token" "$TF_API_TOKEN" "terraform" "true" "Terraform API Token"
+fi
+
+if [ ! -z "$TF_WORKSPACE_ID" ]; then
+    create_or_update_tf_variable "TF_WORKSPACE_ID" "$TF_WORKSPACE_ID" "env" "false" "Terraform Workspace ID"
+    create_or_update_tf_variable "tf_workspace_id" "$TF_WORKSPACE_ID" "terraform" "false" "Terraform Workspace ID"
 fi
 
 # Synchroniser les variables d'infrastructure
@@ -210,6 +269,11 @@ fi
 if [ ! -z "$TF_RDS_ENDPOINT" ]; then
     create_or_update_tf_variable "TF_RDS_ENDPOINT" "$TF_RDS_ENDPOINT" "env" "false" "RDS Endpoint"
     create_or_update_tf_variable "rds_endpoint" "$TF_RDS_ENDPOINT" "terraform" "false" "RDS Endpoint"
+fi
+
+if [ ! -z "$TF_GRAFANA_URL" ]; then
+    create_or_update_tf_variable "TF_GRAFANA_URL" "$TF_GRAFANA_URL" "env" "false" "Grafana URL"
+    create_or_update_tf_variable "grafana_url" "$TF_GRAFANA_URL" "terraform" "false" "Grafana URL"
 fi
 
 log "Synchronisation des secrets GitHub vers Terraform Cloud terminée avec succès"
