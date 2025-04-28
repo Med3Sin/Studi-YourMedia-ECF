@@ -354,6 +354,11 @@ check_tomcat() {
     fi
 
     log "Vérification du port 8080..."
+    # S'assurer que netstat est installé
+    if ! command -v netstat &> /dev/null; then
+        log "Installation de net-tools pour netstat..."
+        dnf install -y net-tools
+    fi
     if netstat -tuln | grep -q ":8080"; then
         log "✅ Le port 8080 est ouvert."
     else
@@ -532,7 +537,28 @@ setup_java_tomcat() {
 
     # Installation des dépendances nécessaires
     log "Installation des dépendances"
-    dnf install -y aws-cli curl jq wget
+    # Installer jq et wget
+    dnf install -y jq wget
+
+    # Vérifier si aws-cli est installé
+    if ! command -v aws &> /dev/null; then
+        log "Installation d'AWS CLI..."
+        dnf install -y aws-cli || {
+            log "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
+            dnf install -y awscli
+        }
+    else
+        log "AWS CLI est déjà installé, version: $(aws --version)"
+    fi
+
+    # Gérer l'installation de curl séparément pour éviter les conflits avec curl-minimal
+    log "Installation de curl"
+    if ! command -v curl &> /dev/null; then
+        # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
+        dnf install -y --allowerasing curl
+    else
+        log "curl est déjà installé, version: $(curl --version | head -n 1)"
+    fi
 
     # Configuration des clés SSH
     log "Configuration des clés SSH"

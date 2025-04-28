@@ -934,7 +934,36 @@ dnf update -y
 
 # Installation des dépendances nécessaires
 log "Installation des dépendances"
-dnf install -y aws-cli curl jq wget
+# Installer jq et wget
+dnf install -y jq wget
+
+# Vérifier si aws-cli est installé
+log "Installation d'AWS CLI"
+if ! command -v aws &> /dev/null; then
+    dnf install -y aws-cli || {
+        log "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
+        dnf install -y awscli
+    }
+else
+    log "AWS CLI est déjà installé, version: $(aws --version)"
+fi
+
+# Gérer l'installation de curl séparément pour éviter les conflits avec curl-minimal
+log "Installation de curl"
+if ! command -v curl &> /dev/null; then
+    # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
+    dnf install -y --allowerasing curl
+else
+    log "curl est déjà installé, version: $(curl --version | head -n 1)"
+fi
+
+# S'assurer que netstat est installé
+log "Installation de net-tools"
+if ! command -v netstat &> /dev/null; then
+    dnf install -y net-tools
+else
+    log "net-tools est déjà installé"
+fi
 
 # Installation de Docker pour Amazon Linux 2023
 log "Installation de Docker"

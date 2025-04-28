@@ -132,7 +132,36 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-sudo dnf install -y aws-cli curl jq wget
+# Installer jq et wget
+sudo dnf install -y jq wget
+
+# Vérifier si aws-cli est installé
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation d'AWS CLI"
+if ! command -v aws &> /dev/null; then
+    sudo dnf install -y aws-cli || {
+        echo "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
+        sudo dnf install -y awscli
+    }
+else
+    echo "AWS CLI est déjà installé, version: $(aws --version)"
+fi
+
+# Gérer l'installation de curl séparément pour éviter les conflits avec curl-minimal
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de curl"
+if ! command -v curl &> /dev/null; then
+    # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
+    sudo dnf install -y --allowerasing curl
+else
+    echo "curl est déjà installé, version: $(curl --version | head -n 1)"
+fi
+
+# S'assurer que netstat est installé
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de net-tools"
+if ! command -v netstat &> /dev/null; then
+    sudo dnf install -y net-tools
+else
+    echo "net-tools est déjà installé"
+fi
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
