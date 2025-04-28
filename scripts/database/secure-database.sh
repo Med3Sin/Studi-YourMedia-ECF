@@ -1,7 +1,39 @@
 #!/bin/bash
-# Script pour sécuriser la base de données MySQL
-# Ce script exécute le script SQL secure-database.sql pour révoquer les privilèges de l'utilisateur root
-# et créer un utilisateur dédié pour l'application
+#==============================================================================
+# Nom du script : secure-database.sh
+# Description   : Script pour sécuriser la base de données MySQL.
+#                 Ce script exécute le script SQL secure-database.sql pour révoquer
+#                 les privilèges de l'utilisateur root et créer un utilisateur dédié
+#                 pour l'application.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : ./secure-database.sh [host] [port] [root_user] [root_password] [new_user] [new_password]
+#
+# Arguments     :
+#   host        : Hôte de la base de données (par défaut: localhost)
+#   port        : Port de la base de données (par défaut: 3306)
+#   root_user   : Utilisateur root de la base de données (par défaut: root)
+#   root_password : Mot de passe root de la base de données (par défaut: password)
+#   new_user    : Nouvel utilisateur à créer (par défaut: yourmedia_user)
+#   new_password : Mot de passe du nouvel utilisateur (par défaut: généré aléatoirement)
+#
+# Exemples      :
+#   ./secure-database.sh
+#   ./secure-database.sh localhost 3306 root password yourmedia_user my_secure_password
+#==============================================================================
+# Dépendances   :
+#   - mysql     : Client MySQL pour exécuter les commandes SQL
+#   - openssl   : Pour générer un mot de passe aléatoire
+#   - curl      : Pour mettre à jour les secrets dans GitHub Actions et Terraform Cloud
+#==============================================================================
+# Variables d'environnement :
+#   - GH_PAT    : Token d'accès personnel GitHub (optionnel)
+#   - GITHUB_REPOSITORY : Nom du dépôt GitHub (optionnel)
+#   - TF_API_TOKEN : Token d'API Terraform Cloud (optionnel)
+#   - TF_WORKSPACE_ID : ID de l'espace de travail Terraform Cloud (optionnel)
+#==============================================================================
 
 # Variables (à définir avant l'exécution ou à passer en paramètres)
 DB_HOST=${1:-localhost}

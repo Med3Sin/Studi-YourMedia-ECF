@@ -1,7 +1,30 @@
 #!/bin/bash
-# Script simplifié pour générer un token SonarQube et le stocker dans Terraform Cloud
+#==============================================================================
+# Nom du script : generate_sonar_token.sh
+# Description   : Script pour générer un token SonarQube et le stocker dans Terraform Cloud.
+#                 Ce script se connecte à une instance SonarQube, génère un token d'API
+#                 et le stocke comme variable sensible dans Terraform Cloud.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./generate_sonar_token.sh <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
 #
-# Usage: sudo ./generate_sonar_token.sh <SONAR_HOST> <TF_API_TOKEN> <TF_WORKSPACE_ID> [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
+# Arguments     :
+#   SONAR_HOST         : Hôte SonarQube (IP ou nom d'hôte)
+#   TF_API_TOKEN       : Token d'API Terraform Cloud
+#   TF_WORKSPACE_ID    : ID de l'espace de travail Terraform Cloud
+#   SONAR_ADMIN_USER   : Utilisateur administrateur SonarQube (par défaut: admin)
+#   SONAR_ADMIN_PASSWORD : Mot de passe administrateur SonarQube (par défaut: admin)
+#
+# Exemples      :
+#   sudo ./generate_sonar_token.sh localhost tf_api_token123 ws-abc123
+#   sudo ./generate_sonar_token.sh 10.0.0.1 tf_api_token123 ws-abc123 admin MonMotDePasse
+#==============================================================================
+# Dépendances   :
+#   - curl      : Pour appeler les API SonarQube et Terraform Cloud
+#   - grep      : Pour extraire le token de la réponse JSON
+#==============================================================================
 
 # Vérification des arguments
 if [ $# -lt 3 ]; then

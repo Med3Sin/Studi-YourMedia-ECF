@@ -1,7 +1,32 @@
 #!/bin/bash
-# Script pour récupérer automatiquement les informations de la base RDS et du bucket S3
-# Auteur: Med3Sin
-# Date: $(date +%Y-%m-%d)
+#==============================================================================
+# Nom du script : get-aws-resources-info.sh
+# Description   : Script pour récupérer automatiquement les informations de la base RDS et du bucket S3.
+#                 Ce script récupère les informations des ressources AWS (RDS, S3) et les stocke
+#                 dans des fichiers de configuration pour les services de monitoring.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./get-aws-resources-info.sh
+#
+# Exemples      :
+#   sudo ./get-aws-resources-info.sh
+#==============================================================================
+# Dépendances   :
+#   - aws-cli   : Pour récupérer les informations des ressources AWS
+#   - jq        : Pour traiter les réponses JSON
+#   - curl      : Pour les requêtes HTTP
+#   - openssl   : Pour générer des mots de passe aléatoires
+#==============================================================================
+# Variables d'environnement :
+#   - S3_BUCKET_NAME : Nom du bucket S3 (optionnel, sera détecté automatiquement si non défini)
+#   - RDS_ENDPOINT   : Endpoint RDS (optionnel, sera détecté automatiquement si non défini)
+#   - RDS_USERNAME   : Nom d'utilisateur RDS (optionnel, valeur par défaut: yourmedia)
+#   - RDS_PASSWORD   : Mot de passe RDS (optionnel, sera généré aléatoirement si non défini)
+#   - AWS_REGION     : Région AWS (optionnel, valeur par défaut: eu-west-3)
+#   - GRAFANA_ADMIN_PASSWORD : Mot de passe administrateur Grafana (optionnel, valeur par défaut: admin)
+#==============================================================================
 
 # Fonction pour afficher les messages
 log() {

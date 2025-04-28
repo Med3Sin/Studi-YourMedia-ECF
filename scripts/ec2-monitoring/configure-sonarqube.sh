@@ -1,6 +1,31 @@
 #!/bin/bash
-
-# Script simplifié pour configurer SonarQube sur l'instance EC2 de monitoring
+#==============================================================================
+# Nom du script : configure-sonarqube.sh
+# Description   : Script pour configurer SonarQube sur l'instance EC2 de monitoring.
+#                 Ce script configure SonarQube avec un nouveau mot de passe administrateur,
+#                 crée un token API et configure les projets par défaut.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./configure-sonarqube.sh [nouveau_mot_de_passe]
+#
+# Arguments     :
+#   nouveau_mot_de_passe : Nouveau mot de passe administrateur (optionnel)
+#                          Si non fourni, un mot de passe aléatoire sera généré
+#
+# Exemples      :
+#   sudo ./configure-sonarqube.sh
+#   sudo ./configure-sonarqube.sh MonMotDePasseSecurise
+#==============================================================================
+# Dépendances   :
+#   - curl      : Pour appeler l'API SonarQube
+#   - openssl   : Pour générer un mot de passe aléatoire
+#   - systemctl : Pour démarrer le service SonarQube
+#==============================================================================
+# Variables d'environnement :
+#   - SONAR_ADMIN_PASSWORD : Mot de passe administrateur actuel (par défaut: admin)
+#==============================================================================
 
 # Vérifier si l'utilisateur a les droits sudo
 if [ "$(id -u)" -ne 0 ]; then

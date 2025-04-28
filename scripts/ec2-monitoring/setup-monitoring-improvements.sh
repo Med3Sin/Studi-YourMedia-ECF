@@ -1,7 +1,35 @@
 #!/bin/bash
-# Script d'installation pour les améliorations de surveillance
-# Auteur: Med3Sin
-# Date: $(date +%Y-%m-%d)
+#==============================================================================
+# Nom du script : setup-monitoring-improvements.sh
+# Description   : Script d'installation pour les améliorations de surveillance.
+#                 Ce script configure des fonctionnalités avancées de surveillance
+#                 comme la vérification de santé des conteneurs, la centralisation
+#                 des logs et l'automatisation des tests.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./setup-monitoring-improvements.sh
+#
+# Exemples      :
+#   sudo ./setup-monitoring-improvements.sh
+#==============================================================================
+# Dépendances   :
+#   - docker    : Pour gérer les conteneurs
+#   - systemd   : Pour configurer les services et les timers
+#   - sed       : Pour modifier les fichiers de configuration
+#==============================================================================
+# Fichiers requis :
+#   - container-health-check.sh : Script de vérification de santé des conteneurs
+#   - container-health-check.service : Service systemd pour la vérification de santé
+#   - container-health-check.timer : Timer systemd pour la vérification de santé
+#   - container-tests.sh : Script de tests des conteneurs
+#   - container-tests.service : Service systemd pour les tests
+#   - container-tests.timer : Timer systemd pour les tests
+#   - loki-config.yml : Configuration pour Loki
+#   - promtail-config.yml : Configuration pour Promtail
+#   - prometheus-rules/container-alerts.yml : Règles d'alerte pour Prometheus
+#==============================================================================
 
 # Fonction de journalisation
 log() {
@@ -54,7 +82,7 @@ if [ -f "/opt/monitoring/prometheus.yml" ]; then
         # Ajouter le fichier de règles
         sed -i '/rule_files:/a\  - /etc/prometheus/rules/*.yml' /opt/monitoring/prometheus.yml
     fi
-    
+
     # Ajouter un volume pour les règles dans docker-compose.yml
     if ! grep -q "/opt/monitoring/prometheus-rules:/etc/prometheus/rules" /opt/monitoring/docker-compose.yml; then
         sed -i '/\/opt\/monitoring\/prometheus.yml:\/etc\/prometheus\/prometheus.yml/a\      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules' /opt/monitoring/docker-compose.yml

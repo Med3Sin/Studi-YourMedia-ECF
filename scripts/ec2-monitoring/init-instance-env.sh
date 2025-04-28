@@ -1,5 +1,38 @@
 #!/bin/bash
-# Script simplifié d'initialisation pour l'instance EC2 de monitoring avec variables d'environnement
+#==============================================================================
+# Nom du script : init-instance-env.sh
+# Description   : Script d'initialisation pour l'instance EC2 de monitoring.
+#                 Ce script configure l'environnement de l'instance, télécharge les scripts
+#                 nécessaires depuis S3 et initialise les conteneurs Docker.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./init-instance-env.sh
+#
+# Exemples      :
+#   sudo ./init-instance-env.sh
+#==============================================================================
+# Dépendances   :
+#   - aws-cli   : Pour télécharger les scripts depuis S3
+#   - docker    : Pour gérer les conteneurs
+#   - curl      : Pour récupérer les métadonnées de l'instance
+#   - sed       : Pour modifier les fichiers de configuration
+#==============================================================================
+# Variables d'environnement :
+#   - S3_BUCKET_NAME : Nom du bucket S3 contenant les scripts
+#   - EC2_INSTANCE_PRIVATE_IP : Adresse IP privée de l'instance EC2
+#   - RDS_ENDPOINT   : Endpoint RDS
+#   - RDS_USERNAME   : Nom d'utilisateur RDS
+#   - RDS_PASSWORD   : Mot de passe RDS
+#   - SONAR_JDBC_USERNAME : Nom d'utilisateur pour la base de données SonarQube
+#   - SONAR_JDBC_PASSWORD : Mot de passe pour la base de données SonarQube
+#   - SONAR_JDBC_URL : URL JDBC pour la base de données SonarQube
+#   - GRAFANA_ADMIN_PASSWORD : Mot de passe administrateur Grafana
+#   - DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
+#   - DOCKERHUB_TOKEN : Token Docker Hub
+#   - DOCKER_REPO : Nom du dépôt Docker
+#==============================================================================
 
 # Fonction pour afficher les messages
 log() {
