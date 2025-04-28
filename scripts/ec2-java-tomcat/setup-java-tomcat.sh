@@ -166,43 +166,43 @@ create_deploy_war_script() {
     sudo mkdir -p /opt/yourmedia
 
     # Créer le script
-    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << "EOF"
+    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << EOF
 #!/bin/bash
 # Script pour déployer un fichier WAR dans Tomcat
 # Ce script doit être exécuté avec sudo
 
 # Vérifier si un argument a été fourni
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <chemin_vers_war>"
+if [ \$# -ne 1 ]; then
+  echo "Usage: \$0 <chemin_vers_war>"
   exit 1
 fi
 
-WAR_PATH=$1
-WAR_NAME=$(basename $WAR_PATH)
+WAR_PATH=\$1
+WAR_NAME=\$(basename \$WAR_PATH)
 TARGET_NAME="yourmedia-backend.war"
 
-echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
+echo "Déploiement du fichier WAR: \$WAR_PATH vers /opt/tomcat/webapps/\$TARGET_NAME"
 
 # Vérifier si le fichier existe
-if [ ! -f "$WAR_PATH" ]; then
-  echo "ERREUR: Le fichier $WAR_PATH n\'existe pas"
+if [ ! -f "\$WAR_PATH" ]; then
+  echo "ERREUR: Le fichier \$WAR_PATH n'\''existe pas"
   exit 1
 fi
 
 # Copier le fichier WAR dans webapps
-cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+cp \$WAR_PATH /opt/tomcat/webapps/\$TARGET_NAME
 
 # Vérifier si la copie a réussi
-if [ $? -ne 0 ]; then
+if [ \$? -ne 0 ]; then
   echo "ERREUR: Échec de la copie du fichier WAR dans /opt/tomcat/webapps/"
   exit 1
 fi
 
 # Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
+chown tomcat:tomcat /opt/tomcat/webapps/\$TARGET_NAME
 
 # Vérifier si le changement de propriétaire a réussi
-if [ $? -ne 0 ]; then
+if [ \$? -ne 0 ]; then
   echo "ERREUR: Échec du changement de propriétaire du fichier WAR"
   exit 1
 fi
@@ -211,7 +211,7 @@ fi
 systemctl restart tomcat
 
 # Vérifier si le redémarrage a réussi
-if [ $? -ne 0 ]; then
+if [ \$? -ne 0 ]; then
   echo "ERREUR: Échec du redémarrage de Tomcat"
   exit 1
 fi
@@ -479,7 +479,7 @@ chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des per
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"
-cat > /opt/yourmedia/env.sh << "EOL"
+cat > /opt/yourmedia/env.sh << EOL
 #!/bin/bash
 # Variables d'environnement pour l'application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
@@ -511,7 +511,7 @@ EOL
 
 # Créer le fichier de variables sensibles
 log "Création du fichier de variables sensibles"
-cat > /opt/yourmedia/secure/sensitive-env.sh << "EOL"
+cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
 #!/bin/bash
 # Variables sensibles pour l'application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
@@ -583,7 +583,7 @@ setup_java_tomcat() {
 
     # Créer le fichier de variables d'environnement
     log "Création du fichier de variables d'environnement"
-    cat > /opt/yourmedia/env.sh << "EOL"
+    cat > /opt/yourmedia/env.sh << EOL
 #!/bin/bash
 # Variables d'environnement pour l'application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
@@ -615,7 +615,7 @@ EOL
 
     # Créer le fichier de variables sensibles
     log "Création du fichier de variables sensibles"
-    cat > /opt/yourmedia/secure/sensitive-env.sh << "EOL"
+    cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
 #!/bin/bash
 # Variables sensibles pour l'application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
