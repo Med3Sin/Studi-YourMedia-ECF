@@ -1,7 +1,27 @@
 #!/bin/bash
-# Script pour redémarrer les conteneurs Docker après avoir récupéré les informations RDS et S3
-# Auteur: Med3Sin
-# Date: $(date +%Y-%m-%d)
+#==============================================================================
+# Nom du script : restart-containers.sh
+# Description   : Script pour redémarrer les conteneurs Docker après avoir récupéré
+#                 les informations RDS et S3. Ce script arrête les conteneurs existants,
+#                 met à jour les configurations et redémarre les conteneurs.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : sudo ./restart-containers.sh
+#
+# Exemples      :
+#   sudo ./restart-containers.sh
+#==============================================================================
+# Dépendances   :
+#   - docker    : Pour gérer les conteneurs
+#   - docker-compose : Pour orchestrer les conteneurs
+#==============================================================================
+# Fichiers requis :
+#   - /opt/monitoring/docker-compose.yml : Fichier de configuration Docker Compose
+#   - /opt/monitoring/get-aws-resources-info.sh : Script pour récupérer les informations AWS (optionnel)
+#   - /opt/monitoring/fix_permissions.sh : Script pour corriger les permissions (optionnel)
+#==============================================================================
 
 # Fonction pour afficher les messages
 log() {

@@ -1,5 +1,25 @@
 #!/bin/bash
-# Script pour échapper correctement les caractères spéciaux dans les variables
+#==============================================================================
+# Nom du script : escape-special-chars.sh
+# Description   : Script pour échapper correctement les caractères spéciaux dans les variables.
+#                 Ce script prend une variable et sa valeur en entrée et génère différentes
+#                 versions échappées pour différents contextes (sed, shell, URL).
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : ./escape-special-chars.sh <variable> <valeur>
+#
+# Arguments     :
+#   variable    : Nom de la variable à échapper
+#   valeur      : Valeur de la variable à échapper
+#
+# Exemples      :
+#   ./escape-special-chars.sh PASSWORD 'mon_mot_de_passe!@#'
+#==============================================================================
+# Dépendances   :
+#   - sed       : Pour échapper les caractères spéciaux
+#==============================================================================
 
 # Fonction pour afficher les messages
 log() {

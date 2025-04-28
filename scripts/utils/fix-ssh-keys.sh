@@ -1,6 +1,25 @@
 #!/bin/bash
-# Script pour vérifier et corriger les clés SSH dans le fichier authorized_keys
-# Ce script supprime les guillemets simples qui entourent les clés SSH
+#==============================================================================
+# Nom du script : fix-ssh-keys.sh
+# Description   : Script pour vérifier et corriger les clés SSH dans le fichier authorized_keys.
+#                 Ce script supprime les guillemets simples qui entourent les clés SSH et
+#                 vérifie le format des clés pour s'assurer qu'elles sont valides.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-04-27
+#==============================================================================
+# Utilisation   : ./fix-ssh-keys.sh
+#
+# Exemples      :
+#   ./fix-ssh-keys.sh
+#==============================================================================
+# Dépendances   :
+#   - sed       : Pour supprimer les guillemets simples
+#   - grep      : Pour extraire les parties des clés SSH
+#==============================================================================
+# Fichiers modifiés :
+#   - ~/.ssh/authorized_keys : Fichier contenant les clés SSH autorisées
+#==============================================================================
 
 # Fonction pour corriger les clés SSH
 fix_ssh_keys() {
