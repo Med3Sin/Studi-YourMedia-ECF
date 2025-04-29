@@ -1,10 +1,10 @@
-name: 2.5 - Application Tests
+name: 2.5 - Tests des Applications
 
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Target to test'
+        description: 'Cible à tester'
         required: true
         default: 'all'
         type: choice
@@ -15,7 +15,7 @@ on:
 
 jobs:
   test-react:
-    name: Test React Native App
+    name: Test de l'Application React Native
     if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'react' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
@@ -97,7 +97,7 @@ jobs:
           path: app-react/coverage
 
   test-java:
-    name: Test Java App
+    name: Test de l'Application Java
     if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'java' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
@@ -199,7 +199,7 @@ jobs:
           path: app-java/target/surefire-reports
 
   integration-tests:
-    name: Integration Tests
+    name: Tests d'Intégration
     needs: [test-react, test-java]
     if: ${{ github.event.inputs.target == 'all' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
@@ -282,7 +282,7 @@ jobs:
           echo "* **Frontend Check:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
 
   summary:
-    name: Test Summary
+    name: Résumé des Tests
     needs: [test-react, test-java, integration-tests]
     if: always()
     runs-on: ubuntu-latest
@@ -298,15 +298,15 @@ jobs:
 
       - name: Create Summary
         run: |
-          echo "# Application Tests Summary" >> $GITHUB_STEP_SUMMARY
-          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "# Résumé des Tests d'Application" >> $GITHUB_STEP_SUMMARY
+          echo "## Statut Général" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ steps.check.outputs.status }}" == "failure" ]]; then
-            echo "❌ **FAILED**: Some tests have failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **ÉCHEC**: Certains tests ont échoué" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ **PASSED**: All tests have passed" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **SUCCÈS**: Tous les tests ont réussi" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
-          echo "- React Native Tests: ${{ needs.test-react.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Java Tests: ${{ needs.test-java.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Résultats des Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests React Native: ${{ needs.test-react.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests Java: ${{ needs.test-java.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests d'Intégration: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY

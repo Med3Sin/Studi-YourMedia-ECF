@@ -1,4 +1,4 @@
-name: 3 - Docker Build and Deploy
+name: 3 - Construction et Déploiement Docker
 
 on:
   workflow_dispatch:
@@ -185,7 +185,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Résumé de la Construction Docker" >> $GITHUB_STEP_SUMMARY
           echo "* **Version:** ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
@@ -273,7 +273,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Deployment Summary (after build)" >> $GITHUB_STEP_SUMMARY
+          echo "## Résumé du Déploiement (après construction)" >> $GITHUB_STEP_SUMMARY
           echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
 
@@ -344,7 +344,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Deployment Summary (deploy only)" >> $GITHUB_STEP_SUMMARY
+          echo "## Résumé du Déploiement (déploiement uniquement)" >> $GITHUB_STEP_SUMMARY
           echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
 

@@ -1,4 +1,4 @@
-name: 2 - Build and Deploy Backend (Java WAR)
+name: 2 - Compilation et Déploiement du Backend (Java WAR)
 
 # -----------------------------------------------------------------------
 # Ce workflow gère la compilation et le déploiement de l'application backend Java.
@@ -37,7 +37,7 @@ env:
 
 jobs:
   build-and-deploy:
-    name: Build WAR and Deploy to EC2 Tomcat
+    name: Compilation du WAR et Déploiement sur EC2 Tomcat
     runs-on: ubuntu-latest
 
     steps:
