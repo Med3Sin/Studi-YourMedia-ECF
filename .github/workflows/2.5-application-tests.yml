@@ -1,4 +1,4 @@
-name: 2.1 - Application Tests
+name: 2.5 - Application Tests
 
 on:
   workflow_dispatch:

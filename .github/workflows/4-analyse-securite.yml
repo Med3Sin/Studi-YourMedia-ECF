@@ -1,11 +1,11 @@
-name: Security Scan
+name: 4 - Analyse de Sécurité
 
 on:
   workflow_dispatch:     # Permet l'exécution manuelle uniquement
 
 jobs:
   scan-docker-images:
-    name: Scan Docker Images
+    name: Analyse des Images Docker
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -110,7 +110,7 @@ jobs:
 
 
   scan-code:
-    name: Scan Code
+    name: Analyse du Code Source
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -171,7 +171,7 @@ jobs:
             npm-audit.json
 
   scan-infrastructure:
-    name: Scan Infrastructure
+    name: Analyse de l'Infrastructure
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -204,7 +204,7 @@ jobs:
             tfsec-results.txt
 
   notify:
-    name: Notify Results
+    name: Notification des Résultats
     needs: [scan-docker-images, scan-code, scan-infrastructure]
     runs-on: ubuntu-latest
     if: always()
@@ -220,20 +220,20 @@ jobs:
 
       - name: Create Summary
         run: |
-          echo "# Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "# Résultats de l'Analyse de Sécurité" >> $GITHUB_STEP_SUMMARY
+          echo "## Statut Général" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ steps.check.outputs.status }}" == "failure" ]]; then
-            echo "❌ **FAILED**: Security issues detected" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **ÉCHEC**: Problèmes de sécurité détectés" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ **PASSED**: No critical security issues detected" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **SUCCÈS**: Aucun problème de sécurité critique détecté" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Docker Images Scan: ${{ needs.scan-docker-images.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Code Scan: ${{ needs.scan-code.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Infrastructure Scan: ${{ needs.scan-infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Résultats des Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse des Images Docker: ${{ needs.scan-docker-images.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse du Code Source: ${{ needs.scan-code.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse de l'Infrastructure: ${{ needs.scan-infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
 
-          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Download the artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
-          echo "2. Address any critical or high severity issues" >> $GITHUB_STEP_SUMMARY
-          echo "3. Re-run the scan after fixes" >> $GITHUB_STEP_SUMMARY
+          echo "## Prochaines Étapes" >> $GITHUB_STEP_SUMMARY
+          echo "1. Télécharger les artefacts pour des rapports détaillés" >> $GITHUB_STEP_SUMMARY
+          echo "2. Corriger les problèmes critiques ou de haute sévérité" >> $GITHUB_STEP_SUMMARY
+          echo "3. Relancer l'analyse après les corrections" >> $GITHUB_STEP_SUMMARY
