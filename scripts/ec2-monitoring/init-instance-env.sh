@@ -25,9 +25,7 @@
 #   - RDS_ENDPOINT   : Endpoint RDS
 #   - RDS_USERNAME   : Nom d'utilisateur RDS
 #   - RDS_PASSWORD   : Mot de passe RDS
-#   - SONAR_JDBC_USERNAME : Nom d'utilisateur pour la base de données SonarQube
-#   - SONAR_JDBC_PASSWORD : Mot de passe pour la base de données SonarQube
-#   - SONAR_JDBC_URL : URL JDBC pour la base de données SonarQube
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
 #   - GRAFANA_ADMIN_PASSWORD : Mot de passe administrateur Grafana
 #   - DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
 #   - DOCKERHUB_TOKEN : Token Docker Hub
@@ -246,7 +244,7 @@ fi
 
     # Télécharger les fichiers de configuration
     download_script "scripts/ec2-monitoring/cloudwatch-config.yml" "/opt/monitoring/cloudwatch-config.yml" false
-    download_script "scripts/ec2-monitoring/configure-sonarqube.sh" "/opt/monitoring/configure-sonarqube.sh" false
+    # Note: Le script configure-sonarqube.sh a été supprimé car SonarQube a été retiré du projet
 else
     log "Le bucket S3 n'est pas accessible, création de scripts par défaut"
 
@@ -350,20 +348,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
     restart: always
 
-  sonarqube:
-    image: sonarqube:9.9-community
-    container_name: sonarqube
-    ports:
-      - "9000:9000"
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    environment:
-      - SONAR_JDBC_URL=jdbc:h2:tcp://localhost:9092/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
-    restart: always
+  # Note: SonarQube a été supprimé pour simplifier le projet
+  # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
 EOF'
 
     # Créer un fichier prometheus.yml par défaut
@@ -387,9 +373,7 @@ sudo chmod +x /opt/monitoring/docker-manager.sh
 if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
     sudo chmod +x /opt/monitoring/get-aws-resources-info.sh
 fi
-if [ -f "/opt/monitoring/configure-sonarqube.sh" ]; then
-    sudo chmod +x /opt/monitoring/configure-sonarqube.sh
-fi
+# Note: Le script configure-sonarqube.sh a été supprimé car SonarQube a été retiré du projet
 
 # Copier docker-manager.sh dans /usr/local/bin/
 log "Copie de docker-manager.sh dans /usr/local/bin/"
@@ -422,9 +406,7 @@ export RDS_HOST="\$(cat /opt/monitoring/secure/rds_host.txt 2>/dev/null || echo 
 export RDS_PORT="\$(cat /opt/monitoring/secure/rds_port.txt 2>/dev/null || echo "${RDS_PORT}")"
 # Variables de compatibilité (pour les scripts existants)
 export DB_USERNAME="\$RDS_USERNAME"
-# Variables SonarQube (références sécurisées)
-export SONAR_JDBC_USERNAME="\$(cat /opt/monitoring/secure/sonar_jdbc_username.txt 2>/dev/null || echo "${SONAR_JDBC_USERNAME}")"
-export SONAR_JDBC_URL="\$(cat /opt/monitoring/secure/sonar_jdbc_url.txt 2>/dev/null || echo "${SONAR_JDBC_URL}")"
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
 # Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
 # Variables Docker Hub (références sécurisées)
@@ -440,7 +422,7 @@ cat > /tmp/sensitive-env.sh << EOF
 # Variables sensibles
 export RDS_PASSWORD="${RDS_PASSWORD}"
 export DB_PASSWORD="\$RDS_PASSWORD"
-export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD}"
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
 export GF_SECURITY_ADMIN_PASSWORD="\$GRAFANA_ADMIN_PASSWORD"
 export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
@@ -459,8 +441,7 @@ echo "${RDS_USERNAME}" | sudo tee /opt/monitoring/secure/rds_username.txt > /dev
 echo "${RDS_ENDPOINT}" | sudo tee /opt/monitoring/secure/rds_endpoint.txt > /dev/null
 echo "${RDS_HOST}" | sudo tee /opt/monitoring/secure/rds_host.txt > /dev/null
 echo "${RDS_PORT}" | sudo tee /opt/monitoring/secure/rds_port.txt > /dev/null
-echo "${SONAR_JDBC_USERNAME}" | sudo tee /opt/monitoring/secure/sonar_jdbc_username.txt > /dev/null
-echo "${SONAR_JDBC_URL}" | sudo tee /opt/monitoring/secure/sonar_jdbc_url.txt > /dev/null
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
 echo "${DOCKERHUB_USERNAME}" | sudo tee /opt/monitoring/secure/dockerhub_username.txt > /dev/null
 echo "${DOCKER_REPO:-yourmedia-ecf}" | sudo tee /opt/monitoring/secure/docker_repo.txt > /dev/null
 

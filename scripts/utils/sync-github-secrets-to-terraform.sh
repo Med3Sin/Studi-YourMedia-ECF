@@ -278,9 +278,6 @@ if [ ! -z "$TF_GRAFANA_URL" ]; then
     create_or_update_tf_variable "grafana_url" "$TF_GRAFANA_URL" "terraform" "false" "Grafana URL"
 fi
 
-if [ ! -z "$TF_SONARQUBE_EC2_PUBLIC_IP" ]; then
-    create_or_update_tf_variable "TF_SONARQUBE_EC2_PUBLIC_IP" "$TF_SONARQUBE_EC2_PUBLIC_IP" "env" "false" "SonarQube EC2 Public IP"
-    create_or_update_tf_variable "sonarqube_ec2_public_ip" "$TF_SONARQUBE_EC2_PUBLIC_IP" "terraform" "false" "SonarQube EC2 Public IP"
-fi
+
 
 log "Synchronisation des secrets GitHub vers Terraform Cloud terminée avec succès"

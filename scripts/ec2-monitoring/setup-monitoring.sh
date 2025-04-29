@@ -127,7 +127,7 @@ configure_system_limits() {
 
 # Fonction pour créer le fichier docker-compose.yml
 create_docker_compose_file() {
-    log "Création du fichier docker-compose.yml (version allégée sans SonarQube)"
+    log "Création du fichier docker-compose.yml"
     cat > /opt/monitoring/docker-compose.yml << 'EOF'
 version: '3'
 

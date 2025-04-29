@@ -189,19 +189,8 @@ jobs:
           cd app-java
           mvn test
 
-      - name: Run SonarQube analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd app-java
-          mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=yourmedia-backend \
-            -Dsonar.projectName='YourMedia Backend' \
-            -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.login=admin \
-            -Dsonar.password=admin \
-            -Dsonar.java.coveragePlugin=jacoco \
-            || echo "SonarQube analysis skipped"
+      # Note: L'analyse SonarQube a été supprimée pour simplifier le projet
+      # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

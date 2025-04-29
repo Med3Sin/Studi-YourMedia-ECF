@@ -244,41 +244,7 @@ module "ec2-monitoring" {
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-# Module EC2 SonarQube (Instance dédiée pour SonarQube)
+# Note: Le module EC2 SonarQube a été supprimé pour simplifier le projet
+# Une amélioration future pourrait être d'ajouter une instance dédiée pour SonarQube
+# afin d'améliorer la qualité du code et la détection des vulnérabilités.
 # -----------------------------------------------------------------------------
-module "ec2-sonarqube" {
-  source = "./modules/ec2-sonarqube"
-
-  project_name    = var.project_name
-  environment     = var.environment
-  aws_region      = var.aws_region
-  vpc_id          = aws_vpc.main.id
-  subnet_id       = aws_subnet.main_az1_secondary.id # Utilisation du deuxième sous-réseau
-  instance_type   = "t2.small"                       # SonarQube nécessite plus de ressources qu'un t2.micro
-  root_volume_size = 30                              # SonarQube nécessite plus d'espace disque
-
-  # Groupe de sécurité
-  use_existing_sg              = false               # Créer un nouveau groupe de sécurité spécifique à SonarQube
-  allowed_cidr_blocks          = var.operator_ip != "" ? [var.operator_ip] : ["0.0.0.0/0"]
-
-  # Clés SSH
-  key_name                     = var.ec2_key_pair_name
-  ssh_private_key_path         = var.ssh_private_key_path
-  ssh_private_key_content      = var.ssh_private_key_content
-  ssh_public_key               = var.ssh_public_key
-
-  # Provisionnement
-  enable_provisioning          = false
-  s3_bucket_name               = module.s3.bucket_name
-  s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
-
-  # Paramètres SonarQube
-  db_username                  = "sonar"
-  db_password                  = "sonar"
-  sonar_admin_password         = "admin"
-
-  # Paramètres Docker Hub (pour les images personnalisées si nécessaire)
-  docker_username              = var.dockerhub_username
-  docker_repo                  = var.dockerhub_repo
-  dockerhub_token              = var.dockerhub_token
-}

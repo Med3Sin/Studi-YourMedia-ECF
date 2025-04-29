@@ -32,7 +32,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
 - [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md) : Guide des bonnes pratiques de sécurité pour les images Docker
 - [Dépannage Docker](docs/DOCKER-TROUBLESHOOTING.md) : Guide de résolution des problèmes Docker
-- [Guide de configuration SonarQube](docs/SONARQUBE-SETUP.md) : Guide de configuration de SonarQube
+
 - [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
 - [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
 
@@ -75,13 +75,12 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 * **Compute:**
     * AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
     * AWS EC2 (t2.micro) pour exécuter les conteneurs Docker de monitoring (Prometheus, Grafana) et l'application mobile React Native.
-    * AWS EC2 (t2.small) pour héberger SonarQube sur une instance dédiée.
 * **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 * **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 * **Réseau:** Utilisation d'un VPC dédié avec des groupes de sécurité spécifiques pour contrôler les flux.
 * **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native (remplaçant l'ancienne approche basée sur AWS Amplify) et les services de monitoring (Prometheus, Grafana).
 * **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
-* **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), l'analyse de qualité du code avec SonarQube, et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
+* **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
 * **Gestion des scripts:** Tous les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication.
 
 **Schéma d'Architecture :**
@@ -93,7 +92,7 @@ Les diagrammes d'architecture sont disponibles dans le dossier `docs/diagrams/v2
 - [Couche calcul](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer3.drawio) - EC2, conteneurs Docker
 - [Couche stockage](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer4.drawio) - S3, RDS
 - [Couche CI/CD](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer5.drawio) - GitHub Actions, Terraform Cloud
-- [Couche monitoring](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer6.drawio) - Prometheus, Grafana, SonarQube
+- [Couche monitoring](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer6.drawio) - Prometheus, Grafana
 - [Organisation des scripts](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer7.drawio) - Structure des scripts
 
 ![Schéma d'Architecture YourMédia](docs/diagrams/v2023-12/yourmedia-architecture-v2023-12-layer1.drawio)
@@ -160,9 +159,7 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── s3/                  # Bucket S3
 │       │   ├── files/            # Fichiers à stocker dans le bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf)
-│       ├── ec2-monitoring/      # Monitoring avec Docker sur EC2
-│       │   └── ... (main.tf, variables.tf, outputs.tf)
-│       └── ec2-sonarqube/       # Instance EC2 dédiée pour SonarQube
+│       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
 │           └── ... (main.tf, variables.tf, outputs.tf)
 ├── scripts/                     # Scripts utilitaires organisés par catégorie
 │   ├── database/                # Scripts liés à la base de données
@@ -180,8 +177,6 @@ Avant de commencer, assurez-vous d'avoir :
 │   │   ├── docker-compose.yml   # Configuration des conteneurs Docker
 │   │   ├── prometheus.yml       # Configuration de Prometheus
 │   │   └── cloudwatch-config.yml # Configuration de CloudWatch Exporter
-│   ├── ec2-sonarqube/           # Scripts liés à l'instance EC2 de SonarQube
-│   │   └── setup-sonarqube.sh   # Script d'installation et de configuration de SonarQube
 │   └── utils/                   # Scripts utilitaires génériques
 │       ├── fix-ssh-keys.sh      # Script de correction des clés SSH
 │       ├── ssh-key-checker.service # Service systemd pour vérifier les clés SSH
@@ -204,7 +199,7 @@ L'infrastructure est organisée en modules réutilisables pour faciliter la main
 - **rds-mysql** : Crée et configure la base de données RDS MySQL.
 - **s3** : Gère le bucket S3 pour le stockage des médias et des artefacts.
 - **ec2-monitoring** : Déploie l'instance EC2 pour le monitoring et les conteneurs Docker (Prometheus, Grafana, React Native).
-- **ec2-sonarqube** : Déploie une instance EC2 dédiée pour SonarQube.
+
 
 **Note :** Le module **secrets-management** a été supprimé pour simplifier le projet. Dans un environnement de production, il est recommandé d'utiliser un module de gestion des secrets pour stocker et gérer les informations sensibles de manière sécurisée.
 
@@ -293,7 +288,6 @@ Tous les scripts et fichiers de configuration sont maintenant centralisés dans 
 
 -   `scripts/docker/prometheus/` : Configuration pour Prometheus (Dockerfile, prometheus.yml, règles d'alerte)
 -   `scripts/docker/grafana/` : Configuration pour Grafana (Dockerfile, tableaux de bord, provisionnement)
--   `scripts/docker/sonarqube/` : Configuration pour SonarQube (Dockerfile, configuration)
 
 **Note importante :** Tous les fichiers Docker ont été centralisés dans le dossier `scripts/docker/` pour éviter la duplication et faciliter la maintenance. Le dossier `infrastructure/modules/ec2-monitoring/docker` a été supprimé, et toutes les références ont été mises à jour pour pointer vers le dossier centralisé.
 
@@ -351,11 +345,7 @@ Le projet utilise GitHub Actions pour automatiser les processus de déploiement 
     -   Actions: `mobile`, `monitoring`, `all`
     -   Processus: Construction des images Docker, publication sur Docker Hub, déploiement sur les instances EC2
     -   Paramètres requis: Identifiants Docker Hub, clés SSH (récupérés des secrets GitHub)
--   **`4-sonarqube-analysis.yml`:** Analyse la qualité du code avec SonarQube.
-    -   Déclenchement: Automatique (`push` sur `main`) ou manuel
-    -   Actions: `backend`, `mobile`, `all`
-    -   Processus: Analyse du code source, publication des résultats sur SonarQube
-    -   Paramètres requis: Token SonarQube, URL SonarQube (récupérés des secrets GitHub)
+
 -   **`5-docker-cleanup.yml`:** Nettoie les images Docker Hub obsolètes ou inutilisées.
     -   Déclenchement: Manuel (`workflow_dispatch`)
     -   Paramètres: Dépôt Docker Hub, motif de tag, mode simulation
@@ -452,7 +442,7 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 * `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 dans AWS (utilisé par Terraform pour configurer les instances EC2).
 * `DOCKERHUB_USERNAME`: Votre nom d'utilisateur Docker Hub.
 * `DOCKERHUB_TOKEN`: Votre token d'accès Docker Hub.
-* `SONAR_TOKEN`: Token d'accès pour SonarQube.
+
 * `GH_PAT`: Un Personal Access Token GitHub pour les intégrations.
 
 **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
@@ -752,6 +742,7 @@ Voici quelques améliorations qui pourraient être apportées au projet à l'ave
 4. **Monitoring amélioré** : Étendre les capacités de monitoring pour inclure plus de métriques et d'alertes.
 5. **Sécurité renforcée** : Limiter l'accès SSH aux adresses IP spécifiques plutôt que d'utiliser 0.0.0.0/0.
 6. **Gestion des secrets** : Améliorer la gestion des secrets en utilisant AWS Secrets Manager ou HashiCorp Vault.
+7. **Analyse de qualité du code** : Intégrer SonarQube pour l'analyse statique du code, la détection des vulnérabilités et l'amélioration continue de la qualité du code.
 
 ## Licence
 

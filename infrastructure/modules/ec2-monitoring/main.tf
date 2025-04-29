@@ -2,7 +2,7 @@
 # Module EC2 Monitoring
 # -----------------------------------------------------------------------------
 # Ce module crée une instance EC2 pour le monitoring de l'application
-# Il installe et configure Prometheus, Grafana et SonarQube
+# Il installe et configure Prometheus et Grafana
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -46,14 +46,7 @@ resource "aws_security_group" "monitoring_sg" {
     description = "Grafana access"
   }
 
-  # SonarQube
-  ingress {
-    from_port   = 9000
-    to_port     = 9000
-    protocol    = "tcp"
-    cidr_blocks = var.allowed_cidr_blocks
-    description = "SonarQube access"
-  }
+  # Port 9000 réservé pour une utilisation future
 
   # Node Exporter
   ingress {

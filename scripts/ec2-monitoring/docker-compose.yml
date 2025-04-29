@@ -48,61 +48,8 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-  # Base de données PostgreSQL pour SonarQube
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-$(openssl rand -base64 16)}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-
-  # SonarQube pour l'analyse de code
-  sonarqube:
-    image: ${DOCKER_USERNAME:-medsin}/${DOCKER_REPO:-yourmedia-ecf}:sonarqube-latest
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
-      # Limiter la mémoire utilisée par Elasticsearch pour éviter les erreurs OOM
-      - SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m
-      # Limiter la mémoire globale de SonarQube
-      - SONAR_WEB_JAVA_OPTS=-Xmx512m -Xms256m
-      - SONAR_CE_JAVA_OPTS=-Xmx512m -Xms256m
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    # Augmenter légèrement la limite de mémoire pour éviter les erreurs OOM
-    mem_limit: 1536m
-    cpu_shares: 1024
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
+  # Note: SonarQube a été supprimé pour simplifier le projet
+  # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
 
   # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
   cloudwatch-exporter:
