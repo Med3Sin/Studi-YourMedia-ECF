@@ -173,7 +173,7 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-sudo dnf install -y jq wget unzip java-17-amazon-corretto-devel postgresql15 postgresql15-server
+sudo dnf install -y jq wget unzip java-17-amazon-corretto-devel postgresql15 postgresql15-server bc
 
 # Vérifier si aws-cli est installé
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation d'AWS CLI"
@@ -220,14 +220,29 @@ if [ -f "/opt/sonarqube/setup-sonarqube.sh" ]; then
     sudo /opt/sonarqube/setup-sonarqube.sh
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de SonarQube"
-    
-    # Configurer les paramètres système pour SonarQube
+
+    # Configurer les paramètres système pour SonarQube et Elasticsearch
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des paramètres système"
     sudo bash -c 'cat > /etc/sysctl.d/99-sonarqube.conf << EOF
+# Paramètres requis pour Elasticsearch
 vm.max_map_count=262144
 fs.file-max=65536
+
+# Paramètres pour améliorer les performances sur t2.micro
+vm.swappiness=1
+vm.vfs_cache_pressure=50
 EOF'
     sudo sysctl --system
+
+    # Créer un fichier swap pour éviter les problèmes de mémoire sur t2.micro
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration du fichier swap"
+    if [ ! -f /swapfile ]; then
+        sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    fi
 
     # Configurer les limites de ressources pour l'utilisateur sonarqube
     sudo bash -c 'cat > /etc/security/limits.d/99-sonarqube.conf << EOF
@@ -238,25 +253,25 @@ EOF'
     # Initialiser PostgreSQL
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation de PostgreSQL"
     sudo postgresql-setup --initdb
-    
+
     # Configurer PostgreSQL pour accepter les connexions locales
     sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/g" /var/lib/pgsql/data/postgresql.conf
     sudo sed -i "s/ident/md5/g" /var/lib/pgsql/data/pg_hba.conf
-    
+
     # Démarrer PostgreSQL
     sudo systemctl enable postgresql
     sudo systemctl start postgresql
-    
+
     # Créer l'utilisateur et la base de données SonarQube
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur et de la base de données SonarQube"
     sudo -u postgres psql -c "CREATE USER ${var.db_username} WITH ENCRYPTED PASSWORD '${var.db_password}';"
     sudo -u postgres psql -c "CREATE DATABASE sonar OWNER ${var.db_username};"
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sonar TO ${var.db_username};"
-    
+
     # Créer l'utilisateur sonarqube
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur sonarqube"
     sudo useradd -m -d /opt/sonarqube -s /bin/bash sonarqube
-    
+
     # Télécharger et installer SonarQube
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de SonarQube"
     cd /tmp
@@ -265,18 +280,34 @@ EOF'
     sudo mv /opt/sonarqube-9.9.1.69595/* /opt/sonarqube/
     sudo rmdir /opt/sonarqube-9.9.1.69595
     sudo chown -R sonarqube:sonarqube /opt/sonarqube
-    
-    # Configurer SonarQube
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de SonarQube"
+
+    # Configurer SonarQube avec des paramètres optimisés pour t2.micro
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de SonarQube optimisée pour t2.micro"
     sudo bash -c "cat > /opt/sonarqube/conf/sonar.properties << EOF
+# Configuration de la base de données
 sonar.jdbc.username=${var.db_username}
 sonar.jdbc.password=${var.db_password}
 sonar.jdbc.url=jdbc:postgresql://localhost/sonar
-sonar.web.javaOpts=-Xmx512m -Xms256m
-sonar.ce.javaOpts=-Xmx512m -Xms256m
-sonar.search.javaOpts=-Xmx512m -Xms256m
+
+# Configuration du serveur web
+sonar.web.host=0.0.0.0
+sonar.web.port=9000
+sonar.web.context=/
+
+# Configuration optimisée pour t2.micro
+# Elasticsearch - Xms et Xmx doivent être identiques pour éviter les erreurs de bootstrap
+sonar.search.javaOpts=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=128m -XX:+HeapDumpOnOutOfMemoryError
+sonar.web.javaOpts=-Xms128m -Xmx256m -XX:+HeapDumpOnOutOfMemoryError
+sonar.ce.javaOpts=-Xms128m -Xmx256m -XX:+HeapDumpOnOutOfMemoryError
+
+# Chemins de données
+sonar.path.data=/opt/sonarqube/data
+sonar.path.temp=/opt/sonarqube/temp
+
+# Limiter le nombre de workers pour économiser les ressources
+sonar.ce.workerCount=1
 EOF"
-    
+
     # Créer le service systemd pour SonarQube
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du service systemd pour SonarQube"
     sudo bash -c 'cat > /etc/systemd/system/sonarqube.service << EOF
@@ -297,11 +328,36 @@ LimitNPROC=4096
 [Install]
 WantedBy=multi-user.target
 EOF'
-    
+
     # Recharger systemd et démarrer SonarQube
     sudo systemctl daemon-reload
     sudo systemctl enable sonarqube
     sudo systemctl start sonarqube
+
+    # Créer un script de surveillance pour redémarrer SonarQube si nécessaire
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du script de surveillance"
+    sudo bash -c 'cat > /usr/local/bin/monitor-sonarqube.sh << EOF
+#!/bin/bash
+
+# Vérifier si SonarQube répond
+if ! curl -s http://localhost:9000 > /dev/null; then
+  echo "$(date) - SonarQube ne répond pas, redémarrage en cours..." >> /var/log/sonarqube-monitor.log
+  systemctl restart sonarqube
+fi
+
+# Vérifier l'utilisation de la mémoire
+MEM_USAGE=$(free | grep Mem | awk '{print $3/$2 * 100.0}')
+if (( $(echo "$MEM_USAGE > 90" | bc -l) )); then
+  echo "$(date) - Utilisation mémoire critique ($MEM_USAGE%), nettoyage des caches..." >> /var/log/sonarqube-monitor.log
+  sync && echo 3 > /proc/sys/vm/drop_caches
+fi
+EOF'
+
+    # Rendre le script exécutable
+    sudo chmod +x /usr/local/bin/monitor-sonarqube.sh
+
+    # Ajouter une tâche cron pour exécuter le script toutes les 15 minutes
+    sudo bash -c 'echo "*/15 * * * * root /usr/local/bin/monitor-sonarqube.sh" > /etc/cron.d/sonarqube-monitor'
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
