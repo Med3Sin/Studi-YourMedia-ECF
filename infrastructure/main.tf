@@ -6,21 +6,17 @@ provider "tfe" {
 }
 
 # -----------------------------------------------------------------------------
-# Module de gestion des secrets
+# Le module de gestion des secrets a été supprimé pour simplifier le projet
+# Note: Dans un environnement de production, il est recommandé d'utiliser un module
+# de gestion des secrets pour stocker et gérer les informations sensibles de manière sécurisée.
 # -----------------------------------------------------------------------------
-# Création conditionnelle du module de gestion des secrets en fonction de la disponibilité des variables nécessaires
 locals {
-  enable_secrets_management = var.tf_api_token != "" && var.tf_workspace_id != ""
-}
-
-module "secrets_management" {
-  source = "./modules/secrets-management"
-  count  = local.enable_secrets_management ? 1 : 0
-
-  workspace_id = var.tf_workspace_id
-  organization = var.tf_organization
-  project_name = var.project_name
-  environment  = var.environment
+  # Définition des tags communs pour toutes les ressources
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -233,10 +229,8 @@ module "ec2-monitoring" {
   db_username                  = var.db_username
   db_password                  = var.db_password
   rds_endpoint                 = module.rds-mysql.rds_endpoint
-  sonar_jdbc_username          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_username : "sonar"
-  sonar_jdbc_password          = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_password : "admin"
-  sonar_jdbc_url               = local.enable_secrets_management ? module.secrets_management[0].sonar_jdbc_url : "jdbc:postgresql://sonarqube-db:5432/sonar"
-  grafana_admin_password       = local.enable_secrets_management ? module.secrets_management[0].grafana_admin_password : var.grafana_admin_password
+  # Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+  grafana_admin_password       = var.grafana_admin_password
   tf_api_token                 = var.tf_api_token
   tf_workspace_id              = var.tf_workspace_id
   docker_username              = var.dockerhub_username
@@ -248,3 +242,43 @@ module "ec2-monitoring" {
 # Note: La ressource AWS Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
 # pour le déploiement du frontend React Native.
 # -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Module EC2 SonarQube (Instance dédiée pour SonarQube)
+# -----------------------------------------------------------------------------
+module "ec2-sonarqube" {
+  source = "./modules/ec2-sonarqube"
+
+  project_name    = var.project_name
+  environment     = var.environment
+  aws_region      = var.aws_region
+  vpc_id          = aws_vpc.main.id
+  subnet_id       = aws_subnet.main_az1_secondary.id # Utilisation du deuxième sous-réseau
+  instance_type   = "t2.small"                       # SonarQube nécessite plus de ressources qu'un t2.micro
+  root_volume_size = 30                              # SonarQube nécessite plus d'espace disque
+
+  # Groupe de sécurité
+  use_existing_sg              = false               # Créer un nouveau groupe de sécurité spécifique à SonarQube
+  allowed_cidr_blocks          = var.operator_ip != "" ? [var.operator_ip] : ["0.0.0.0/0"]
+
+  # Clés SSH
+  key_name                     = var.ec2_key_pair_name
+  ssh_private_key_path         = var.ssh_private_key_path
+  ssh_private_key_content      = var.ssh_private_key_content
+  ssh_public_key               = var.ssh_public_key
+
+  # Provisionnement
+  enable_provisioning          = false
+  s3_bucket_name               = module.s3.bucket_name
+  s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
+
+  # Paramètres SonarQube
+  db_username                  = "sonar"
+  db_password                  = "sonar"
+  sonar_admin_password         = "admin"
+
+  # Paramètres Docker Hub (pour les images personnalisées si nécessaire)
+  docker_username              = var.dockerhub_username
+  docker_repo                  = var.dockerhub_repo
+  dockerhub_token              = var.dockerhub_token
+}

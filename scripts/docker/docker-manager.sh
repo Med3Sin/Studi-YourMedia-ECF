@@ -19,7 +19,7 @@
 #
 # Cibles        :
 #   mobile      : Application mobile React Native
-#   monitoring  : Services de monitoring (Grafana, Prometheus, SonarQube)
+#   monitoring  : Services de monitoring (Grafana, Prometheus)
 #   all         : Toutes les cibles
 #
 # Options pour backup/restore :
@@ -54,8 +54,7 @@
 #   - RDS_USERNAME / DB_USERNAME : Nom d'utilisateur RDS
 #   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
 #   - RDS_ENDPOINT / DB_ENDPOINT / TF_RDS_ENDPOINT : Point de terminaison RDS
-#   - GITHUB_CLIENT_ID : ID client GitHub pour SonarQube
-#   - GITHUB_CLIENT_SECRET : Secret client GitHub pour SonarQube
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
 #==============================================================================
 # Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root pour certaines opérations.
 #==============================================================================
@@ -150,9 +149,7 @@ else
     export RDS_PORT="3306"
 fi
 
-# Variables GitHub
-export GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-dummy-id}
-export GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-dummy-secret}
+# Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
 
 # Déterminer le chemin absolu du répertoire racine du projet
 # Obtenir le chemin absolu du répertoire contenant ce script
@@ -332,23 +329,7 @@ check_deploy_vars() {
             log_error "Les informations de connexion à la base de données ne sont pas complètes. Veuillez définir les variables RDS_USERNAME (DB_USERNAME), RDS_PASSWORD (DB_PASSWORD) et RDS_ENDPOINT (TF_RDS_ENDPOINT)."
         fi
 
-        # Vérifier les variables GitHub pour SonarQube
-        if [ -z "$GITHUB_CLIENT_ID" ] || [ -z "$GITHUB_CLIENT_SECRET" ]; then
-            log_warning "Les informations d'authentification GitHub pour SonarQube ne sont pas définies."
-            log_warning "L'intégration GitHub avec SonarQube ne sera pas disponible."
-            log_warning "Veuillez définir les variables GITHUB_CLIENT_ID et GITHUB_CLIENT_SECRET pour activer cette fonctionnalité."
-
-            if [ -t 0 ]; then  # Vérifier si le script est exécuté en mode interactif
-                read -p "Voulez-vous continuer sans l'intégration GitHub? (y/n) " -n 1 -r
-                echo
-                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                    log_info "Opération annulée. Veuillez définir les variables GitHub."
-                    exit 1
-                fi
-            else
-                log_info "Mode non interactif. Continuation sans l'intégration GitHub."
-            fi
-        fi
+        # Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
     fi
 }
 
@@ -384,10 +365,9 @@ build_push_monitoring() {
     # Définir les chemins absolus pour les répertoires Docker
     GRAFANA_DIR="${PROJECT_ROOT}/scripts/docker/grafana"
     PROMETHEUS_DIR="${PROJECT_ROOT}/scripts/docker/prometheus"
-    SONARQUBE_DIR="${PROJECT_ROOT}/scripts/docker/sonarqube"
 
     # Vérifier que les répertoires existent
-    for DIR in "$GRAFANA_DIR" "$PROMETHEUS_DIR" "$SONARQUBE_DIR"; do
+    for DIR in "$GRAFANA_DIR" "$PROMETHEUS_DIR"; do
         if [ ! -d "$DIR" ]; then
             log_error "Le répertoire n'existe pas: $DIR"
         fi
@@ -407,12 +387,7 @@ build_push_monitoring() {
     docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION || log_error "Échec de la publication de l'image Prometheus (version)"
     docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest || log_error "Échec de la publication de l'image Prometheus (latest)"
 
-    log_info "Construction de l'image Docker pour SonarQube..."
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest "$SONARQUBE_DIR" || log_error "Échec de la construction de l'image SonarQube"
-
-    log_info "Publication de l'image SonarQube sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-$DOCKER_VERSION || log_error "Échec de la publication de l'image SonarQube (version)"
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest || log_error "Échec de la publication de l'image SonarQube (latest)"
+    # Note: Les images liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
 
     log_success "Images de monitoring publiées avec succès!"
 }
@@ -436,16 +411,13 @@ deploy_monitoring() {
         echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
         # Créer les répertoires nécessaires
-        sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-extensions /opt/monitoring/sonarqube-logs /opt/monitoring/sonarqube-db
+        sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/cloudwatch-config /opt/monitoring/prometheus-rules
 
         # Configurer les permissions
         sudo chown -R 1000:1000 /opt/monitoring/grafana-data
-        sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data /opt/monitoring/sonarqube-extensions /opt/monitoring/sonarqube-logs
-        sudo chown -R 999:999 /opt/monitoring/sonarqube-db
 
-        # Augmenter les limites système pour SonarQube
-        echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-        echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
+        # Configurer les limites système
+        echo "fs.file-max=4096" | sudo tee -a /etc/sysctl.conf
         sudo sysctl -p
 
         # Créer le fichier docker-compose.yml

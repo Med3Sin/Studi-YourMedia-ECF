@@ -86,18 +86,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Build and push SonarQube image
-      - name: Build and push SonarQube image
-        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ./scripts/docker/sonarqube
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:sonarqube-${{ env.VERSION }}
-            ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:sonarqube-latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # SonarQube est maintenant déployé sur une instance EC2 dédiée
 
       # Install Trivy scanner for security scanning
       - name: Install Trivy scanner
@@ -122,8 +111,7 @@ jobs:
             echo "Scanning Prometheus image..."
             trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }} > prometheus-scan.txt
 
-            echo "Scanning SonarQube image..."
-            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:sonarqube-${{ env.VERSION }} > sonarqube-scan.txt
+            # SonarQube est maintenant déployé sur une instance EC2 dédiée
           fi
 
       # Test Docker image health checks
@@ -192,28 +180,7 @@ jobs:
             docker stop prometheus-test
             docker rm prometheus-test
 
-            # Test de santé pour SonarQube
-            echo "Démarrage du conteneur SonarQube pour les tests..."
-            docker run -d --name sonarqube-test -p 9000:9000 \
-              -e "SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m" \
-              -e "SONAR_WEB_JAVA_OPTS=-Xmx512m -Xms256m" \
-              -e "SONAR_CE_JAVA_OPTS=-Xmx512m -Xms256m" \
-              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:sonarqube-${{ env.VERSION }}
-
-            echo "Attente de 45 secondes pour le démarrage du conteneur SonarQube..."
-            sleep 45
-
-            echo "Vérification de l'état de santé de SonarQube..."
-            if curl -s -f http://localhost:9000/api/system/status > /dev/null; then
-                echo "✅ Le test de santé de SonarQube a réussi"
-            else
-                echo "❌ Le test de santé de SonarQube a échoué"
-                echo "Logs du conteneur SonarQube:"
-                docker logs sonarqube-test
-                echo "::warning::Le health check de l'image SonarQube a échoué"
-            fi
-            docker stop sonarqube-test
-            docker rm sonarqube-test
+            # SonarQube est maintenant déployé sur une instance EC2 dédiée
           fi
 
       - name: Summary
@@ -235,7 +202,7 @@ jobs:
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Grafana Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-            echo "* **SonarQube Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:sonarqube-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            # SonarQube est maintenant déployé sur une instance EC2 dédiée
 
             echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
@@ -243,8 +210,7 @@ jobs:
             cat grafana-scan.txt >> $GITHUB_STEP_SUMMARY
             echo "\n=== Prometheus Scan ===" >> $GITHUB_STEP_SUMMARY
             cat prometheus-scan.txt >> $GITHUB_STEP_SUMMARY
-            echo "\n=== SonarQube Scan ===" >> $GITHUB_STEP_SUMMARY
-            cat sonarqube-scan.txt >> $GITHUB_STEP_SUMMARY
+            # SonarQube est maintenant déployé sur une instance EC2 dédiée
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -386,7 +352,7 @@ jobs:
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
-            echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
+            echo "* **SonarQube URL:** http://${{ secrets.TF_SONARQUBE_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then

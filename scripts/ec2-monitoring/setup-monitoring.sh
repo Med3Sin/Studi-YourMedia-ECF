@@ -36,9 +36,6 @@
 #   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
 #   - RDS_ENDPOINT / DB_ENDPOINT : Point de terminaison RDS
 #   - GRAFANA_ADMIN_PASSWORD / GF_SECURITY_ADMIN_PASSWORD : Mot de passe administrateur Grafana
-#   - SONAR_JDBC_USERNAME : Nom d'utilisateur pour la base de données SonarQube
-#   - SONAR_JDBC_PASSWORD : Mot de passe pour la base de données SonarQube
-#   - SONAR_JDBC_URL : URL JDBC pour la base de données SonarQube
 #   - DOCKER_USERNAME / DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
 #   - DOCKER_REPO / DOCKERHUB_REPO : Nom du dépôt Docker Hub
 #==============================================================================
@@ -112,41 +109,25 @@ install_docker_compose() {
     return 0
 }
 
-# Fonction pour configurer les prérequis système pour SonarQube
-configure_sonarqube_prerequisites() {
-    log "Configuration des prérequis système pour SonarQube"
-
-    # Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
-    if grep -q "vm.max_map_count" /etc/sysctl.conf; then
-        sed -i 's/vm.max_map_count=.*/vm.max_map_count=262144/' /etc/sysctl.conf
-    else
-        echo "vm.max_map_count=262144" | tee -a /etc/sysctl.conf
-    fi
-    sysctl -w vm.max_map_count=262144
-
-    # Augmenter la limite de fichiers ouverts
-    if grep -q "fs.file-max" /etc/sysctl.conf; then
-        sed -i 's/fs.file-max=.*/fs.file-max=65536/' /etc/sysctl.conf
-    else
-        echo "fs.file-max=65536" | tee -a /etc/sysctl.conf
-    fi
-    sysctl -w fs.file-max=65536
+# Fonction pour configurer les limites de ressources système
+configure_system_limits() {
+    log "Configuration des limites de ressources système"
 
     # Configurer les limites de ressources pour l'utilisateur ec2-user
     if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
-        echo "ec2-user soft nofile 65536" | tee -a /etc/security/limits.conf
-        echo "ec2-user hard nofile 65536" | tee -a /etc/security/limits.conf
-        echo "ec2-user soft nproc 4096" | tee -a /etc/security/limits.conf
-        echo "ec2-user hard nproc 4096" | tee -a /etc/security/limits.conf
+        echo "ec2-user soft nofile 4096" | tee -a /etc/security/limits.conf
+        echo "ec2-user hard nofile 4096" | tee -a /etc/security/limits.conf
+        echo "ec2-user soft nproc 2048" | tee -a /etc/security/limits.conf
+        echo "ec2-user hard nproc 2048" | tee -a /etc/security/limits.conf
     fi
 
-    log "Prérequis système pour SonarQube configurés avec succès"
+    log "Limites de ressources système configurées avec succès"
     return 0
 }
 
 # Fonction pour créer le fichier docker-compose.yml
 create_docker_compose_file() {
-    log "Création du fichier docker-compose.yml"
+    log "Création du fichier docker-compose.yml (version allégée sans SonarQube)"
     cat > /opt/monitoring/docker-compose.yml << 'EOF'
 version: '3'
 
@@ -162,15 +143,18 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--storage.tsdb.retention.size=1GB'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=500MB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
     restart: always
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
+        max-size: "5m"
+        max-file: "2"
+    mem_limit: 256m
+    cpu_shares: 256
 
   grafana:
     image: grafana/grafana:10.0.3
@@ -184,63 +168,17 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=
     depends_on:
       - prometheus
     restart: always
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-
-  # Base de données PostgreSQL pour SonarQube
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-
-  # SonarQube pour l'analyse de code
-  sonarqube:
-    image: sonarqube:9.9-community
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD}
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 1g
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
+        max-size: "5m"
+        max-file: "2"
+    mem_limit: 256m
+    cpu_shares: 256
 
   # Exportateur CloudWatch pour surveiller les services AWS
   cloudwatch-exporter:
@@ -255,9 +193,10 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256m
+        max-size: "5m"
+        max-file: "2"
+    mem_limit: 128m
+    cpu_shares: 128
 
   # Exportateur MySQL pour surveiller RDS
   mysql-exporter:
@@ -269,16 +208,40 @@ services:
       - DATA_SOURCE_NAME=${RDS_USERNAME}:${RDS_PASSWORD}@(${RDS_HOST}:${RDS_PORT})/
     command:
       - '--collect.info_schema.tables'
-      - '--collect.info_schema.innodb_metrics'
       - '--collect.global_status'
       - '--collect.global_variables'
     restart: always
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256m
+        max-size: "5m"
+        max-file: "2"
+    mem_limit: 128m
+    cpu_shares: 128
+
+  # Node Exporter pour surveiller l'instance EC2
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    mem_limit: 128m
+    cpu_shares: 128
 EOF
 
     log "Fichier docker-compose.yml créé avec succès"
@@ -475,7 +438,7 @@ groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"})
         for: 1m
         labels:
           severity: critical
@@ -484,7 +447,7 @@ groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -493,7 +456,7 @@ groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -502,7 +465,7 @@ groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
         labels:
           severity: warning
         annotations:
@@ -1100,11 +1063,6 @@ export DB_USERNAME="$RDS_USERNAME"
 export DB_PASSWORD="$RDS_PASSWORD"
 export DB_ENDPOINT="$RDS_ENDPOINT"
 
-# Variables SonarQube
-export SONAR_JDBC_USERNAME="$SONAR_JDBC_USERNAME"
-export SONAR_JDBC_PASSWORD="$SONAR_JDBC_PASSWORD"
-export SONAR_JDBC_URL="$SONAR_JDBC_URL"
-
 # Variables Grafana
 export GRAFANA_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
 export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
@@ -1195,7 +1153,7 @@ fi
 
 # Création des répertoires pour les données persistantes
 log "Création des répertoires pour les données persistantes"
-for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config prometheus-rules; do
+for dir in prometheus-data grafana-data cloudwatch-config prometheus-rules; do
     mkdir -p "/opt/monitoring/$dir"
 done
 
@@ -1203,38 +1161,16 @@ done
 chown -R ec2-user:ec2-user /opt/monitoring
 chmod -R 755 /opt/monitoring
 
-# Appliquer les prérequis système pour SonarQube
-log "Application des prérequis système pour SonarQube"
-
-# Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
-if grep -q "vm.max_map_count" /etc/sysctl.conf; then
-    sed -i 's/vm.max_map_count=.*/vm.max_map_count=262144/' /etc/sysctl.conf
-else
-    echo "vm.max_map_count=262144" | tee -a /etc/sysctl.conf
-fi
-sysctl -w vm.max_map_count=262144
-
-# Augmenter la limite de fichiers ouverts
-if grep -q "fs.file-max" /etc/sysctl.conf; then
-    sed -i 's/fs.file-max=.*/fs.file-max=65536/' /etc/sysctl.conf
-else
-    echo "fs.file-max=65536" | tee -a /etc/sysctl.conf
-fi
-sysctl -w fs.file-max=65536
+# Configurer les limites de ressources système
+log "Configuration des limites de ressources système"
 
 # Configurer les limites de ressources pour l'utilisateur ec2-user
 if ! grep -q "ec2-user.*nofile" /etc/security/limits.conf; then
-    echo "ec2-user soft nofile 65536" | tee -a /etc/security/limits.conf
-    echo "ec2-user hard nofile 65536" | tee -a /etc/security/limits.conf
-    echo "ec2-user soft nproc 4096" | tee -a /etc/security/limits.conf
-    echo "ec2-user hard nproc 4096" | tee -a /etc/security/limits.conf
+    echo "ec2-user soft nofile 4096" | tee -a /etc/security/limits.conf
+    echo "ec2-user hard nofile 4096" | tee -a /etc/security/limits.conf
+    echo "ec2-user soft nproc 2048" | tee -a /etc/security/limits.conf
+    echo "ec2-user hard nproc 2048" | tee -a /etc/security/limits.conf
 fi
-
-# Définir les permissions appropriées pour SonarQube
-chown -R 1000:1000 /opt/monitoring/sonarqube-data/data
-chown -R 1000:1000 /opt/monitoring/sonarqube-data/logs
-chown -R 1000:1000 /opt/monitoring/sonarqube-data/extensions
-chown -R 999:999 /opt/monitoring/sonarqube-data/db
 
 # Création du fichier docker-compose.yml
 log "Création du fichier docker-compose.yml"

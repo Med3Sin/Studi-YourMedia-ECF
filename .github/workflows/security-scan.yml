@@ -56,15 +56,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build SonarQube Image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./scripts/docker/sonarqube
-          push: false
-          load: true
-          tags: yourmedia-ecf:sonarqube-scan
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # SonarQube est maintenant déployé sur une instance EC2 dédiée
 
       - name: Scan React Native Image
         run: |
@@ -87,12 +79,7 @@ jobs:
           echo "Prometheus Image Vulnerabilities:"
           trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:prometheus-scan
 
-      - name: Scan SonarQube Image
-        run: |
-          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o sonarqube-scan.html yourmedia-ecf:sonarqube-scan
-          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o sonarqube-scan.json yourmedia-ecf:sonarqube-scan
-          echo "SonarQube Image Vulnerabilities:"
-          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:sonarqube-scan
+      # SonarQube est maintenant déployé sur une instance EC2 dédiée
 
       - name: Upload Scan Results
         uses: actions/upload-artifact@v4
@@ -120,10 +107,7 @@ jobs:
           trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:prometheus-scan >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-          echo "### SonarQube Image" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:sonarqube-scan >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          # SonarQube est maintenant déployé sur une instance EC2 dédiée
 
   scan-code:
     name: Scan Code

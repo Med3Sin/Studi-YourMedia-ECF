@@ -47,7 +47,7 @@ jobs:
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000
+          SONAR_HOST_URL: http://${{ secrets.TF_SONARQUBE_EC2_PUBLIC_IP }}:9000
         run: |
           cd app-java
           mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
@@ -87,7 +87,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000
+          SONAR_HOST_URL: http://${{ secrets.TF_SONARQUBE_EC2_PUBLIC_IP }}:9000
         with:
           projectBaseDir: app-react
           args: >
@@ -101,6 +101,6 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000
+          SONAR_HOST_URL: http://${{ secrets.TF_SONARQUBE_EC2_PUBLIC_IP }}:9000
         with:
           scanMetadataReportFile: app-react/.scannerwork/report-task.txt

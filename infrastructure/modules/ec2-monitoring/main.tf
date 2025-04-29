@@ -279,9 +279,7 @@ export DB_PASSWORD="${var.db_password}"
 export RDS_ENDPOINT="${var.rds_endpoint}"
 export RDS_USERNAME="${var.db_username}"
 export RDS_PASSWORD="${var.db_password}"
-export SONAR_JDBC_USERNAME="${var.sonar_jdbc_username}"
-export SONAR_JDBC_PASSWORD="${var.sonar_jdbc_password}"
-export SONAR_JDBC_URL="${var.sonar_jdbc_url}"
+# Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
 export GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
 export DOCKER_USERNAME="${var.docker_username}"
 export DOCKER_REPO="${var.docker_repo}"
@@ -315,10 +313,8 @@ else
     sudo mkdir -p /opt/monitoring/secure
     sudo mkdir -p /opt/monitoring/prometheus-data
     sudo mkdir -p /opt/monitoring/grafana-data
-    sudo mkdir -p /opt/monitoring/sonarqube-data/data
-    sudo mkdir -p /opt/monitoring/sonarqube-data/logs
-    sudo mkdir -p /opt/monitoring/sonarqube-data/extensions
-    sudo mkdir -p /opt/monitoring/sonarqube-data/db
+    sudo mkdir -p /opt/monitoring/cloudwatch-config
+    sudo mkdir -p /opt/monitoring/prometheus-rules
 
     # Définir les permissions
     sudo chmod 755 /opt/monitoring
@@ -379,7 +375,6 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
 echo "Grafana est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
 echo "Prometheus est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9090"
-echo "SonarQube est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9000"
 EOF
 
   tags = {
@@ -485,47 +480,7 @@ resource "null_resource" "provision_monitoring" {
   depends_on = [aws_instance.monitoring_instance]
 }
 
-# Génération et stockage du token SonarQube
-resource "null_resource" "generate_sonar_token" {
-  # Créer cette ressource uniquement si le provisionnement est activé
-  count = var.enable_provisioning ? 1 : 0
-
-  # Dépend de l'instance EC2 de monitoring
-  depends_on = [aws_instance.monitoring_instance]
-
-  # Déclencher uniquement lorsque l'instance est créée ou modifiée
-  triggers = {
-    instance_id = aws_instance.monitoring_instance.id
-  }
-
-  # Copie du script de génération du token SonarQube
-  provisioner "file" {
-    source      = "${path.module}/../../scripts/ec2-monitoring/generate_sonar_token.sh"
-    destination = "/tmp/generate_sonar_token.sh"
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      host        = aws_instance.monitoring_instance.public_ip
-      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
-    }
-  }
-
-  # Exécution du script de génération du token SonarQube
-  provisioner "remote-exec" {
-    inline = [
-      "sudo chmod +x /tmp/generate_sonar_token.sh",
-      "sudo /tmp/generate_sonar_token.sh ${aws_instance.monitoring_instance.public_ip} ${var.tf_api_token} ${var.tf_workspace_id}"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      host        = aws_instance.monitoring_instance.public_ip
-      private_key = var.ssh_private_key_content != "" ? var.ssh_private_key_content : file(var.ssh_private_key_path)
-    }
-  }
-}
+# La ressource null_resource.generate_sonar_token a été supprimée car SonarQube est maintenant déployé sur une instance EC2 dédiée
 
 # -----------------------------------------------------------------------------
 # Data Sources

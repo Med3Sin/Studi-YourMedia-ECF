@@ -74,11 +74,12 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 
 * **Compute:**
     * AWS EC2 (t2.micro) pour héberger l'API backend Java Spring Boot sur un serveur Tomcat.
-    * AWS EC2 (t2.micro) pour exécuter les conteneurs Docker de monitoring (Prometheus, Grafana, SonarQube) et l'application mobile React Native tout en restant dans les limites du Free Tier.
+    * AWS EC2 (t2.micro) pour exécuter les conteneurs Docker de monitoring (Prometheus, Grafana) et l'application mobile React Native.
+    * AWS EC2 (t2.small) pour héberger SonarQube sur une instance dédiée.
 * **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 * **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 * **Réseau:** Utilisation d'un VPC dédié avec des groupes de sécurité spécifiques pour contrôler les flux.
-* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native (remplaçant l'ancienne approche basée sur AWS Amplify) et les services de monitoring (Prometheus, Grafana, SonarQube).
+* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native (remplaçant l'ancienne approche basée sur AWS Amplify) et les services de monitoring (Prometheus, Grafana).
 * **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 * **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), l'analyse de qualité du code avec SonarQube, et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
 * **Gestion des scripts:** Tous les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication.
@@ -159,10 +160,9 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── s3/                  # Bucket S3
 │       │   ├── files/            # Fichiers à stocker dans le bucket S3
 │       │   └── ... (main.tf, variables.tf, outputs.tf)
-│       ├── secrets-management/  # Gestion des secrets
+│       ├── ec2-monitoring/      # Monitoring avec Docker sur EC2
 │       │   └── ... (main.tf, variables.tf, outputs.tf)
-│       └── ec2-monitoring/      # Monitoring avec Docker sur EC2
-│           ├── scripts/          # Scripts pour Prometheus, Grafana, SonarQube et React Native
+│       └── ec2-sonarqube/       # Instance EC2 dédiée pour SonarQube
 │           └── ... (main.tf, variables.tf, outputs.tf)
 ├── scripts/                     # Scripts utilitaires organisés par catégorie
 │   ├── database/                # Scripts liés à la base de données
@@ -176,11 +176,12 @@ Avant de commencer, assurez-vous d'avoir :
 │   ├── ec2-monitoring/          # Scripts liés à l'instance EC2 de monitoring
 │   │   ├── setup.sh             # Script principal d'installation et de configuration
 │   │   ├── fix_permissions.sh   # Script de correction des permissions des volumes
-│   │   ├── generate_sonar_token.sh # Script de génération du token SonarQube
 │   │   ├── init-instance.sh     # Script d'initialisation de l'instance
 │   │   ├── docker-compose.yml   # Configuration des conteneurs Docker
 │   │   ├── prometheus.yml       # Configuration de Prometheus
 │   │   └── cloudwatch-config.yml # Configuration de CloudWatch Exporter
+│   ├── ec2-sonarqube/           # Scripts liés à l'instance EC2 de SonarQube
+│   │   └── setup-sonarqube.sh   # Script d'installation et de configuration de SonarQube
 │   └── utils/                   # Scripts utilitaires génériques
 │       ├── fix-ssh-keys.sh      # Script de correction des clés SSH
 │       ├── ssh-key-checker.service # Service systemd pour vérifier les clés SSH
@@ -202,8 +203,10 @@ L'infrastructure est organisée en modules réutilisables pour faciliter la main
 - **ec2-java-tomcat** : Provisionne l'instance EC2 pour le backend Java/Tomcat.
 - **rds-mysql** : Crée et configure la base de données RDS MySQL.
 - **s3** : Gère le bucket S3 pour le stockage des médias et des artefacts.
-- **ec2-monitoring** : Déploie l'instance EC2 pour le monitoring et les conteneurs Docker (Prometheus, Grafana, SonarQube, React Native).
-- **secrets-management** : Gère les secrets de l'application via Terraform Cloud.
+- **ec2-monitoring** : Déploie l'instance EC2 pour le monitoring et les conteneurs Docker (Prometheus, Grafana, React Native).
+- **ec2-sonarqube** : Déploie une instance EC2 dédiée pour SonarQube.
+
+**Note :** Le module **secrets-management** a été supprimé pour simplifier le projet. Dans un environnement de production, il est recommandé d'utiliser un module de gestion des secrets pour stocker et gérer les informations sensibles de manière sécurisée.
 
 ### Déploiement/Destruction de l'Infrastructure
 

@@ -37,13 +37,13 @@ variable "subnet_id" {
 variable "instance_type" {
   description = "Type d'instance EC2 pour le monitoring."
   type        = string
-  default     = "t3.medium"
+  default     = "t2.micro"
 }
 
 variable "root_volume_size" {
   description = "Taille du volume racine en Go."
   type        = number
-  default     = 50
+  default     = 20
 }
 
 variable "allowed_cidr_blocks" {
@@ -156,25 +156,7 @@ variable "rds_endpoint" {
   default     = ""
 }
 
-variable "sonar_jdbc_username" {
-  description = "Nom d'utilisateur pour la base de données SonarQube."
-  type        = string
-  default     = "sonar"
-  sensitive   = true
-}
-
-variable "sonar_jdbc_password" {
-  description = "Mot de passe pour la base de données SonarQube."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "sonar_jdbc_url" {
-  description = "URL de connexion à la base de données SonarQube."
-  type        = string
-  default     = "jdbc:postgresql://sonarqube-db:5432/sonar"
-}
+# Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
 
 variable "grafana_admin_password" {
   description = "Mot de passe administrateur Grafana."
