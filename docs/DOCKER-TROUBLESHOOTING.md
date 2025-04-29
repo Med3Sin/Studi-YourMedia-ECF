@@ -165,38 +165,7 @@ Pour vérifier que Docker est correctement installé et fonctionne :
 
 ## Problèmes spécifiques aux conteneurs
 
-### 1. SonarQube ne démarre pas (erreur 137)
 
-**Symptômes** : Le conteneur SonarQube redémarre constamment avec le code d'erreur 137 (Out Of Memory).
-
-**Solution** :
-1. Vérifiez les logs du conteneur :
-   ```bash
-   docker logs sonarqube
-   ```
-
-2. Vérifiez la configuration système pour Elasticsearch :
-   ```bash
-   sysctl -n vm.max_map_count
-   ```
-
-3. Augmentez la limite de mmap count :
-   ```bash
-   sudo sysctl -w vm.max_map_count=262144
-   echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-   ```
-
-4. Limitez la mémoire utilisée par Elasticsearch dans le fichier docker-compose.yml :
-   ```yaml
-   environment:
-     - SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m
-   ```
-
-5. Redémarrez le conteneur :
-   ```bash
-   cd /opt/monitoring
-   docker-compose restart sonarqube
-   ```
 
 ### 2. MySQL Exporter ne démarre pas
 

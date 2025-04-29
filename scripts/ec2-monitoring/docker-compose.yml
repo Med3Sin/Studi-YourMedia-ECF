@@ -48,8 +48,8 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-  # Note: SonarQube a été supprimé pour simplifier le projet
-  # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
+
+
 
   # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
   cloudwatch-exporter:

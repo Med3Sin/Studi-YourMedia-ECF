@@ -86,7 +86,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
       # Install Trivy scanner for security scanning
       - name: Install Trivy scanner
@@ -111,7 +111,7 @@ jobs:
             echo "Scanning Prometheus image..."
             trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }} > prometheus-scan.txt
 
-            # SonarQube est maintenant déployé sur une instance EC2 dédiée
+
           fi
 
       # Test Docker image health checks
@@ -180,7 +180,7 @@ jobs:
             docker stop prometheus-test
             docker rm prometheus-test
 
-            # SonarQube est maintenant déployé sur une instance EC2 dédiée
+
           fi
 
       - name: Summary
@@ -202,7 +202,7 @@ jobs:
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Grafana Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-            # SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
             echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
@@ -210,7 +210,7 @@ jobs:
             cat grafana-scan.txt >> $GITHUB_STEP_SUMMARY
             echo "\n=== Prometheus Scan ===" >> $GITHUB_STEP_SUMMARY
             cat prometheus-scan.txt >> $GITHUB_STEP_SUMMARY
-            # SonarQube est maintenant déployé sur une instance EC2 dédiée
+
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -280,7 +280,6 @@ jobs:
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
-            echo "* **SonarQube URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9000" >> $GITHUB_STEP_SUMMARY
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
@@ -352,7 +351,6 @@ jobs:
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "* **Monitoring URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:9090" >> $GITHUB_STEP_SUMMARY
-            # SonarQube a été supprimé pour simplifier le projet
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then

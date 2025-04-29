@@ -25,7 +25,7 @@
 #   - RDS_ENDPOINT   : Endpoint RDS
 #   - RDS_USERNAME   : Nom d'utilisateur RDS
 #   - RDS_PASSWORD   : Mot de passe RDS
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
+
 #   - GRAFANA_ADMIN_PASSWORD : Mot de passe administrateur Grafana
 #   - DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
 #   - DOCKERHUB_TOKEN : Token Docker Hub
@@ -244,7 +244,7 @@ fi
 
     # Télécharger les fichiers de configuration
     download_script "scripts/ec2-monitoring/cloudwatch-config.yml" "/opt/monitoring/cloudwatch-config.yml" false
-    # Note: Le script configure-sonarqube.sh a été supprimé car SonarQube a été retiré du projet
+
 else
     log "Le bucket S3 n'est pas accessible, création de scripts par défaut"
 
@@ -348,8 +348,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
     restart: always
 
-  # Note: SonarQube a été supprimé pour simplifier le projet
-  # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
+
+
 EOF'
 
     # Créer un fichier prometheus.yml par défaut
@@ -373,7 +373,7 @@ sudo chmod +x /opt/monitoring/docker-manager.sh
 if [ -f "/opt/monitoring/get-aws-resources-info.sh" ]; then
     sudo chmod +x /opt/monitoring/get-aws-resources-info.sh
 fi
-# Note: Le script configure-sonarqube.sh a été supprimé car SonarQube a été retiré du projet
+
 
 # Copier docker-manager.sh dans /usr/local/bin/
 log "Copie de docker-manager.sh dans /usr/local/bin/"
@@ -406,7 +406,7 @@ export RDS_HOST="\$(cat /opt/monitoring/secure/rds_host.txt 2>/dev/null || echo 
 export RDS_PORT="\$(cat /opt/monitoring/secure/rds_port.txt 2>/dev/null || echo "${RDS_PORT}")"
 # Variables de compatibilité (pour les scripts existants)
 export DB_USERNAME="\$RDS_USERNAME"
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
+
 # Variables S3
 export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
 # Variables Docker Hub (références sécurisées)
@@ -422,7 +422,7 @@ cat > /tmp/sensitive-env.sh << EOF
 # Variables sensibles
 export RDS_PASSWORD="${RDS_PASSWORD}"
 export DB_PASSWORD="\$RDS_PASSWORD"
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
+
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}"
 export GF_SECURITY_ADMIN_PASSWORD="\$GRAFANA_ADMIN_PASSWORD"
 export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN}"
@@ -441,7 +441,7 @@ echo "${RDS_USERNAME}" | sudo tee /opt/monitoring/secure/rds_username.txt > /dev
 echo "${RDS_ENDPOINT}" | sudo tee /opt/monitoring/secure/rds_endpoint.txt > /dev/null
 echo "${RDS_HOST}" | sudo tee /opt/monitoring/secure/rds_host.txt > /dev/null
 echo "${RDS_PORT}" | sudo tee /opt/monitoring/secure/rds_port.txt > /dev/null
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube a été retiré du projet
+
 echo "${DOCKERHUB_USERNAME}" | sudo tee /opt/monitoring/secure/dockerhub_username.txt > /dev/null
 echo "${DOCKER_REPO:-yourmedia-ecf}" | sudo tee /opt/monitoring/secure/docker_repo.txt > /dev/null
 
@@ -636,8 +636,7 @@ cat > /opt/monitoring/mysql-exporter-fix.yml << EOF2
     cpu_shares: 256
 EOF2
 
-# 3. Corriger le problème de SonarQube (Elasticsearch)
-log "Correction du problème de SonarQube (Elasticsearch)..."
+
 
 # Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
 log "Augmentation de la limite de mmap count..."
@@ -670,23 +669,7 @@ if ! grep -q "ec2-user.*nproc" /etc/security/limits.conf; then
     echo "ec2-user hard nproc 4096" >> /etc/security/limits.conf
 fi
 
-# Créer les répertoires pour SonarQube s'ils n'existent pas
-log "Création des répertoires pour SonarQube..."
-mkdir -p /opt/monitoring/sonarqube-data/data
-mkdir -p /opt/monitoring/sonarqube-data/logs
-mkdir -p /opt/monitoring/sonarqube-data/extensions
-mkdir -p /opt/monitoring/sonarqube-data/db
 
-# Définir les permissions appropriées pour SonarQube
-log "Configuration des permissions pour SonarQube..."
-chown -R 999:999 /opt/monitoring/sonarqube-data/data
-chown -R 999:999 /opt/monitoring/sonarqube-data/logs
-chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
-chown -R 999:999 /opt/monitoring/sonarqube-data/db
-chmod -R 755 /opt/monitoring/sonarqube-data/data
-chmod -R 755 /opt/monitoring/sonarqube-data/logs
-chmod -R 755 /opt/monitoring/sonarqube-data/extensions
-chmod -R 700 /opt/monitoring/sonarqube-data/db
 
 # 4. Mettre à jour le fichier docker-compose.yml
 log "Mise à jour du fichier docker-compose.yml..."
@@ -705,9 +688,7 @@ if [ -f "/opt/monitoring/docker-compose.yml" ]; then
     log "Mise à jour de la section cloudwatch-exporter dans docker-compose.yml..."
     sed -i "/cloudwatch-exporter:/,/cpu_shares: 256/c\\  cloudwatch-exporter:\\n    image: prom/cloudwatch-exporter:latest\\n    container_name: cloudwatch-exporter\\n    ports:\\n      - \\"9106:9106\\"\\n    volumes:\\n      - /opt/monitoring/cloudwatch-config:/config\\n    command:\\n      - --config.file=/config/cloudwatch-config.yml\\n    restart: always\\n    logging:\\n      driver: \\"json-file\\"\\n      options:\\n        max-size: \\"10m\\"\\n        max-file: \\"3\\"\\n    mem_limit: 256m\\n    cpu_shares: 256" /opt/monitoring/docker-compose.yml
 
-    # Mettre à jour la section sonarqube dans docker-compose.yml pour réduire la mémoire initiale d'Elasticsearch
-    log "Mise à jour de la section sonarqube dans docker-compose.yml..."
-    sed -i "s/SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m/SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m/" /opt/monitoring/docker-compose.yml
+
 fi
 
 log "Correction des conteneurs terminée avec succès."
@@ -800,8 +781,7 @@ cat > /opt/monitoring/mysql-exporter-fix.yml << EOF2
     cpu_shares: 256
 EOF2
 
-# 3. Corriger le problème de SonarQube (Elasticsearch)
-log "Correction du problème de SonarQube (Elasticsearch)..."
+
 
 # Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
 log "Augmentation de la limite de mmap count..."
@@ -834,23 +814,7 @@ if ! grep -q "ec2-user.*nproc" /etc/security/limits.conf; then
     echo "ec2-user hard nproc 4096" >> /etc/security/limits.conf
 fi
 
-# Créer les répertoires pour SonarQube s'ils n'existent pas
-log "Création des répertoires pour SonarQube..."
-mkdir -p /opt/monitoring/sonarqube-data/data
-mkdir -p /opt/monitoring/sonarqube-data/logs
-mkdir -p /opt/monitoring/sonarqube-data/extensions
-mkdir -p /opt/monitoring/sonarqube-data/db
 
-# Définir les permissions appropriées pour SonarQube
-log "Configuration des permissions pour SonarQube..."
-chown -R 999:999 /opt/monitoring/sonarqube-data/data
-chown -R 999:999 /opt/monitoring/sonarqube-data/logs
-chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
-chown -R 999:999 /opt/monitoring/sonarqube-data/db
-chmod -R 755 /opt/monitoring/sonarqube-data/data
-chmod -R 755 /opt/monitoring/sonarqube-data/logs
-chmod -R 755 /opt/monitoring/sonarqube-data/extensions
-chmod -R 700 /opt/monitoring/sonarqube-data/db
 
 # 4. Mettre à jour le fichier docker-compose.yml
 log "Mise à jour du fichier docker-compose.yml..."
@@ -869,9 +833,7 @@ if [ -f "/opt/monitoring/docker-compose.yml" ]; then
     log "Mise à jour de la section cloudwatch-exporter dans docker-compose.yml..."
     sed -i "/cloudwatch-exporter:/,/cpu_shares: 256/c\\  cloudwatch-exporter:\\n    image: prom/cloudwatch-exporter:latest\\n    container_name: cloudwatch-exporter\\n    ports:\\n      - \\"9106:9106\\"\\n    volumes:\\n      - /opt/monitoring/cloudwatch-config:/config\\n    command:\\n      - --config.file=/config/cloudwatch-config.yml\\n    restart: always\\n    logging:\\n      driver: \\"json-file\\"\\n      options:\\n        max-size: \\"10m\\"\\n        max-file: \\"3\\"\\n    mem_limit: 256m\\n    cpu_shares: 256" /opt/monitoring/docker-compose.yml
 
-    # Mettre à jour la section sonarqube dans docker-compose.yml pour réduire la mémoire initiale d'Elasticsearch
-    log "Mise à jour de la section sonarqube dans docker-compose.yml..."
-    sed -i "s/SONAR_ES_JAVA_OPTS=-Xms512m -Xmx512m/SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m/" /opt/monitoring/docker-compose.yml
+
 fi
 
 log "Correction des conteneurs terminée avec succès."
@@ -979,7 +941,7 @@ fi
 
 # Vérifier si les conteneurs sont en cours d'exécution
 log "Vérification des conteneurs en cours d'exécution..."
-RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana|sonarqube" --format "{{.Names}}" | wc -l)
+RUNNING_CONTAINERS=$(sudo docker ps --filter "name=prometheus|grafana" --format "{{.Names}}" | wc -l)
 log "Nombre de conteneurs en cours d'exécution: $RUNNING_CONTAINERS"
 
 log "Initialisation terminée avec succès"

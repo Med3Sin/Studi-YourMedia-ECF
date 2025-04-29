@@ -16,7 +16,7 @@ Ce dossier contient tous les scripts utilisés dans le projet YourMedia, organis
     - **provisioning/** : Configuration de provisionnement Grafana
   - **prometheus/** : Configuration pour le conteneur Prometheus
     - **rules/** : Règles d'alerte Prometheus
-  - **sonarqube/** : Configuration pour le conteneur SonarQube
+
   - **monitoring/** : Configuration Docker Compose pour les services de monitoring
 
 - **ec2-java-tomcat/** : Scripts pour l'instance EC2 Java/Tomcat
@@ -28,7 +28,7 @@ Ce dossier contient tous les scripts utilisés dans le projet YourMedia, organis
 - **ec2-monitoring/** : Scripts pour l'instance EC2 de monitoring
   - `setup.sh` : Script de configuration initiale de l'instance
   - `fix_permissions.sh` : Script pour corriger les permissions des fichiers
-  - `generate_sonar_token.sh` : Script pour générer un token SonarQube
+
   - `init-instance-env.sh` : Script d'initialisation de l'instance avec les variables d'environnement
   - `docker-compose.yml` : Configuration Docker Compose pour les services de monitoring
   - `prometheus.yml` : Configuration Prometheus
@@ -177,14 +177,11 @@ Pour assurer la cohérence et la maintenabilité du code, les variables d'enviro
 ### Variables Grafana
 - **GRAFANA_ADMIN_PASSWORD** : Mot de passe administrateur Grafana (alias: GF_SECURITY_ADMIN_PASSWORD)
 
-### Variables SonarQube
-- **SONAR_JDBC_USERNAME** : Nom d'utilisateur pour la base de données SonarQube
-- **SONAR_JDBC_PASSWORD** : Mot de passe pour la base de données SonarQube
-- **SONAR_JDBC_URL** : URL JDBC pour la base de données SonarQube
+
 
 ### Variables GitHub
-- **GITHUB_CLIENT_ID** : ID client GitHub pour SonarQube
-- **GITHUB_CLIENT_SECRET** : Secret client GitHub pour SonarQube
+- **GITHUB_CLIENT_ID** : ID client GitHub (non utilisé actuellement)
+- **GITHUB_CLIENT_SECRET** : Secret client GitHub (non utilisé actuellement)
 
 ### Variables Tomcat
 - **TOMCAT_VERSION** : Version de Tomcat à installer

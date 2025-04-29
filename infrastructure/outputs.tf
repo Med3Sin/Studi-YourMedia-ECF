@@ -25,8 +25,8 @@ output "s3_bucket_name" {
   value       = module.s3.bucket_name
 }
 
-# Note: L'output amplify_app_url a été supprimé car nous utilisons maintenant des conteneurs Docker
-# pour le déploiement du frontend React Native.
+
+
 
 output "monitoring_ec2_public_ip" {
   description = "Adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus."

@@ -161,7 +161,7 @@ jobs:
 
 Fichier: `.github/workflows/3-frontend-deploy.yml`
 
-Ce workflow gère le déploiement de l'application frontend React sur AWS Amplify.
+Ce workflow gère le déploiement de l'application frontend React dans des conteneurs Docker.
 
 ```yaml
 name: 3-Frontend-Deploy
@@ -337,7 +337,7 @@ CloudWatch est utilisé pour collecter les métriques AWS natives. Un exportateu
 * **EC2** : CPU, mémoire, disque, réseau
 * **RDS** : CPU, mémoire, connexions, IOPS
 * **S3** : Nombre d'objets, taille du bucket
-* **Amplify** : Requêtes, erreurs
+* **Conteneurs Docker** : Requêtes, erreurs
 
 ### Alertes
 
@@ -556,7 +556,7 @@ Error: creating IAM Instance Profile (yourmedia-dev-ec2-profile): operation erro
 **Solutions** :
 1. Vérifier les logs du workflow pour identifier l'erreur
 2. Vérifier que le bucket S3 est accessible
-3. Vérifier que Amplify est correctement configuré
+3. Vérifier que les conteneurs Docker sont correctement configurés
 
 #### 4. Problèmes de connexion à la base de données
 

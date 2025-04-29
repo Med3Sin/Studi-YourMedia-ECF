@@ -54,7 +54,7 @@
 #   - RDS_USERNAME / DB_USERNAME : Nom d'utilisateur RDS
 #   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
 #   - RDS_ENDPOINT / DB_ENDPOINT / TF_RDS_ENDPOINT : Point de terminaison RDS
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 #==============================================================================
 # Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root pour certaines opérations.
 #==============================================================================
@@ -149,7 +149,7 @@ else
     export RDS_PORT="3306"
 fi
 
-# Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
 # Déterminer le chemin absolu du répertoire racine du projet
 # Obtenir le chemin absolu du répertoire contenant ce script
@@ -220,7 +220,7 @@ show_help() {
     echo ""
     echo "Cibles:"
     echo "  mobile     - Application mobile React Native"
-    echo "  monitoring - Services de monitoring (Grafana, Prometheus, SonarQube)"
+    echo "  monitoring - Services de monitoring (Grafana, Prometheus)"
     echo "  all        - Toutes les cibles"
     echo ""
     echo "Options pour backup/restore:"
@@ -329,7 +329,7 @@ check_deploy_vars() {
             log_error "Les informations de connexion à la base de données ne sont pas complètes. Veuillez définir les variables RDS_USERNAME (DB_USERNAME), RDS_PASSWORD (DB_PASSWORD) et RDS_ENDPOINT (TF_RDS_ENDPOINT)."
         fi
 
-        # Note: Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
     fi
 }
 
@@ -387,7 +387,7 @@ build_push_monitoring() {
     docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION || log_error "Échec de la publication de l'image Prometheus (version)"
     docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest || log_error "Échec de la publication de l'image Prometheus (latest)"
 
-    # Note: Les images liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
     log_success "Images de monitoring publiées avec succès!"
 }
@@ -501,53 +501,8 @@ services:
     mem_limit: 256m
     cpu_shares: 256
 
-  # SonarQube pour l'analyse de qualité du code
-  sonarqube:
-    image: $DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://sonarqube-db:5432/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
-      - GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID
-      - GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET
-    volumes:
-      - /opt/monitoring/sonarqube-data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-extensions:/opt/sonarqube/extensions
-      - /opt/monitoring/sonarqube-logs:/opt/sonarqube/logs
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 1024m
-    cpu_shares: 1024
 
-  # Base de données PostgreSQL pour SonarQube
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-$(openssl rand -base64 16)}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
+
 
   # Node Exporter pour la surveillance du système
   node-exporter:

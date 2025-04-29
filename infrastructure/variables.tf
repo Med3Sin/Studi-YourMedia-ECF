@@ -168,7 +168,7 @@ variable "grafana_admin_password" {
   sensitive   = true
 }
 
-# Les variables liées à SonarQube ont été déplacées dans le module ec2-sonarqube
+
 
 variable "dockerhub_username" {
   description = "Nom d'utilisateur Docker Hub pour l'authentification."

@@ -97,16 +97,7 @@ else
     sudo chmod -R 755 /opt/monitoring/prometheus-data
     sudo chown -R 472:472 /opt/monitoring/grafana-data
     sudo chmod -R 755 /opt/monitoring/grafana-data
-    if [ -d "/opt/monitoring/sonarqube-data" ]; then
-        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/data
-        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/logs
-        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/extensions
-        sudo chown -R 999:999 /opt/monitoring/sonarqube-data/db
-        sudo chmod -R 755 /opt/monitoring/sonarqube-data/data
-        sudo chmod -R 755 /opt/monitoring/sonarqube-data/logs
-        sudo chmod -R 755 /opt/monitoring/sonarqube-data/extensions
-        sudo chmod -R 700 /opt/monitoring/sonarqube-data/db
-    fi
+
 fi
 
 # Démarrer les conteneurs
@@ -118,14 +109,14 @@ log "Vérification du statut des conteneurs..."
 docker ps
 
 # Vérifier si tous les conteneurs sont en cours d'exécution
-EXPECTED_CONTAINERS=6  # prometheus, grafana, sonarqube, sonarqube-db, cloudwatch-exporter, mysql-exporter
-RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|sonarqube|cloudwatch-exporter|mysql-exporter" --format "{{.Names}}" | wc -l)
+EXPECTED_CONTAINERS=4  # prometheus, grafana, cloudwatch-exporter, mysql-exporter
+RUNNING_CONTAINERS=$(docker ps --filter "name=prometheus|grafana|cloudwatch-exporter|mysql-exporter" --format "{{.Names}}" | wc -l)
 
 if [ "$RUNNING_CONTAINERS" -lt "$EXPECTED_CONTAINERS" ]; then
     log "AVERTISSEMENT: Certains conteneurs ne sont pas en cours d'exécution. Vérifiez les logs pour plus d'informations."
     docker ps -a
     log "Logs des conteneurs qui ont échoué:"
-    for container in prometheus grafana sonarqube sonarqube-db cloudwatch-exporter mysql-exporter; do
+    for container in prometheus grafana cloudwatch-exporter mysql-exporter; do
         if ! docker ps --filter "name=$container" --format "{{.Names}}" | grep -q "$container"; then
             log "Logs du conteneur $container:"
             docker logs $container 2>&1 | tail -n 20
@@ -138,6 +129,6 @@ fi
 log "Redémarrage des conteneurs terminé avec succès."
 log "Grafana est accessible à l'adresse http://localhost:3000"
 log "Prometheus est accessible à l'adresse http://localhost:9090"
-log "SonarQube est accessible à l'adresse http://localhost:9000"
+
 
 exit 0

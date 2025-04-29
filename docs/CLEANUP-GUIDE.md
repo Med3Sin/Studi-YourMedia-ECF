@@ -117,7 +117,7 @@ Si certaines ressources AWS persistent après l'exécution du workflow de destru
 3. **S3** : Videz et supprimez les buckets S3 restants
 4. **IAM** : Supprimez les rôles et profils IAM restants
 5. **VPC** : Supprimez les VPC, sous-réseaux, groupes de sécurité, et passerelles Internet restants
-6. **Amplify** : Supprimez les applications Amplify restantes
+6. **Conteneurs Docker** : Supprimez les conteneurs Docker restants
 
 ## Vérification du nettoyage
 

@@ -704,7 +704,7 @@ check_containers() {
 
     log "Vérification des répertoires de données..."
     local missing_dirs=0
-    for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config; do
+    for dir in prometheus-data grafana-data cloudwatch-config; do
         if [ ! -d "/opt/monitoring/$dir" ]; then
             log "❌ Le répertoire /opt/monitoring/$dir n'existe pas"
             missing_dirs=1
@@ -714,7 +714,7 @@ check_containers() {
     if [ $missing_dirs -eq 1 ]; then
         if [ "$fix_issues" = "true" ]; then
             log "Création des répertoires manquants..."
-            for dir in prometheus-data grafana-data sonarqube-data/data sonarqube-data/logs sonarqube-data/extensions sonarqube-data/db cloudwatch-config; do
+            for dir in prometheus-data grafana-data cloudwatch-config; do
                 mkdir -p "/opt/monitoring/$dir"
             done
             log "✅ Répertoires créés avec succès"
@@ -841,9 +841,9 @@ check_containers() {
     fi
 
     log "Vérification des conteneurs Docker..."
-    local running_containers=$(docker ps --format "{{.Names}}" | grep -E "prometheus|grafana|sonarqube|mysql-exporter|cloudwatch-exporter" | wc -l)
-    if [ $running_containers -lt 5 ]; then
-        log "❌ Certains conteneurs ne sont pas en cours d'exécution ($running_containers/5)"
+    local running_containers=$(docker ps --format "{{.Names}}" | grep -E "prometheus|grafana|mysql-exporter|cloudwatch-exporter" | wc -l)
+    if [ $running_containers -lt 4 ]; then
+        log "❌ Certains conteneurs ne sont pas en cours d'exécution ($running_containers/4)"
         if [ "$fix_issues" = "true" ]; then
             log "Démarrage des conteneurs..."
             start_containers
@@ -862,7 +862,7 @@ check_containers() {
 
     log "Vérification des ports..."
     local missing_ports=0
-    for port in 9090 3000 9000 9104 9106; do
+    for port in 9090 3000 9104 9106; do
         if ! netstat -tuln | grep -q ":$port"; then
             log "❌ Le port $port n'est pas ouvert"
             missing_ports=1
@@ -878,7 +878,7 @@ check_containers() {
 
             # Vérifier à nouveau les ports
             missing_ports=0
-            for port in 9090 3000 9000 9104 9106; do
+            for port in 9090 3000 9104 9106; do
                 if ! netstat -tuln | grep -q ":$port"; then
                     log "❌ Le port $port n'est toujours pas ouvert"
                     missing_ports=1
@@ -902,7 +902,7 @@ check_containers() {
     log "Résumé de la vérification des conteneurs:"
     log "- Docker installé: $(command -v docker &> /dev/null && echo "Oui" || echo "Non")"
     log "- Docker Compose installé: $(command -v docker-compose &> /dev/null && echo "Oui" || echo "Non")"
-    log "- Conteneurs en cours d'exécution: $running_containers/5"
+    log "- Conteneurs en cours d'exécution: $running_containers/4"
     log "- Ports ouverts: $([ $missing_ports -eq 0 ] && echo "Tous" || echo "Certains manquants")"
 
     return $status
@@ -988,10 +988,7 @@ fi
 export GRAFANA_ADMIN_PASSWORD
 export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
 
-# Variables SonarQube - Standardisation sur SONAR_*
-export SONAR_JDBC_USERNAME="${SONAR_JDBC_USERNAME:-sonar}"
-export SONAR_JDBC_PASSWORD="${SONAR_JDBC_PASSWORD:-sonar123}"
-export SONAR_JDBC_URL="${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}"
+
 
 # Variables Docker - Standardisation sur DOCKERHUB_*
 export DOCKERHUB_USERNAME="${DOCKERHUB_USERNAME:-medsin}"
@@ -1221,53 +1218,7 @@ services:
         max-file: "3"
     mem_limit: 512m
 
-  # Base de données PostgreSQL pour SonarQube
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
 
-  # SonarQube pour l'analyse de code
-  sonarqube:
-    image: sonarqube:9.9-community
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD}
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 1g
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
 
   # Exportateur CloudWatch pour surveiller les services AWS
   cloudwatch-exporter:
@@ -1477,7 +1428,7 @@ groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"})
         for: 1m
         labels:
           severity: critical
@@ -1486,7 +1437,7 @@ groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -1495,7 +1446,7 @@ groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -1504,7 +1455,7 @@ groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
         labels:
           severity: warning
         annotations:
@@ -1737,7 +1688,7 @@ case $MODE in
                 log "✅ Installation et configuration terminées avec succès."
                 log "Grafana est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:3000"
                 log "Prometheus est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9090"
-                log "SonarQube est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9000"
+
                 exit 0
             else
                 log "❌ Des problèmes ont été détectés et n'ont pas pu être corrigés automatiquement."
@@ -1777,7 +1728,7 @@ case $MODE in
                 log "✅ Installation et configuration terminées avec succès."
                 log "Grafana est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:3000"
                 log "Prometheus est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9090"
-                log "SonarQube est accessible à l'adresse http://$EC2_INSTANCE_PUBLIC_IP:9000"
+
                 exit 0
             else
                 log "❌ L'installation a échoué. Veuillez vérifier les journaux."

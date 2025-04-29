@@ -19,13 +19,12 @@ Ce document explique comment gérer les conteneurs Docker dans le projet YourMed
 Le projet YourMedia utilise Docker pour conteneuriser les applications et services suivants :
 
 ### Application
-- **app-mobile** : Application React Native pour mobile (remplace l'ancien frontend React sur Amplify)
+- **app-mobile** : Application React Native pour mobile
 
 ### Monitoring et qualité du code
 - **prometheus** : Collecte et stockage des métriques
 - **grafana** : Visualisation des métriques
-- **sonarqube** : Analyse de la qualité du code
-- **sonarqube-db** : Base de données PostgreSQL pour SonarQube
+
 - **node-exporter** : Collecte des métriques système
 - **mysql-exporter** : Collecte des métriques MySQL
 - **cloudwatch-exporter** : Collecte des métriques AWS CloudWatch
@@ -43,7 +42,7 @@ Les images suivantes sont disponibles :
 - `medsin/yourmedia-ecf:mobile-latest` - Application mobile React Native
 - `medsin/yourmedia-ecf:grafana-latest` - Grafana avec dashboards préconfigurés
 - `medsin/yourmedia-ecf:prometheus-latest` - Prometheus avec configuration personnalisée
-- `medsin/yourmedia-ecf:sonarqube-latest` - SonarQube avec plugins supplémentaires
+
 
 ## Script de gestion Docker
 
@@ -68,7 +67,7 @@ Le script `scripts/docker/docker-manager.sh` est l'outil principal pour gérer l
 
 - **Cibles** :
   - `mobile` : Application mobile React Native
-  - `monitoring` : Services de monitoring (Grafana, Prometheus, SonarQube)
+  - `monitoring` : Services de monitoring (Grafana, Prometheus)
   - `all` : Toutes les cibles
 
 ### Exemples
@@ -97,7 +96,7 @@ La construction des images Docker est gérée par le script `scripts/docker/dock
 - **Application mobile** : `$DOCKER_USERNAME/$DOCKER_REPO:mobile-latest`
 - **Grafana** : `$DOCKER_USERNAME/$DOCKER_REPO:grafana-latest`
 - **Prometheus** : `$DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest`
-- **SonarQube** : `$DOCKER_USERNAME/$DOCKER_REPO:sonarqube-latest`
+
 
 ## Déploiement des conteneurs
 
@@ -117,8 +116,7 @@ Le déploiement des conteneurs est géré par le script `scripts/docker/docker-m
 - **Instance EC2 de monitoring** :
   - Grafana
   - Prometheus
-  - SonarQube
-  - Base de données PostgreSQL pour SonarQube
+
   - Exportateur CloudWatch
   - Exportateur MySQL
   - Exportateur Node
@@ -180,8 +178,7 @@ Les scripts de gestion Docker utilisent les variables d'environnement suivantes 
 - `DB_USERNAME` : Nom d'utilisateur de la base de données
 - `DB_PASSWORD` : Mot de passe de la base de données
 - `TF_RDS_ENDPOINT` : Point de terminaison RDS
-- `GITHUB_CLIENT_ID` : ID client GitHub pour SonarQube
-- `GITHUB_CLIENT_SECRET` : Secret client GitHub pour SonarQube
+
 
 ## Dépannage
 
@@ -225,6 +222,5 @@ sudo docker logs grafana
 # Logs de Prometheus
 sudo docker logs prometheus
 
-# Logs de SonarQube
-sudo docker logs sonarqube
+
 ```

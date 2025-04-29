@@ -27,6 +27,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
 - [Améliorations pour un Environnement de Production](docs/AMELIORATIONS-SECURITE-PRODUCTION.md) : Recommandations pour adapter le projet à un environnement d'entreprise réel
+- [Améliorations futures](docs/FUTURE-IMPROVEMENTS.md) : Liste des améliorations potentielles pour le projet
 - [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
 - [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
 - [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
@@ -78,7 +79,7 @@ L'architecture cible repose sur AWS et utilise les services suivants :
 * **Base de données:** AWS RDS MySQL (db.t3.micro) en mode "Database as a Service".
 * **Stockage:** AWS S3 pour le stockage des médias uploadés par les utilisateurs et pour le stockage temporaire des artefacts de build.
 * **Réseau:** Utilisation d'un VPC dédié avec des groupes de sécurité spécifiques pour contrôler les flux.
-* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native (remplaçant l'ancienne approche basée sur AWS Amplify) et les services de monitoring (Prometheus, Grafana).
+* **Conteneurs Docker:** Utilisation de conteneurs Docker pour déployer l'application mobile React Native et les services de monitoring (Prometheus, Grafana).
 * **IaC:** Terraform pour décrire et provisionner l'ensemble de l'infrastructure AWS de manière automatisée et reproductible.
 * **CI/CD:** GitHub Actions pour automatiser les builds, les tests (basiques), et les déploiements des applications, ainsi que la gestion de l'infrastructure Terraform.
 * **Gestion des scripts:** Tous les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication.
@@ -119,7 +120,7 @@ Avant de commencer, assurez-vous d'avoir :
 │       ├── 1-infra-deploy-destroy.yml
 │       ├── 2-backend-deploy.yml
 │       ├── 3-docker-build-deploy.yml
-│       ├── 4-sonarqube-analysis.yml
+
 │       └── 5-docker-cleanup.yml
 ├── app-java/                    # Code source Backend Spring Boot
 │   ├── src/
@@ -139,7 +140,7 @@ Avant de commencer, assurez-vous d'avoir :
 │   ├── MONITORING-SETUP-GUIDE.md # Guide de monitoring
 │   ├── OPERATIONS.md            # Documentation des opérations
 │   ├── SENSITIVE-VARIABLES.md   # Guide de gestion des variables sensibles
-│   ├── SONARQUBE-SETUP.md       # Guide de configuration de SonarQube
+
 │   ├── SSH-KEYS-MANAGEMENT.md   # Guide de gestion des clés SSH
 │   ├── TERRAFORM-SECRETS-GUIDE.md # Guide des secrets GitHub avec Terraform Cloud
 │   └── TROUBLESHOOTING.md       # Solutions aux problèmes courants
@@ -201,7 +202,7 @@ L'infrastructure est organisée en modules réutilisables pour faciliter la main
 - **ec2-monitoring** : Déploie l'instance EC2 pour le monitoring et les conteneurs Docker (Prometheus, Grafana, React Native).
 
 
-**Note :** Le module **secrets-management** a été supprimé pour simplifier le projet. Dans un environnement de production, il est recommandé d'utiliser un module de gestion des secrets pour stocker et gérer les informations sensibles de manière sécurisée.
+
 
 ### Déploiement/Destruction de l'Infrastructure
 
@@ -269,7 +270,7 @@ Tous les scripts et fichiers de configuration sont maintenant centralisés dans 
 
 -   `setup.sh` : Script principal d'installation et de configuration
 -   `fix_permissions.sh` : Script pour corriger les permissions des volumes
--   `generate_sonar_token.sh` : Script de génération du token SonarQube
+
 -   `init-instance.sh` : Script d'initialisation de l'instance
 -   `get-aws-resources-info.sh` : Script pour récupérer automatiquement les informations RDS et S3
 -   `restart-containers.sh` : Script pour redémarrer les conteneurs Docker
@@ -535,7 +536,7 @@ Si le workflow GitHub Actions est bloqué à l'étape `terraform plan` avec un m
 Started at 1744048310000
 Run terraform plan \
 var.github_token
-  Token GitHub (PAT) pour connecter Amplify au repository.
+
 ```
 
 Cela signifie que le secret `GH_PAT` n'est pas correctement configuré ou n'est pas accessible par le workflow. Pour résoudre ce problème :
@@ -666,7 +667,7 @@ La gestion du bucket S3 a été améliorée pour faciliter les opérations de de
 
 Le système de monitoring a été considérablement amélioré pour surveiller l'ensemble de l'infrastructure :
 
-- Ajout de CloudWatch Exporter pour surveiller les services AWS (S3, RDS, Amplify, EC2)
+- Ajout de CloudWatch Exporter pour surveiller les services AWS (S3, RDS, EC2)
 - Ajout de MySQL Exporter pour surveiller spécifiquement la base de données RDS
 - Configuration automatique de Prometheus pour collecter les métriques de tous les composants
 - Optimisation des ressources des conteneurs pour rester dans les limites du Free Tier AWS
@@ -742,7 +743,7 @@ Voici quelques améliorations qui pourraient être apportées au projet à l'ave
 4. **Monitoring amélioré** : Étendre les capacités de monitoring pour inclure plus de métriques et d'alertes.
 5. **Sécurité renforcée** : Limiter l'accès SSH aux adresses IP spécifiques plutôt que d'utiliser 0.0.0.0/0.
 6. **Gestion des secrets** : Améliorer la gestion des secrets en utilisant AWS Secrets Manager ou HashiCorp Vault.
-7. **Analyse de qualité du code** : Intégrer SonarQube pour l'analyse statique du code, la détection des vulnérabilités et l'amélioration continue de la qualité du code.
+7. **Analyse de qualité du code** : Intégrer un outil d'analyse statique du code pour la détection des vulnérabilités et l'amélioration continue de la qualité du code.
 
 ## Licence
 

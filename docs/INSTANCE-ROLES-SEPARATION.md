@@ -16,7 +16,7 @@ Ce document explique la séparation claire des rôles entre les différentes ins
 L'infrastructure YourMedia utilise deux types d'instances EC2 principales, chacune avec un rôle spécifique :
 
 1. **Instance EC2 Java Tomcat** : Dédiée à l'exécution de l'application Java backend via Tomcat
-2. **Instance EC2 Monitoring** : Dédiée à l'exécution des services de monitoring via Docker (Prometheus, Grafana, SonarQube)
+2. **Instance EC2 Monitoring** : Dédiée à l'exécution des services de monitoring via Docker (Prometheus, Grafana)
 
 Cette séparation permet une meilleure isolation des services, une gestion plus fine des ressources et une sécurité renforcée.
 
@@ -67,7 +67,7 @@ L'instance EC2 Monitoring est responsable de l'exécution des services de monito
 - **Docker Compose** : Pour la gestion des conteneurs
 - **Prometheus** : Pour la collecte et le stockage des métriques
 - **Grafana** : Pour la visualisation des métriques
-- **SonarQube** : Pour l'analyse de la qualité du code
+
 - **Exportateurs** : Pour la collecte de métriques spécifiques (MySQL, CloudWatch, etc.)
 
 ### Processus d'initialisation
@@ -88,9 +88,7 @@ export EC2_INSTANCE_PRIVATE_IP="..."
 export DB_USERNAME="..."
 export DB_PASSWORD="..."
 export RDS_ENDPOINT="..."
-export SONAR_JDBC_USERNAME="..."
-export SONAR_JDBC_PASSWORD="..."
-export SONAR_JDBC_URL="..."
+
 export GRAFANA_ADMIN_PASSWORD="..."
 export S3_BUCKET_NAME="..."
 export DOCKER_USERNAME="..."

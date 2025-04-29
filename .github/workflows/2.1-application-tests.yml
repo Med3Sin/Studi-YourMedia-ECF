@@ -189,8 +189,8 @@ jobs:
           cd app-java
           mvn test
 
-      # Note: L'analyse SonarQube a été supprimée pour simplifier le projet
-      # Une amélioration future pourrait être d'ajouter SonarQube pour l'analyse de qualité du code
+
+
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

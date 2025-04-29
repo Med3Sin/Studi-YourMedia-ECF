@@ -17,7 +17,7 @@ Error: Failed to download metadata for repo 'docker-ce-stable': Cannot download 
 De plus, l'installation de curl provoquait des conflits de paquets :
 
 ```
-Error: 
+Error:
  Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
   - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
   ...
@@ -83,7 +83,7 @@ Les principales modifications sont :
 
 ## Conclusion
 
-Ces modifications garantissent que Docker est correctement installé sur Amazon Linux 2023 et que les fichiers de configuration sont correctement créés. Cela permet de déployer les conteneurs de surveillance (Prometheus, Grafana, SonarQube, etc.) sans erreur.
+Ces modifications garantissent que Docker est correctement installé sur Amazon Linux 2023 et que les fichiers de configuration sont correctement créés. Cela permet de déployer les conteneurs de surveillance (Prometheus, Grafana, etc.) sans erreur.
 
 Si vous rencontrez encore des problèmes, vous pouvez installer Docker manuellement avec la commande suivante :
 

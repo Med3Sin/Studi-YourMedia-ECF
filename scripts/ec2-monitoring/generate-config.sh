@@ -82,21 +82,21 @@ mkdir -p "$OUTPUT_DIR/prometheus-rules"
 generate_file() {
     local template="$1"
     local output_file="$2"
-    
+
     # Vérifier si le fichier existe déjà et si --force n'est pas spécifié
     if [ -f "$output_file" ] && [ "$FORCE" = false ]; then
         log "Le fichier $output_file existe déjà. Utilisez --force pour l'écraser."
         return 0
     fi
-    
+
     log "Génération du fichier $output_file..."
     echo "$template" | envsubst > "$output_file"
-    
+
     # Vérifier si la génération a réussi
     if [ $? -ne 0 ]; then
         error_exit "Échec de la génération du fichier $output_file"
     fi
-    
+
     log "Fichier $output_file généré avec succès."
 }
 
@@ -354,7 +354,7 @@ CONTAINER_ALERTS_TEMPLATE='groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"})
         for: 1m
         labels:
           severity: critical
@@ -363,7 +363,7 @@ CONTAINER_ALERTS_TEMPLATE='groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -372,7 +372,7 @@ CONTAINER_ALERTS_TEMPLATE='groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -381,7 +381,7 @@ CONTAINER_ALERTS_TEMPLATE='groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|sonarqube|sonarqube-db|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
         labels:
           severity: warning
         annotations:
@@ -440,61 +440,7 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-  # Base de données PostgreSQL pour SonarQube
-  sonarqube-db:
-    image: postgres:13
-    container_name: sonarqube-db
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=${SONAR_JDBC_USERNAME:-sonar}
-      - POSTGRES_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
-      - POSTGRES_DB=sonar
-    volumes:
-      - /opt/monitoring/sonarqube-data/db:/var/lib/postgresql/data
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
 
-  # SonarQube pour l'\''analyse de code
-  sonarqube:
-    image: ${DOCKER_USERNAME:-medsin}/${DOCKER_REPO:-yourmedia-ecf}:sonarqube-latest
-    container_name: sonarqube
-    depends_on:
-      - sonarqube-db
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_JDBC_URL=${SONAR_JDBC_URL:-jdbc:postgresql://sonarqube-db:5432/sonar}
-      - SONAR_JDBC_USERNAME=${SONAR_JDBC_USERNAME:-sonar}
-      - SONAR_JDBC_PASSWORD=${SONAR_JDBC_PASSWORD:-sonar123}
-      # Limiter la mémoire utilisée par Elasticsearch pour éviter les erreurs OOM
-      - SONAR_ES_JAVA_OPTS=-Xms256m -Xmx512m
-      # Limiter la mémoire globale de SonarQube
-      - SONAR_WEB_JAVA_OPTS=-Xmx512m -Xms256m
-      - SONAR_CE_JAVA_OPTS=-Xmx512m -Xms256m
-    volumes:
-      - /opt/monitoring/sonarqube-data/data:/opt/sonarqube/data
-      - /opt/monitoring/sonarqube-data/logs:/opt/sonarqube/logs
-      - /opt/monitoring/sonarqube-data/extensions:/opt/sonarqube/extensions
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    # Augmenter légèrement la limite de mémoire pour éviter les erreurs OOM
-    mem_limit: 1536m
-    cpu_shares: 1024
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
 
   # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
   cloudwatch-exporter:
@@ -601,10 +547,7 @@ fi
 # Créer les répertoires de données s'ils n'existent pas
 mkdir -p "$OUTPUT_DIR/prometheus-data"
 mkdir -p "$OUTPUT_DIR/grafana-data"
-mkdir -p "$OUTPUT_DIR/sonarqube-data/data"
-mkdir -p "$OUTPUT_DIR/sonarqube-data/logs"
-mkdir -p "$OUTPUT_DIR/sonarqube-data/extensions"
-mkdir -p "$OUTPUT_DIR/sonarqube-data/db"
+
 mkdir -p "$OUTPUT_DIR/loki-data"
 
 # Définir les permissions

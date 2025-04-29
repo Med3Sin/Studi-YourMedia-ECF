@@ -272,7 +272,7 @@ export DB_PASSWORD="${var.db_password}"
 export RDS_ENDPOINT="${var.rds_endpoint}"
 export RDS_USERNAME="${var.db_username}"
 export RDS_PASSWORD="${var.db_password}"
-# Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 export GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
 export DOCKER_USERNAME="${var.docker_username}"
 export DOCKER_REPO="${var.docker_repo}"
@@ -473,7 +473,7 @@ resource "null_resource" "provision_monitoring" {
   depends_on = [aws_instance.monitoring_instance]
 }
 
-# La ressource null_resource.generate_sonar_token a été supprimée car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
 # -----------------------------------------------------------------------------
 # Data Sources

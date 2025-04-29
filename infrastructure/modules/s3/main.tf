@@ -102,8 +102,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   }
 }
 
-# Note: La politique de bucket pour Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
-# pour le déploiement du frontend React Native au lieu d'AWS Amplify.
+
 
 # Téléchargement des fichiers de configuration de monitoring dans le bucket S3
 # Les fichiers sont maintenant centralisés dans le dossier scripts

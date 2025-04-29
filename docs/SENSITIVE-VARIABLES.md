@@ -47,17 +47,7 @@ Les variables sensibles (mots de passe, tokens, clés API, etc.) ne doivent jama
 | `DOCKERHUB_USERNAME` | Nom d'utilisateur Docker Hub | Workflows GitHub Actions, scripts de déploiement |
 | `DOCKERHUB_TOKEN` | Token d'accès Docker Hub | Workflows GitHub Actions, scripts de déploiement |
 
-### Secrets SonarQube
 
-| Nom du secret | Description | Utilisé par | Généré automatiquement |
-|--------------|-------------|------------|------------------------|
-| `SONAR_TOKEN` | Token d'accès SonarQube | Workflow d'analyse SonarQube | Oui, par le script `generate_sonar_token.sh` |
-| `SONAR_HOST_URL` | URL de l'instance SonarQube | Workflow d'analyse SonarQube | Non, construit à partir de `TF_MONITORING_EC2_PUBLIC_IP` |
-| `SONAR_JDBC_USERNAME` | Nom d'utilisateur pour la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
-| `SONAR_JDBC_PASSWORD` | Mot de passe pour la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
-| `SONAR_JDBC_URL` | URL de connexion à la base de données SonarQube | Conteneur SonarQube | Oui, par le module `secrets_management` |
-| `GITHUB_CLIENT_ID` | ID client OAuth GitHub pour SonarQube | Conteneur SonarQube | Non |
-| `GITHUB_CLIENT_SECRET` | Secret client OAuth GitHub pour SonarQube | Conteneur SonarQube | Non |
 
 ### Secrets Terraform Cloud
 
@@ -148,19 +138,7 @@ Ce script :
 4. Met à jour les secrets dans GitHub (si les variables d'environnement nécessaires sont définies)
 5. Affiche des instructions pour mettre à jour manuellement les secrets dans GitHub Actions
 
-## Génération du token SonarQube
 
-Pour générer un token SonarQube et le stocker comme secret GitHub, un script a été créé :
-
-```bash
-./scripts/ec2-monitoring/generate_sonar_token.sh [SONAR_HOST] [TF_API_TOKEN] [TF_WORKSPACE_ID] [SONAR_ADMIN_USER] [SONAR_ADMIN_PASSWORD]
-```
-
-Ce script :
-1. Attend que SonarQube soit opérationnel
-2. Génère un token SonarQube avec un nom unique
-3. Stocke le token comme secret GitHub
-4. Affiche des instructions pour ajouter le token comme secret GitHub
 
 ## Correction des clés SSH
 

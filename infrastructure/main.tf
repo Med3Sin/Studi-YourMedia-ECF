@@ -6,9 +6,7 @@ provider "tfe" {
 }
 
 # -----------------------------------------------------------------------------
-# Le module de gestion des secrets a été supprimé pour simplifier le projet
-# Note: Dans un environnement de production, il est recommandé d'utiliser un module
-# de gestion des secrets pour stocker et gérer les informations sensibles de manière sécurisée.
+
 # -----------------------------------------------------------------------------
 locals {
   # Définition des tags communs pour toutes les ressources
@@ -229,22 +227,18 @@ module "ec2-monitoring" {
   db_username                  = var.db_username
   db_password                  = var.db_password
   rds_endpoint                 = module.rds-mysql.rds_endpoint
-  # Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
-  grafana_admin_password       = var.grafana_admin_password
-  tf_api_token                 = var.tf_api_token
-  tf_workspace_id              = var.tf_workspace_id
-  docker_username              = var.dockerhub_username
-  docker_repo                  = var.dockerhub_repo
-  dockerhub_token              = var.dockerhub_token
+
+  grafana_admin_password = var.grafana_admin_password
+  tf_api_token           = var.tf_api_token
+  tf_workspace_id        = var.tf_workspace_id
+  docker_username        = var.dockerhub_username
+  docker_repo            = var.dockerhub_repo
+  dockerhub_token        = var.dockerhub_token
 }
 
 # -----------------------------------------------------------------------------
-# Note: La ressource AWS Amplify a été supprimée car nous utilisons maintenant des conteneurs Docker
-# pour le déploiement du frontend React Native.
-# -----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# Note: Le module EC2 SonarQube a été supprimé pour simplifier le projet
-# Une amélioration future pourrait être d'ajouter une instance dédiée pour SonarQube
-# afin d'améliorer la qualité du code et la détection des vulnérabilités.
-# -----------------------------------------------------------------------------
+
+
+
+

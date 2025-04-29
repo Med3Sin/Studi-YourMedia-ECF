@@ -58,7 +58,7 @@ Cela générera les fichiers statiques dans le répertoire `dist/`.
 
 ## Déploiement
 
-Le déploiement est géré automatiquement par AWS Amplify, qui est configuré pour surveiller les changements sur la branche `main` du dépôt GitHub.
+Le déploiement est géré automatiquement par des conteneurs Docker, qui sont configurés pour être déployés sur l'instance EC2 de monitoring.
 
 ## Configuration
 

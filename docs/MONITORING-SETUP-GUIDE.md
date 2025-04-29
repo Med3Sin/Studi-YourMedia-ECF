@@ -1,6 +1,6 @@
-# Guide de configuration de Grafana, Prometheus et SonarQube
+# Guide de configuration de Grafana et Prometheus
 
-Ce guide vous aidera à configurer Grafana, Prometheus, SonarQube et les exportateurs sur votre instance EC2 de monitoring. La configuration est automatisée via des scripts, mais ce guide explique également comment effectuer une configuration manuelle si nécessaire.
+Ce guide vous aidera à configurer Grafana, Prometheus et les exportateurs sur votre instance EC2 de monitoring. La configuration est automatisée via des scripts, mais ce guide explique également comment effectuer une configuration manuelle si nécessaire.
 
 ## Prérequis
 
@@ -14,7 +14,7 @@ L'instance EC2 de monitoring est configurée automatiquement lors de son déploi
 
 1. **init-instance-env.sh** : Initialise l'environnement et télécharge les scripts depuis S3
 2. **install-docker.sh** : Installe Docker et Docker Compose
-3. **setup.sh** : Configure les services de monitoring (Prometheus, Grafana, SonarQube, etc.)
+3. **setup.sh** : Configure les services de monitoring (Prometheus, Grafana, etc.)
 4. **check-containers.sh** : Vérifie l'état des conteneurs et corrige automatiquement les problèmes courants
 
 ### Vérification de l'installation automatisée
@@ -29,8 +29,7 @@ sudo docker ps
 Vous devriez voir les conteneurs suivants en cours d'exécution :
 - prometheus
 - grafana
-- sonarqube
-- sonarqube-db
+
 - mysql-exporter
 - cloudwatch-exporter
 - node-exporter
@@ -67,7 +66,7 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Créer les répertoires pour les volumes
-sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data/{data,logs,extensions,db}
+sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data
 sudo chown -R ec2-user:ec2-user /opt/monitoring
 ```
 
@@ -89,29 +88,23 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Créer les répertoires pour les volumes
-sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/sonarqube-data/{data,logs,extensions,db}
+sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data
 sudo chown -R ec2-user:ec2-user /opt/monitoring
 ```
 
 **Important** : Après avoir exécuté la commande `sudo usermod`, déconnectez-vous et reconnectez-vous à l'instance pour que les changements de groupe prennent effet.
 
-### 3. Configurer les prérequis système pour SonarQube
+### 3. Configurer les limites système
 
 ```bash
-# Augmenter la limite de mmap count (nécessaire pour Elasticsearch)
-sudo sysctl -w vm.max_map_count=262144
-echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-
-# Augmenter la limite de fichiers ouverts
-sudo sysctl -w fs.file-max=65536
-echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
-
 # Configurer les limites de ressources pour l'utilisateur ec2-user
 echo "ec2-user soft nofile 65536" | sudo tee -a /etc/security/limits.conf
 echo "ec2-user hard nofile 65536" | sudo tee -a /etc/security/limits.conf
 echo "ec2-user soft nproc 4096" | sudo tee -a /etc/security/limits.conf
 echo "ec2-user hard nproc 4096" | sudo tee -a /etc/security/limits.conf
 ```
+
+
 
 ### 4. Créer les fichiers de configuration
 
@@ -164,8 +157,7 @@ docker ps
 Vous devriez voir les conteneurs suivants en cours d'exécution :
 - prometheus
 - grafana
-- sonarqube
-- sonarqube-db
+
 - mysql-exporter
 - cloudwatch-exporter
 - node-exporter
@@ -174,17 +166,13 @@ Vous devriez voir les conteneurs suivants en cours d'exécution :
 
 - **Prometheus** : http://<IP_PUBLIQUE_DE_L_INSTANCE>:9090
 - **Grafana** : http://<IP_PUBLIQUE_DE_L_INSTANCE>:3000
-- **SonarQube** : http://<IP_PUBLIQUE_DE_L_INSTANCE>:9000
+
 
 Pour Grafana, utilisez les identifiants suivants :
 - Nom d'utilisateur : `admin`
 - Mot de passe : défini dans la variable d'environnement `GRAFANA_ADMIN_PASSWORD` (par défaut : `admin`)
 
-Pour SonarQube, utilisez les identifiants suivants :
-- Nom d'utilisateur : `admin`
-- Mot de passe : `admin`
-
-Lors de la première connexion, Grafana et SonarQube vous demanderont de changer le mot de passe.
+Lors de la première connexion, Grafana vous demandera de changer le mot de passe.
 
 ## Dépannage
 
@@ -195,25 +183,11 @@ Vérifiez les logs des conteneurs :
 ```bash
 docker logs prometheus
 docker logs grafana
-docker logs sonarqube
+
 docker logs mysql-exporter
 ```
 
-### Problèmes avec SonarQube
 
-Si SonarQube ne démarre pas, vérifiez les logs et les prérequis système :
-
-```bash
-# Vérifier les logs
-docker logs sonarqube
-
-# Vérifier les limites système
-sysctl -a | grep -E "vm.max_map_count|fs.file-max"
-
-# Appliquer les prérequis système
-sudo sysctl -w vm.max_map_count=262144
-sudo sysctl -w fs.file-max=65536
-```
 
 ### Problèmes avec MySQL Exporter
 
@@ -236,10 +210,7 @@ Assurez-vous que les répertoires ont les bonnes permissions :
 
 ```bash
 sudo chown -R ec2-user:ec2-user /opt/monitoring
-sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/data
-sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/logs
-sudo chown -R 1000:1000 /opt/monitoring/sonarqube-data/extensions
-sudo chown -R 999:999 /opt/monitoring/sonarqube-data/db
+
 ```
 
 ### Problèmes de réseau
@@ -266,18 +237,7 @@ Une fois Grafana accessible, vous devrez configurer une source de données Prome
 
 Vous pouvez maintenant créer des tableaux de bord pour visualiser vos métriques.
 
-### Configuration de SonarQube
 
-Une fois SonarQube accessible, vous devrez configurer un projet pour l'analyse de code :
-
-1. Connectez-vous à SonarQube
-2. Allez dans Administration > Projects > Management
-3. Cliquez sur "Create Project"
-4. Entrez un nom et une clé pour votre projet (par exemple, "yourmedia-backend" et "yourmedia-backend")
-5. Cliquez sur "Set Up"
-6. Sélectionnez "Locally" pour l'analyse locale
-7. Générez un token d'authentification
-8. Suivez les instructions pour configurer l'analyse dans votre projet
 
 ### Configuration de MySQL Exporter
 

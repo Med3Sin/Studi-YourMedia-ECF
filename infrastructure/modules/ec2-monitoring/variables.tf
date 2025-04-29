@@ -156,7 +156,7 @@ variable "rds_endpoint" {
   default     = ""
 }
 
-# Les variables liées à SonarQube ont été supprimées car SonarQube est maintenant déployé sur une instance EC2 dédiée
+
 
 variable "grafana_admin_password" {
   description = "Mot de passe administrateur Grafana."

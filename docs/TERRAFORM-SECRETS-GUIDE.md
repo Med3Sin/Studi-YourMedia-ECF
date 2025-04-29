@@ -83,11 +83,9 @@ Les secrets suivants sont générés automatiquement et stockés dans GitHub Sec
 
 | Nom du secret | Description | Généré par |
 |--------------|-------------|------------|
-| `SONAR_JDBC_USERNAME` | Nom d'utilisateur pour la base de données SonarQube | Module `secrets_management` |
-| `SONAR_JDBC_PASSWORD` | Mot de passe pour la base de données SonarQube | Module `secrets_management` |
-| `SONAR_JDBC_URL` | URL de connexion à la base de données SonarQube | Module `secrets_management` |
 | `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Module `secrets_management` |
-| `SONAR_TOKEN` | Token d'accès à l'API SonarQube | Script `generate_sonar_token.sh` |
+
+
 
 ## Résolution des problèmes courants
 

@@ -157,10 +157,7 @@ echo "# Utilisez plutôt RDS_USERNAME et RDS_PASSWORD pour les nouveaux scripts.
 export S3_BUCKET_NAME="$S3_BUCKET_NAME"
 export AWS_REGION="$AWS_REGION"
 
-# Informations pour SonarQube
-export SONAR_JDBC_URL="jdbc:postgresql://sonarqube-db:5432/sonar"
-export SONAR_JDBC_USERNAME="sonar"
-export SONAR_JDBC_PASSWORD="sonar123"
+
 
 # Informations pour Grafana
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-admin}"
@@ -212,28 +209,7 @@ metrics:
     aws_statistics: [Average]
 EOF
 
-# Appliquer les prérequis système pour SonarQube
-log "Application des prérequis système pour SonarQube..."
 
-# Augmenter la limite de mmap count
-echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
-
-# Augmenter la limite de fichiers ouverts
-echo "fs.file-max=65536" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
-
-# Créer les répertoires pour SonarQube
-mkdir -p $CONFIG_DIR/sonarqube-data/data
-mkdir -p $CONFIG_DIR/sonarqube-data/logs
-mkdir -p $CONFIG_DIR/sonarqube-data/extensions
-mkdir -p $CONFIG_DIR/sonarqube-data/db
-
-# Définir les permissions appropriées
-chown -R 1000:1000 $CONFIG_DIR/sonarqube-data/data
-chown -R 1000:1000 $CONFIG_DIR/sonarqube-data/logs
-chown -R 1000:1000 $CONFIG_DIR/sonarqube-data/extensions
-chown -R 999:999 $CONFIG_DIR/sonarqube-data/db
 
 log "Configuration terminée avec succès!"
 log "Les informations RDS et S3 ont été récupérées et stockées dans $CONFIG_DIR/aws-resources.env"

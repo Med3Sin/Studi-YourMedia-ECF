@@ -95,7 +95,7 @@ L'infrastructure utilise deux types d'instances EC2 distinctes, chacune avec un 
 - **app-react** : Application mobile React Native
 - **grafana** : Visualisation des métriques
 - **prometheus** : Collecte des métriques
-- **sonarqube** : Analyse de la qualité du code
+
 - **mysql-exporter** : Collecte des métriques MySQL
 - **cloudwatch-exporter** : Collecte des métriques CloudWatch
 
@@ -105,11 +105,11 @@ L'infrastructure est définie en code avec Terraform, ce qui permet une gestion 
 
 **Modules Terraform :**
 - **ec2-java-tomcat** : Instance EC2 pour le backend Java/Tomcat
-- **ec2-monitoring** : Instance EC2 pour le monitoring (Prometheus, Grafana, SonarQube)
+- **ec2-monitoring** : Instance EC2 pour le monitoring (Prometheus, Grafana)
 - **rds-mysql** : Base de données MySQL
 - **s3** : Buckets S3 pour le stockage des médias et des artefacts
 - **network** : Configuration du VPC, des sous-réseaux et des groupes de sécurité
-- **secrets-management** : Gestion des secrets via Terraform Cloud
+
 
 ### Scripts
 
@@ -119,7 +119,7 @@ Les scripts sont centralisés dans un dossier unique et organisés par module ou
 - **database** : Scripts liés à la base de données (sécurisation, migration, etc.)
 - **docker** : Scripts de gestion des conteneurs Docker (construction, déploiement, nettoyage) - *utilisés uniquement sur l'instance EC2 Monitoring*
 - **ec2-java-tomcat** : Scripts d'installation et de configuration de Java et Tomcat - *utilisés uniquement sur l'instance EC2 Java Tomcat*
-- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana, SonarQube) - *utilisés uniquement sur l'instance EC2 Monitoring*
+- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana) - *utilisés uniquement sur l'instance EC2 Monitoring*
 - **utils** : Scripts utilitaires génériques (correction des clés SSH, installation de dépendances, etc.)
 
 **Scripts spécifiques à l'instance EC2 Java Tomcat :**
@@ -190,7 +190,7 @@ Les workflows GitHub Actions automatisent l'intégration et le déploiement cont
 - **2.1-application-tests.yml** : Tests automatisés des applications
 - **3-docker-build-deploy.yml** : Construction et déploiement des images Docker
 - **3.1-canary-deployment.yml** : Déploiement canary pour réduire les risques
-- **4-sonarqube-analysis.yml** : Analyse de la qualité du code
+
 - **5-docker-cleanup.yml** : Nettoyage des images Docker
 - **security-scan.yml** : Analyse de sécurité
 

@@ -11,7 +11,7 @@ Ce document centralise toute la documentation relative à l'infrastructure AWS d
    - [EC2 Monitoring](#ec2-monitoring)
 4. [Base de données (RDS MySQL)](#base-de-données-rds-mysql)
 5. [Stockage (S3)](#stockage-s3)
-6. [Hébergement Frontend (Amplify)](#hébergement-frontend-amplify)
+6. [Hébergement Frontend (Docker)](#hébergement-frontend-docker)
 7. [Gestion des secrets](#gestion-des-secrets)
 8. [Optimisations Free Tier](#optimisations-free-tier)
 9. [Considérations sur les coûts](#considérations-sur-les-coûts)
@@ -27,7 +27,7 @@ L'infrastructure du projet YourMédia est entièrement gérée par Terraform et 
 * **Base de données:** AWS RDS MySQL (db.t3.micro)
 * **Stockage:** AWS S3 pour les médias et les artefacts de build
 * **Réseau:** VPC avec sous-réseaux publics et privés
-* **Hébergement Frontend:** AWS Amplify pour l'application React Native Web
+* **Hébergement Frontend:** Conteneurs Docker pour l'application React Native Web
 
 ### Structure des fichiers Terraform
 
@@ -257,7 +257,7 @@ Les secrets suivants doivent être configurés dans les paramètres du repositor
 * `DB_USERNAME` et `DB_PASSWORD` : Identifiants pour la base de données RDS
 * `EC2_SSH_PRIVATE_KEY` et `EC2_SSH_PUBLIC_KEY` : Clés SSH pour l'accès aux instances EC2
 * `EC2_KEY_PAIR_NAME` : Nom de la paire de clés EC2 dans AWS
-* `GH_PAT` : Personal Access Token GitHub pour les intégrations comme Amplify
+* `GH_PAT` : Personal Access Token GitHub pour les intégrations
 
 ### Secrets créés automatiquement
 
