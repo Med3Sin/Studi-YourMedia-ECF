@@ -195,35 +195,29 @@ else
     echo "curl est déjà installé, version: $(curl --version | head -n 1)"
 fi
 
-# Configurer la clé SSH
+# Configurer la clé SSH si elle est fournie
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
-sudo mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-sudo chmod 700 /home/ec2-user/.ssh
-sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+if [ -n "${var.ssh_public_key}" ]; then
+    sudo mkdir -p /home/ec2-user/.ssh
+    echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+    sudo chmod 700 /home/ec2-user/.ssh
+    sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+    sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+else
+    echo "Aucune clé SSH fournie, utilisation des clés par défaut"
+fi
 
 # Définir les variables d'environnement
-export S3_BUCKET_NAME="${var.s3_bucket_name}"
 export SONAR_ADMIN_PASSWORD="${var.sonar_admin_password}"
 export DB_USERNAME="${var.db_username}"
 export DB_PASSWORD="${var.db_password}"
 
-# Télécharger et exécuter le script d'installation depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
-sudo mkdir -p /opt/sonarqube
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-sonarqube/setup-sonarqube.sh /opt/sonarqube/ || echo "Échec du téléchargement du script setup-sonarqube.sh"
+# Installation directe de SonarQube sans dépendre du script S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de SonarQube"
 
-if [ -f "/opt/sonarqube/setup-sonarqube.sh" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-sonarqube.sh"
-    sudo chmod +x /opt/sonarqube/setup-sonarqube.sh
-    sudo /opt/sonarqube/setup-sonarqube.sh
-else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de SonarQube"
-
-    # Configurer les paramètres système pour SonarQube et Elasticsearch
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des paramètres système"
-    sudo bash -c 'cat > /etc/sysctl.d/99-sonarqube.conf << EOF
+# Configurer les paramètres système pour SonarQube et Elasticsearch
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des paramètres système"
+sudo bash -c 'cat > /etc/sysctl.d/99-sonarqube.conf << EOF
 # Paramètres requis pour Elasticsearch
 vm.max_map_count=262144
 fs.file-max=65536
@@ -232,58 +226,58 @@ fs.file-max=65536
 vm.swappiness=1
 vm.vfs_cache_pressure=50
 EOF'
-    sudo sysctl --system
+sudo sysctl --system
 
-    # Créer un fichier swap pour éviter les problèmes de mémoire sur t2.micro
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration du fichier swap"
-    if [ ! -f /swapfile ]; then
-        sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-    fi
+# Créer un fichier swap pour éviter les problèmes de mémoire sur t2.micro
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration du fichier swap"
+if [ ! -f /swapfile ]; then
+    sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+fi
 
-    # Configurer les limites de ressources pour l'utilisateur sonarqube
-    sudo bash -c 'cat > /etc/security/limits.d/99-sonarqube.conf << EOF
+# Configurer les limites de ressources pour l'utilisateur sonarqube
+sudo bash -c 'cat > /etc/security/limits.d/99-sonarqube.conf << EOF
 sonarqube   -   nofile   65536
 sonarqube   -   nproc    4096
 EOF'
 
-    # Initialiser PostgreSQL
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation de PostgreSQL"
-    sudo postgresql-setup --initdb
+# Initialiser PostgreSQL
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation de PostgreSQL"
+sudo postgresql-setup --initdb
 
-    # Configurer PostgreSQL pour accepter les connexions locales
-    sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/g" /var/lib/pgsql/data/postgresql.conf
-    sudo sed -i "s/ident/md5/g" /var/lib/pgsql/data/pg_hba.conf
+# Configurer PostgreSQL pour accepter les connexions locales
+sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = 'localhost'/g" /var/lib/pgsql/data/postgresql.conf
+sudo sed -i "s/ident/md5/g" /var/lib/pgsql/data/pg_hba.conf
 
-    # Démarrer PostgreSQL
-    sudo systemctl enable postgresql
-    sudo systemctl start postgresql
+# Démarrer PostgreSQL
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
 
-    # Créer l'utilisateur et la base de données SonarQube
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur et de la base de données SonarQube"
-    sudo -u postgres psql -c "CREATE USER ${var.db_username} WITH ENCRYPTED PASSWORD '${var.db_password}';"
-    sudo -u postgres psql -c "CREATE DATABASE sonar OWNER ${var.db_username};"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sonar TO ${var.db_username};"
+# Créer l'utilisateur et la base de données SonarQube
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur et de la base de données SonarQube"
+sudo -u postgres psql -c "CREATE USER ${var.db_username} WITH ENCRYPTED PASSWORD '${var.db_password}';"
+sudo -u postgres psql -c "CREATE DATABASE sonar OWNER ${var.db_username};"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sonar TO ${var.db_username};"
 
-    # Créer l'utilisateur sonarqube
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur sonarqube"
-    sudo useradd -m -d /opt/sonarqube -s /bin/bash sonarqube
+# Créer l'utilisateur sonarqube
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur sonarqube"
+sudo useradd -m -d /opt/sonarqube -s /bin/bash sonarqube
 
-    # Télécharger et installer SonarQube
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de SonarQube"
-    cd /tmp
-    wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.9.1.69595.zip
-    sudo unzip sonarqube-9.9.1.69595.zip -d /opt
-    sudo mv /opt/sonarqube-9.9.1.69595/* /opt/sonarqube/
-    sudo rmdir /opt/sonarqube-9.9.1.69595
-    sudo chown -R sonarqube:sonarqube /opt/sonarqube
+# Télécharger et installer SonarQube
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de SonarQube"
+cd /tmp
+wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.9.1.69595.zip
+sudo unzip sonarqube-9.9.1.69595.zip -d /opt
+sudo mv /opt/sonarqube-9.9.1.69595/* /opt/sonarqube/
+sudo rmdir /opt/sonarqube-9.9.1.69595
+sudo chown -R sonarqube:sonarqube /opt/sonarqube
 
-    # Configurer SonarQube avec des paramètres optimisés pour t2.micro
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de SonarQube optimisée pour t2.micro"
-    sudo bash -c "cat > /opt/sonarqube/conf/sonar.properties << EOF
+# Configurer SonarQube avec des paramètres optimisés pour t2.micro
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de SonarQube optimisée pour t2.micro"
+sudo bash -c "cat > /opt/sonarqube/conf/sonar.properties << EOF
 # Configuration de la base de données
 sonar.jdbc.username=${var.db_username}
 sonar.jdbc.password=${var.db_password}
@@ -308,9 +302,9 @@ sonar.path.temp=/opt/sonarqube/temp
 sonar.ce.workerCount=1
 EOF"
 
-    # Créer le service systemd pour SonarQube
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du service systemd pour SonarQube"
-    sudo bash -c 'cat > /etc/systemd/system/sonarqube.service << EOF
+# Créer le service systemd pour SonarQube
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du service systemd pour SonarQube"
+sudo bash -c 'cat > /etc/systemd/system/sonarqube.service << EOF
 [Unit]
 Description=SonarQube service
 After=syslog.target network.target
@@ -329,14 +323,14 @@ LimitNPROC=4096
 WantedBy=multi-user.target
 EOF'
 
-    # Recharger systemd et démarrer SonarQube
-    sudo systemctl daemon-reload
-    sudo systemctl enable sonarqube
-    sudo systemctl start sonarqube
+# Recharger systemd et démarrer SonarQube
+sudo systemctl daemon-reload
+sudo systemctl enable sonarqube
+sudo systemctl start sonarqube
 
-    # Créer un script de surveillance pour redémarrer SonarQube si nécessaire
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du script de surveillance"
-    sudo bash -c 'cat > /usr/local/bin/monitor-sonarqube.sh << EOF
+# Créer un script de surveillance pour redémarrer SonarQube si nécessaire
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du script de surveillance"
+sudo bash -c 'cat > /usr/local/bin/monitor-sonarqube.sh << EOF
 #!/bin/bash
 
 # Vérifier si SonarQube répond
@@ -353,12 +347,11 @@ if (( $(echo "$MEM_USAGE > 90" | bc -l) )); then
 fi
 EOF'
 
-    # Rendre le script exécutable
-    sudo chmod +x /usr/local/bin/monitor-sonarqube.sh
+# Rendre le script exécutable
+sudo chmod +x /usr/local/bin/monitor-sonarqube.sh
 
-    # Ajouter une tâche cron pour exécuter le script toutes les 15 minutes
-    sudo bash -c 'echo "*/15 * * * * root /usr/local/bin/monitor-sonarqube.sh" > /etc/cron.d/sonarqube-monitor'
-fi
+# Ajouter une tâche cron pour exécuter le script toutes les 15 minutes
+sudo bash -c 'echo "*/15 * * * * root /usr/local/bin/monitor-sonarqube.sh" > /etc/cron.d/sonarqube-monitor'
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
 echo "SonarQube est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9000"
