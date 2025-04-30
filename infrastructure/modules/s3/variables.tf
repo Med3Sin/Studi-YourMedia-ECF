@@ -24,3 +24,35 @@ variable "monitoring_scripts_path" {
   type        = string
   default     = ""
 }
+
+variable "rds_username" {
+  description = "Nom d'utilisateur pour la base de données RDS"
+  type        = string
+  default     = ""
+}
+
+variable "rds_password" {
+  description = "Mot de passe pour la base de données RDS"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "rds_endpoint" {
+  description = "Point de terminaison de la base de données RDS"
+  type        = string
+  default     = ""
+}
+
+variable "rds_name" {
+  description = "Nom de la base de données RDS"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_admin_password" {
+  description = "Mot de passe administrateur Grafana"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -132,36 +132,7 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-# Installer jq et wget
-sudo dnf install -y jq wget
-
-# Vérifier si aws-cli est installé
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation d'AWS CLI"
-if ! command -v aws &> /dev/null; then
-    sudo dnf install -y aws-cli || {
-        echo "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
-        sudo dnf install -y awscli
-    }
-else
-    echo "AWS CLI est déjà installé, version: $(aws --version)"
-fi
-
-# Gérer l'installation de curl séparément pour éviter les conflits avec curl-minimal
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de curl"
-if ! command -v curl &> /dev/null; then
-    # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
-    sudo dnf install -y --allowerasing curl
-else
-    echo "curl est déjà installé, version: $(curl --version | head -n 1)"
-fi
-
-# S'assurer que netstat est installé
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de net-tools"
-if ! command -v netstat &> /dev/null; then
-    sudo dnf install -y net-tools
-else
-    echo "net-tools est déjà installé"
-fi
+sudo dnf install -y jq wget aws-cli
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
@@ -171,79 +142,22 @@ sudo chmod 700 /home/ec2-user/.ssh
 sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
-# Définir les variables d'environnement
-export S3_BUCKET_NAME="${var.s3_bucket_name}"
-export DB_USERNAME="${var.db_username}"
-export DB_PASSWORD="${var.db_password}"
-export RDS_ENDPOINT="${var.rds_endpoint}"
-export RDS_USERNAME="${var.db_username}"
-export RDS_PASSWORD="${var.db_password}"
-export TOMCAT_VERSION="9.0.104"
+# Créer le tag pour le nom du bucket S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du tag pour le bucket S3"
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+aws ec2 create-tags --region ${var.aws_region} --resources $INSTANCE_ID --tags Key=S3BucketName,Value=${var.s3_bucket_name}
 
-# Télécharger et exécuter le script d'installation depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
+# Télécharger et exécuter le script d'initialisation depuis S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis S3"
 sudo mkdir -p /opt/yourmedia
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/setup-java-tomcat.sh /opt/yourmedia/ || echo "Échec du téléchargement du script setup-java-tomcat.sh"
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-java-tomcat.sh /opt/yourmedia/init-java-tomcat.sh
+sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
 
-if [ -f "/opt/yourmedia/setup-java-tomcat.sh" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-java-tomcat.sh"
-    sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
-    sudo /opt/yourmedia/setup-java-tomcat.sh
-else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Java et Tomcat"
-    # Installation de Java
-    sudo dnf install -y java-17-amazon-corretto-devel
+# Exécuter le script d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
+sudo /opt/yourmedia/init-java-tomcat.sh
 
-    # Création de l'utilisateur et groupe Tomcat
-    sudo groupadd tomcat 2>/dev/null || true
-    sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
-
-    # Téléchargement et installation de Tomcat
-    cd /tmp
-    sudo wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.104/bin/apache-tomcat-9.0.104.tar.gz
-    sudo mkdir -p /opt/tomcat
-    sudo tar xzvf apache-tomcat-9.0.104.tar.gz -C /opt/tomcat --strip-components=1
-
-    # Configuration des permissions
-    sudo chown -R tomcat:tomcat /opt/tomcat
-    sudo chmod +x /opt/tomcat/bin/*.sh
-
-    # Création du service Tomcat
-    sudo cat > /etc/systemd/system/tomcat.service << "EOL"
-[Unit]
-Description=Apache Tomcat Web Application Container
-After=network.target
-
-[Service]
-Type=forking
-
-Environment=JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
-Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
-Environment=CATALINA_HOME=/opt/tomcat
-Environment=CATALINA_BASE=/opt/tomcat
-Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
-Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
-
-ExecStart=/opt/tomcat/bin/startup.sh
-ExecStop=/opt/tomcat/bin/shutdown.sh
-
-User=tomcat
-Group=tomcat
-UMask=0007
-RestartSec=10
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOL
-
-    # Démarrage de Tomcat
-    sudo systemctl daemon-reload
-    sudo systemctl enable tomcat
-    sudo systemctl start tomcat
-fi
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 }
 
@@ -265,5 +179,6 @@ resource "aws_instance" "app_server" {
     Name        = "${var.project_name}-${var.environment}-app-server"
     Project     = var.project_name
     Environment = var.environment
+    S3BucketName = var.s3_bucket_name
   }
 }

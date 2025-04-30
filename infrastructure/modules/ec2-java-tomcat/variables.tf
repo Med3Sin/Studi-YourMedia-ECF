@@ -67,6 +67,12 @@ variable "s3_bucket_name" {
   default     = ""
 }
 
+variable "aws_region" {
+  description = "Région AWS pour le déploiement"
+  type        = string
+  default     = "eu-west-3"
+}
+
 # Variables pour la base de données
 variable "db_username" {
   description = "Nom d'utilisateur de la base de données"

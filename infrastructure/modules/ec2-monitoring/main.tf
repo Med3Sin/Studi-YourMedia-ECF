@@ -226,148 +226,36 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-# Installer jq, wget et amazon-cloudwatch-agent
-sudo dnf install -y jq wget amazon-cloudwatch-agent
+sudo dnf install -y jq wget docker aws-cli
 
-# Vérifier si aws-cli est installé
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation d'AWS CLI"
-if ! command -v aws &> /dev/null; then
-    sudo dnf install -y aws-cli || {
-        echo "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
-        sudo dnf install -y awscli
-    }
-else
-    echo "AWS CLI est déjà installé, version: $(aws --version)"
-fi
+# Démarrer et activer Docker
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de Docker"
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
 
-# Gérer l'installation de curl séparément pour éviter les conflits avec curl-minimal
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de curl"
-if ! command -v curl &> /dev/null; then
-    # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
-    sudo dnf install -y --allowerasing curl
-else
-    echo "curl est déjà installé, version: $(curl --version | head -n 1)"
-fi
+# Installation de Docker Compose
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de Docker Compose"
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-# S'assurer que netstat est installé
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de net-tools"
-if ! command -v netstat &> /dev/null; then
-    sudo dnf install -y net-tools
-else
-    echo "net-tools est déjà installé"
-fi
+# Créer le tag pour le nom du bucket S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du tag pour le bucket S3"
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+aws ec2 create-tags --region ${var.aws_region} --resources $INSTANCE_ID --tags Key=S3BucketName,Value=${var.s3_bucket_name}
 
-# Configurer la clé SSH
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
-sudo mkdir -p /home/ec2-user/.ssh
-echo "${var.ssh_public_key}" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
-sudo chmod 700 /home/ec2-user/.ssh
-sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
-sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
-
-# Définir les variables d'environnement
-export S3_BUCKET_NAME="${var.s3_bucket_name}"
-export DB_USERNAME="${var.db_username}"
-export DB_PASSWORD="${var.db_password}"
-export RDS_ENDPOINT="${var.rds_endpoint}"
-export RDS_USERNAME="${var.db_username}"
-export RDS_PASSWORD="${var.db_password}"
-
-export GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
-export DOCKER_USERNAME="${var.docker_username}"
-export DOCKER_REPO="${var.docker_repo}"
-export DOCKERHUB_TOKEN="${var.dockerhub_token}"
-export DOCKERHUB_USERNAME="${var.docker_username}"
-export DOCKERHUB_REPO="${var.docker_repo}"
-export EC2_APP_IP="${var.ec2_instance_private_ip}"
-
-# Télécharger et exécuter le script d'installation depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
+# Télécharger et exécuter le script d'initialisation depuis S3
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis S3"
 sudo mkdir -p /opt/monitoring
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/setup-monitoring.sh /opt/monitoring/ || echo "Échec du téléchargement du script setup-monitoring.sh"
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/docker/docker-manager.sh /opt/monitoring/ || echo "Échec du téléchargement du script docker-manager.sh"
+sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-monitoring/init-monitoring.sh /opt/monitoring/init-monitoring.sh
+sudo chmod +x /opt/monitoring/init-monitoring.sh
 
-if [ -f "/opt/monitoring/setup-monitoring.sh" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script setup-monitoring.sh"
-    sudo chmod +x /opt/monitoring/setup-monitoring.sh
-    sudo /opt/monitoring/setup-monitoring.sh
-else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de Docker"
-    # Installation de Docker
-    sudo dnf install -y docker
-    sudo systemctl start docker
-    sudo systemctl enable docker
-    sudo usermod -aG docker ec2-user
+# Exécuter le script d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
+sudo /opt/monitoring/init-monitoring.sh
 
-    # Installation de Docker Compose
-    sudo dnf install -y docker-compose
-
-    # Création des répertoires nécessaires
-    sudo mkdir -p /opt/monitoring/secure
-    sudo mkdir -p /opt/monitoring/prometheus-data
-    sudo mkdir -p /opt/monitoring/grafana-data
-    sudo mkdir -p /opt/monitoring/cloudwatch-config
-    sudo mkdir -p /opt/monitoring/prometheus-rules
-
-    # Définir les permissions
-    sudo chmod 755 /opt/monitoring
-    sudo chmod 700 /opt/monitoring/secure
-    sudo chown -R ec2-user:ec2-user /opt/monitoring
-
-    # Créer un fichier docker-compose.yml minimal
-    sudo cat > /opt/monitoring/docker-compose.yml << "EOL"
-version: '3'
-
-services:
-  prometheus:
-    image: prom/prometheus:v2.45.0
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /opt/monitoring/prometheus-data:/prometheus
-    restart: always
-
-  grafana:
-    image: grafana/grafana:10.0.3
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - /opt/monitoring/grafana-data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=YourMedia2025!
-    restart: always
-EOL
-
-    # Créer un fichier prometheus.yml minimal
-    sudo cat > /opt/monitoring/prometheus.yml << "EOL"
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: "prometheus"
-    static_configs:
-      - targets: ["localhost:9090"]
-EOL
-
-    # Démarrer les conteneurs
-    cd /opt/monitoring
-    sudo docker-compose up -d
-fi
-
-# Copier docker-manager.sh dans /usr/local/bin si disponible
-if [ -f "/opt/monitoring/docker-manager.sh" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation du script docker-manager.sh"
-    sudo cp /opt/monitoring/docker-manager.sh /usr/local/bin/
-    sudo chmod +x /usr/local/bin/docker-manager.sh
-fi
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"
-echo "Grafana est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
-echo "Prometheus est accessible à l'adresse http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):9090"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 
   tags = {
@@ -376,6 +264,7 @@ EOF
     Environment = var.environment
     ManagedBy   = "Terraform"
     Role        = "Monitoring"
+    S3BucketName = var.s3_bucket_name
   }
 
   # Protéger l'instance contre la suppression accidentelle

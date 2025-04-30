@@ -70,7 +70,7 @@ fi
 # Créer un fichier SQL temporaire avec le mot de passe généré
 log "Création du fichier SQL temporaire..."
 TMP_SQL_FILE=$(mktemp)
-cat scripts/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$NEW_DB_PASSWORD/g" > $TMP_SQL_FILE
+cat scripts/database/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$NEW_DB_PASSWORD/g" > $TMP_SQL_FILE
 
 # Exécuter le script SQL
 log "Exécution du script SQL pour sécuriser la base de données..."

@@ -141,7 +141,14 @@ module "s3" {
   project_name            = var.project_name
   environment             = var.environment
   aws_region              = var.aws_region
-  monitoring_scripts_path = "${path.module}/modules/ec2-monitoring/scripts" # Chemin vers les scripts de monitoring pour éviter la duplication
+  monitoring_scripts_path = "${path.module}/scripts" # Chemin vers les scripts
+
+  # Variables sensibles
+  rds_username           = var.db_username
+  rds_password           = var.db_password
+  rds_endpoint           = module.rds-mysql.rds_endpoint
+  rds_name               = var.db_name
+  grafana_admin_password = var.grafana_admin_password
 }
 
 # -----------------------------------------------------------------------------
@@ -178,6 +185,7 @@ module "ec2-java-tomcat" {
   ec2_security_group_id = module.network.ec2_security_group_id
   s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
   ssh_public_key        = var.ssh_public_key   # Clé SSH publique pour l'accès à l'instance
+  aws_region            = var.aws_region
 
   # Variables pour le bucket S3
   s3_bucket_name = module.s3.bucket_name
@@ -191,6 +199,12 @@ module "ec2-java-tomcat" {
   dockerhub_username = var.dockerhub_username
   dockerhub_token    = var.dockerhub_token
   dockerhub_repo     = var.dockerhub_repo
+
+  # Dépendances explicites
+  depends_on = [
+    module.s3,
+    module.rds-mysql
+  ]
 }
 
 # Le module S3 existant est utilisé pour stocker les fichiers de configuration de monitoring
@@ -234,6 +248,13 @@ module "ec2-monitoring" {
   docker_username        = var.dockerhub_username
   docker_repo            = var.dockerhub_repo
   dockerhub_token        = var.dockerhub_token
+
+  # Dépendances explicites
+  depends_on = [
+    module.s3,
+    module.rds-mysql,
+    module.ec2-java-tomcat
+  ]
 }
 
 # -----------------------------------------------------------------------------

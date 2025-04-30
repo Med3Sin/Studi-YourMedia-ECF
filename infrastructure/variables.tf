@@ -286,6 +286,38 @@ variable "DOCKERHUB_REPO" {
 
 # Variables manquantes identifiées dans les avertissements Terraform
 
+variable "monitoring_ec2_public_ip" {
+  description = "Adresse IP publique de l'instance EC2 de monitoring."
+  type        = string
+  default     = ""
+}
+
+variable "ec2_public_ip" {
+  description = "Adresse IP publique de l'instance EC2 principale."
+  type        = string
+  default     = ""
+}
+
+variable "docker_username" {
+  description = "Nom d'utilisateur Docker pour l'authentification."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "docker_repo" {
+  description = "Nom du dépôt Docker pour stocker les images."
+  type        = string
+  default     = ""
+}
+
+variable "rds_endpoint" {
+  description = "Point de terminaison RDS (endpoint)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "TF_RDS_ENDPOINT" {
   description = "Point de terminaison RDS (endpoint) généré par Terraform."
   type        = string

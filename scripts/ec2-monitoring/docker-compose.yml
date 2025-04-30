@@ -7,8 +7,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /opt/monitoring/prometheus-data:/prometheus
+      - /opt/monitoring/config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules
+      - /opt/monitoring/data/prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -31,12 +32,14 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /opt/monitoring/grafana-data:/var/lib/grafana
+      - /opt/monitoring/data/grafana:/var/lib/grafana
+      - /opt/monitoring/config/grafana:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
     depends_on:
       - prometheus
     restart: always
@@ -48,9 +51,6 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-
-
-
   # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
   cloudwatch-exporter:
     image: prom/cloudwatch-exporter:latest
@@ -58,13 +58,10 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+      - /opt/monitoring/config/cloudwatch-config.yml:/config/cloudwatch-config.yml
     environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_DEFAULT_REGION:-eu-west-3}
-    command:
-      - --config.file=/config/cloudwatch-config.yml
+      - AWS_REGION=${AWS_REGION:-eu-west-3}
+    command: "--config.file=/config/cloudwatch-config.yml"
     restart: always
     logging:
       driver: "json-file"
@@ -80,21 +77,16 @@ services:
     container_name: mysql-exporter
     ports:
       - "9104:9104"
-    volumes:
-      - /opt/monitoring/mysql-exporter-config.cnf:/etc/mysql-exporter/config.cnf
     environment:
       # Format correct pour la connexion MySQL: user:password@protocol(host:port)/
       - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@tcp(${RDS_HOST:-localhost}:${RDS_PORT:-3306})/
-      - RDS_HOST=${RDS_HOST:-localhost}
-      - RDS_PORT=${RDS_PORT:-3306}
-      - RDS_USERNAME=${RDS_USERNAME:-yourmedia}
-      - RDS_PASSWORD=${RDS_PASSWORD:-password}
     entrypoint:
       - /bin/mysqld_exporter
     command:
       - --web.listen-address=:9104
       - --collect.info_schema.tables
-      - --config.my-cnf=/etc/mysql-exporter/config.cnf
+      - --collect.global_status
+      - --collect.global_variables
     restart: always
     logging:
       driver: "json-file"
@@ -104,6 +96,30 @@ services:
     mem_limit: 256m
     cpu_shares: 256
 
+  # Node Exporter pour surveiller l'instance EC2
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 128m
+    cpu_shares: 128
+
   # Loki pour la centralisation des logs
   loki:
     image: grafana/loki:2.9.2
@@ -111,8 +127,8 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - /opt/monitoring/loki-config.yml:/etc/loki/local-config.yaml
-      - /opt/monitoring/loki-data:/loki
+      - /opt/monitoring/config/loki-config.yml:/etc/loki/local-config.yaml
+      - /opt/monitoring/data/loki:/loki
     command: -config.file=/etc/loki/local-config.yaml
     restart: always
     logging:
@@ -130,7 +146,7 @@ services:
     volumes:
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /opt/monitoring/promtail-config.yml:/etc/promtail/config.yml
+      - /opt/monitoring/config/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki

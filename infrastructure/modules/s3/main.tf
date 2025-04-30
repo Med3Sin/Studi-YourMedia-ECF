@@ -104,17 +104,90 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
 
 
 
-# Téléchargement des fichiers de configuration de monitoring dans le bucket S3
-# Les fichiers sont maintenant centralisés dans le dossier scripts
-# Note: Les ressources aws_s3_object ont été commentées car les fichiers n'existent pas encore
-# Ils seront créés et uploadés manuellement ou via un script séparé
+# Téléchargement des fichiers de configuration et des scripts dans le bucket S3
 
-# Exemple de ressource aws_s3_object (commentée pour validation)
-# resource "aws_s3_object" "example" {
-#   bucket = aws_s3_bucket.media_storage.id
-#   key    = "example.txt"
-#   content = "Contenu d'exemple"
-# }
+# Scripts de monitoring
+resource "aws_s3_object" "monitoring_setup_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-monitoring/setup-monitoring.sh"
+  source = "${path.module}/../../scripts/ec2-monitoring/setup-monitoring.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/setup-monitoring.sh")
+}
+
+resource "aws_s3_object" "monitoring_init_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-monitoring/init-monitoring.sh"
+  source = "${path.module}/../../scripts/ec2-monitoring/init-monitoring.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/init-monitoring.sh")
+}
+
+resource "aws_s3_object" "monitoring_docker_compose" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-monitoring/docker-compose.yml"
+  source = "${path.module}/../../scripts/ec2-monitoring/docker-compose.yml"
+  etag   = filemd5("${path.module}/../../scripts/ec2-monitoring/docker-compose.yml")
+}
+
+# Scripts Java/Tomcat
+resource "aws_s3_object" "java_tomcat_setup_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-java-tomcat/setup-java-tomcat.sh"
+  source = "${path.module}/../../scripts/ec2-java-tomcat/setup-java-tomcat.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-java-tomcat/setup-java-tomcat.sh")
+}
+
+resource "aws_s3_object" "java_tomcat_init_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-java-tomcat/init-java-tomcat.sh"
+  source = "${path.module}/../../scripts/ec2-java-tomcat/init-java-tomcat.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-java-tomcat/init-java-tomcat.sh")
+}
+
+resource "aws_s3_object" "deploy_war_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/ec2-java-tomcat/deploy-war.sh"
+  source = "${path.module}/../../scripts/ec2-java-tomcat/deploy-war.sh"
+  etag   = filemd5("${path.module}/../../scripts/ec2-java-tomcat/deploy-war.sh")
+}
+
+# Scripts Docker
+resource "aws_s3_object" "docker_manager_script" {
+  bucket = aws_s3_bucket.media_storage.id
+  key    = "scripts/docker/docker-manager.sh"
+  source = "${path.module}/../../scripts/docker/docker-manager.sh"
+  etag   = filemd5("${path.module}/../../scripts/docker/docker-manager.sh")
+}
+
+# Création du fichier JSON pour stocker les variables d'environnement sensibles
+resource "local_file" "env_json" {
+  content = jsonencode({
+    RDS_USERNAME           = var.rds_username
+    RDS_PASSWORD           = var.rds_password
+    RDS_ENDPOINT           = var.rds_endpoint
+    RDS_NAME               = var.rds_name
+    GRAFANA_ADMIN_PASSWORD = var.grafana_admin_password
+    S3_BUCKET_NAME         = aws_s3_bucket.media_storage.bucket
+    AWS_REGION             = var.aws_region
+  })
+  filename = "${path.module}/env.json"
+}
+
+# Upload du fichier JSON vers S3
+resource "aws_s3_object" "env_json" {
+  bucket                 = aws_s3_bucket.media_storage.id
+  key                    = "secrets/env.json"
+  source                 = local_file.env_json.filename
+  server_side_encryption = "AES256"
+  depends_on             = [local_file.env_json]
+}
+
+# Nettoyage du fichier local après l'upload
+resource "null_resource" "cleanup" {
+  provisioner "local-exec" {
+    command = "rm -f ${path.module}/env.json"
+  }
+  depends_on = [aws_s3_object.env_json]
+}
 
 # Politique IAM pour permettre à l'instance EC2 de monitoring d'accéder aux fichiers de configuration
 data "aws_iam_policy_document" "monitoring_s3_access" {
