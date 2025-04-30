@@ -39,7 +39,7 @@ jobs:
       - name: Build Grafana Image
         uses: docker/build-push-action@v4
         with:
-          context: ./scripts/docker/grafana
+          context: ./scripts/config/grafana
           push: false
           load: true
           tags: yourmedia-ecf:grafana-scan
@@ -49,7 +49,7 @@ jobs:
       - name: Build Prometheus Image
         uses: docker/build-push-action@v4
         with:
-          context: ./scripts/docker/prometheus
+          context: ./scripts/config/prometheus
           push: false
           load: true
           tags: yourmedia-ecf:prometheus-scan

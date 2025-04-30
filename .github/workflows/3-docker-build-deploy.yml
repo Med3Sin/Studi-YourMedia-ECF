@@ -65,7 +65,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
         uses: docker/build-push-action@v5
         with:
-          context: ./scripts/docker/grafana
+          context: ./scripts/config/grafana
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}
@@ -78,7 +78,7 @@ jobs:
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
         uses: docker/build-push-action@v5
         with:
-          context: ./scripts/docker/prometheus
+          context: ./scripts/config/prometheus
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/yourmedia-ecf:prometheus-${{ env.VERSION }}
@@ -253,8 +253,8 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/docker/docker-manager.sh
-          ./scripts/docker/docker-manager.sh deploy monitoring
+          chmod +x ./scripts/utils/docker-manager.sh
+          ./scripts/utils/docker-manager.sh deploy monitoring
 
       - name: Deploy app containers
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
@@ -268,8 +268,8 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/docker/docker-manager.sh
-          ./scripts/docker/docker-manager.sh deploy mobile
+          chmod +x ./scripts/utils/docker-manager.sh
+          ./scripts/utils/docker-manager.sh deploy mobile
 
       - name: Summary
         run: |
@@ -324,8 +324,8 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/docker/docker-manager.sh
-          ./scripts/docker/docker-manager.sh deploy monitoring
+          chmod +x ./scripts/utils/docker-manager.sh
+          ./scripts/utils/docker-manager.sh deploy monitoring
 
       - name: Deploy app containers
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
@@ -339,8 +339,8 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/docker/docker-manager.sh
-          ./scripts/docker/docker-manager.sh deploy mobile
+          chmod +x ./scripts/utils/docker-manager.sh
+          ./scripts/utils/docker-manager.sh deploy mobile
 
       - name: Summary
         run: |
