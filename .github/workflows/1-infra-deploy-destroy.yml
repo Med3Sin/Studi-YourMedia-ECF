@@ -179,12 +179,12 @@ jobs:
           echo "::endgroup::"
         continue-on-error: false  # Arrête le workflow si le plan échoue
 
-      # Étape 7.5: Vérification et création du bucket S3 si nécessaire
-      - name: Ensure S3 Bucket Exists
-        id: ensure_s3
+      # Étape 7.5: Récupération du nom du bucket S3 s'il existe déjà
+      - name: Get S3 Bucket Name
+        id: get_s3
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "::group::Vérification et création du bucket S3"
+          echo "::group::Récupération du nom du bucket S3"
           # Exporter les variables d'environnement AWS
           export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
           export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
@@ -198,53 +198,15 @@ jobs:
             # Vérifier si le bucket existe réellement
             if aws s3api head-bucket --bucket $S3_BUCKET_NAME 2>/dev/null; then
               echo "Le bucket S3 existe: $S3_BUCKET_NAME"
+              echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
             else
-              echo "Le bucket S3 n'existe pas malgré le secret. Création nécessaire..."
-              S3_BUCKET_NAME=""
+              echo "Le bucket S3 n'existe pas malgré le secret. Il sera créé lors du déploiement."
+              echo "S3_BUCKET_NAME=" >> $GITHUB_ENV
             fi
           else
-            echo "Secret TF_S3_BUCKET_NAME non trouvé. Création nécessaire..."
-            S3_BUCKET_NAME=""
+            echo "Secret TF_S3_BUCKET_NAME non trouvé. Le bucket sera créé lors du déploiement."
+            echo "S3_BUCKET_NAME=" >> $GITHUB_ENV
           fi
-
-          # Si le bucket n'existe pas, le créer via Terraform
-          if [ -z "$S3_BUCKET_NAME" ]; then
-            echo "Création du bucket S3 via Terraform..."
-            # Appliquer uniquement le module S3
-            terraform apply -auto-approve -target=module.s3 \
-              -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
-              -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-              -var="db_username=${{ secrets.RDS_USERNAME }}" \
-              -var="db_password=${{ secrets.RDS_PASSWORD }}" \
-              -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
-              -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
-              -var="github_token=${{ secrets.GH_PAT || '' }}" \
-              -var="repo_owner=${{ github.repository_owner }}" \
-              -var="repo_name=${{ github.repository }}" \
-              -var="ssh_private_key_path=~/.ssh/id_rsa" \
-              -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
-              -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
-              -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
-              -var="environment=${{ github.event.inputs.environment || 'dev' }}" \
-              -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
-              -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-              -var="dockerhub_username=${{ secrets.DOCKER_USERNAME || '' }}" \
-              -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN || '' }}" \
-              -var="dockerhub_repo=${{ secrets.DOCKER_REPO || '' }}"
-
-            # Récupérer le nom du bucket S3 après la création
-            S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
-
-            if [ -z "$S3_BUCKET_NAME" ]; then
-              echo "ERREUR: Impossible de récupérer le nom du bucket S3 après création."
-              exit 1
-            fi
-
-            echo "Bucket S3 créé avec succès: $S3_BUCKET_NAME"
-          fi
-
-          # Stocker le nom du bucket pour les étapes suivantes
-          echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
           echo "::endgroup::"
 
       # Étape 7.6: Vérifier si le secret doit être mis à jour
@@ -336,12 +298,12 @@ jobs:
 
 # Cette étape a été déplacée après la création du bucket S3 et avant le déploiement de l'infrastructure
 
-      # Étape 8: Application des changements Terraform en deux phases
-      - name: Terraform Apply - Phase 1 (S3 Bucket)
-        id: apply_phase1
+      # Étape 8: Application des changements Terraform (déploiement complet)
+      - name: Terraform Apply
+        id: apply
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "::group::Terraform Apply - Phase 1 (S3 Bucket)"
+          echo "::group::Terraform Apply (Déploiement complet)"
           # Exporter les variables d'environnement AWS
           export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
           export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
@@ -351,9 +313,9 @@ jobs:
           echo "Réinitialisation de Terraform..."
           terraform init
 
-          # Phase 1: Créer uniquement le bucket S3
-          echo "Phase 1: Création du bucket S3..."
-          terraform apply -auto-approve -target=module.s3 \
+          # Déployer l'infrastructure complète
+          echo "Déploiement de l'infrastructure complète..."
+          terraform apply -auto-approve \
             -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
             -var="db_username=${{ secrets.RDS_USERNAME }}" \
@@ -372,31 +334,18 @@ jobs:
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
             -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}" \
+            -var="grafana_admin_password=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
 
           # Récupérer le nom du bucket S3
           S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
           echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> $GITHUB_ENV
           echo "Nom du bucket S3 défini comme variable d'environnement: $S3_BUCKET_NAME"
 
-          echo "Bucket S3 créé avec succès: $S3_BUCKET_NAME"
+          echo "Infrastructure déployée avec succès"
           echo "::endgroup::"
 
-      # Étape 8.1: Attente pour s'assurer que le bucket S3 est disponible
-      - name: Wait for S3 Bucket Availability
-        id: wait_s3
-        if: github.event.inputs.action == 'apply'
-        run: |
-          echo "::group::Attente de la disponibilité du bucket S3"
-          echo "Attente de 30 secondes pour s'assurer que le bucket S3 est disponible..."
-          sleep 30
-
-          # Vérifier que le bucket est accessible
-          aws s3 ls s3://${S3_BUCKET_NAME} || (echo "ERREUR: Le bucket S3 n'est pas accessible" && exit 1)
-          echo "Bucket S3 vérifié et accessible."
-          echo "::endgroup::"
-
-      # Étape 8.1.5: Téléchargement des scripts dans S3
+      # Étape 8.1: Téléchargement des scripts dans S3
       - name: Upload Scripts to S3
         id: upload_scripts
         if: github.event.inputs.action == 'apply'
@@ -421,61 +370,56 @@ jobs:
           ls -la ${WORKSPACE_DIR}
           ls -la ${WORKSPACE_DIR}/scripts || echo "Répertoire scripts non trouvé"
 
-          # Télécharger les scripts de monitoring
-          if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring" ]; then
-            echo "Téléchargement des scripts de monitoring..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/ s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+          # Télécharger tous les scripts centralisés
+          echo "Téléchargement de tous les scripts..."
+          aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ s3://${S3_BUCKET_NAME}/scripts/
 
-            # Vérifier et télécharger les scripts d'amélioration de surveillance
-            echo "Vérification des scripts d'amélioration de surveillance..."
-            if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh" ]; then
-              echo "Téléchargement des scripts d'amélioration de surveillance..."
-              # S'assurer que les scripts sont exécutables
-              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh
-              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.sh
-              chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/setup-monitoring-improvements.sh
+          # S'assurer que les scripts shell sont exécutables
+          echo "Vérification des permissions des scripts shell..."
+          find ${WORKSPACE_DIR}/scripts -name "*.sh" -type f -exec chmod +x {} \;
 
-              # Télécharger les scripts individuellement pour s'assurer qu'ils sont correctement téléchargés
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.service s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-health-check.timer s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.service s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-tests.timer s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/loki-config.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/promtail-config.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
-              aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/setup-monitoring-improvements.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/
+          # Télécharger à nouveau les scripts shell pour s'assurer qu'ils ont les bonnes permissions
+          echo "Téléchargement des scripts shell avec les bonnes permissions..."
+          find ${WORKSPACE_DIR}/scripts -name "*.sh" -type f -exec aws s3 cp {} s3://${S3_BUCKET_NAME}/{} --acl public-read \;
 
-              # Créer le répertoire prometheus-rules dans S3 s'il n'existe pas
-              aws s3api put-object --bucket ${S3_BUCKET_NAME} --key scripts/ec2-monitoring/prometheus-rules/
+          # Vérifier que les scripts d'initialisation sont présents
+          echo "Vérification des scripts d'initialisation..."
 
-              # Télécharger les règles Prometheus
-              if [ -d "${WORKSPACE_DIR}/scripts/ec2-monitoring/prometheus-rules" ]; then
-                aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-monitoring/prometheus-rules/ s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/prometheus-rules/
-              fi
-
-              echo "Scripts d'amélioration de surveillance téléchargés avec succès."
-            else
-              echo "AVERTISSEMENT: Les scripts d'amélioration de surveillance n'ont pas été trouvés."
-            fi
+          # Scripts de monitoring
+          if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh" ]; then
+            echo "Script init-monitoring.sh trouvé, téléchargement..."
+            chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh
+            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/init-monitoring.sh --acl public-read
           else
-            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-monitoring n'existe pas."
+            echo "AVERTISSEMENT: Le script init-monitoring.sh n'a pas été trouvé."
           fi
 
-          # Télécharger les scripts Java/Tomcat
-          if [ -d "${WORKSPACE_DIR}/scripts/ec2-java-tomcat" ]; then
-            echo "Téléchargement des scripts Java/Tomcat..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/ s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/
+          # Scripts Java/Tomcat
+          if [ -f "${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh" ]; then
+            echo "Script init-java-tomcat.sh trouvé, téléchargement..."
+            chmod +x ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh
+            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/init-java-tomcat.sh --acl public-read
           else
-            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/ec2-java-tomcat n'existe pas."
+            echo "AVERTISSEMENT: Le script init-java-tomcat.sh n'a pas été trouvé."
           fi
 
-          # Télécharger les scripts Docker
-          if [ -d "${WORKSPACE_DIR}/scripts/docker" ]; then
-            echo "Téléchargement des scripts Docker..."
-            aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/docker/ s3://${S3_BUCKET_NAME}/scripts/docker/
+          # Vérifier que les fichiers Docker Compose sont présents
+          echo "Vérification des fichiers Docker Compose..."
+          if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/docker-compose.yml" ]; then
+            echo "Fichier docker-compose.yml trouvé, téléchargement..."
+            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/docker-compose.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml
           else
-            echo "AVERTISSEMENT: Le répertoire ${WORKSPACE_DIR}/scripts/docker n'existe pas."
+            echo "AVERTISSEMENT: Le fichier docker-compose.yml n'a pas été trouvé."
+          fi
+
+          # Vérifier que les scripts de surveillance sont présents
+          echo "Vérification des scripts de surveillance..."
+          if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh" ]; then
+            echo "Script container-monitor.sh trouvé, téléchargement..."
+            chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh
+            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-monitor.sh --acl public-read
+          else
+            echo "AVERTISSEMENT: Le script container-monitor.sh n'a pas été trouvé."
           fi
 
           echo "Scripts téléchargés avec succès dans le bucket S3: ${S3_BUCKET_NAME}"
@@ -496,57 +440,25 @@ jobs:
           echo "Scripts vérifiés et accessibles."
           echo "::endgroup::"
 
-      # Étape 8.2: Application des changements Terraform - Phase 2 (Reste de l'infrastructure)
-      - name: Terraform Apply - Phase 2 (Infrastructure)
-        id: apply_phase2
+      # Étape 8.2: Récupération des outputs Terraform
+      - name: Get Terraform Outputs
+        id: get_outputs
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "::group::Terraform Apply - Phase 2 (Infrastructure)"
+          echo "::group::Récupération des outputs Terraform"
           # Exporter les variables d'environnement AWS
           export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
           export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
           export AWS_DEFAULT_REGION="${{ env.AWS_REGION }}"
-
-          # Réinitialiser Terraform pour s'assurer que l'état est à jour
-          echo "Réinitialisation de Terraform..."
-          terraform init
-
-          # Phase 2: Déployer le reste de l'infrastructure
-          echo "Phase 2: Déploiement du reste de l'infrastructure..."
-          terraform apply -auto-approve \
-            -var="aws_access_key=${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            -var="aws_secret_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-            -var="db_username=${{ secrets.RDS_USERNAME }}" \
-            -var="db_password=${{ secrets.RDS_PASSWORD }}" \
-            -var="db_name=${{ secrets.DB_NAME || 'yourmedia' }}" \
-            -var="ec2_key_pair_name=${{ secrets.EC2_KEY_PAIR_NAME }}" \
-            -var="github_token=${{ secrets.GH_PAT || '' }}" \
-            -var="repo_owner=${{ github.repository_owner }}" \
-            -var="repo_name=${{ github.repository }}" \
-            -var="ssh_private_key_path=~/.ssh/id_rsa" \
-            -var="ssh_private_key_content='${{ secrets.EC2_SSH_PRIVATE_KEY || '' }}'" \
-            -var="ssh_public_key='${{ secrets.EC2_SSH_PUBLIC_KEY || '' }}'" \
-            -var="enable_provisioning=${{ secrets.EC2_SSH_PRIVATE_KEY != '' }}" \
-            -var="environment=${{ github.event.inputs.environment }}" \
-            -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
-            -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
-            -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
-          echo "::endgroup::"
 
           # Affiche les outputs après l'application
           echo "\n\n--- Outputs de l'infrastructure ---"
           terraform output
 
           # Attendre que les instances soient prêtes
-          echo "::group::Attente que les instances soient prêtes"
           echo "Attente que les instances soient prêtes (60 secondes)..."
           sleep 60
-          echo "::endgroup::"
 
-          # Stockage des outputs dans les secrets GitHub
-          echo "::group::Stockage des outputs dans les secrets GitHub"
           # Récupération des outputs importants
           # Utilisation de variables locales pour éviter les erreurs si les outputs n'existent pas
           EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || echo "")
@@ -581,10 +493,9 @@ jobs:
             echo "grafana_url=$GRAFANA_URL" >> $GITHUB_OUTPUT
           fi
 
-
-
+          echo "Outputs récupérés avec succès"
           echo "::endgroup::"
-        continue-on-error: false  # Arrête le workflow si l'application échoue
+        continue-on-error: false  # Arrête le workflow si la récupération échoue
 
       # Étape 8.5: Arrêter et supprimer les conteneurs Docker sur les instances EC2
       - name: Cleanup Docker Containers
