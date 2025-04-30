@@ -128,6 +128,12 @@ configure_system_limits() {
 # Fonction pour créer le fichier docker-compose.yml
 create_docker_compose_file() {
     log "Création du fichier docker-compose.yml"
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+        log "Le fichier docker-compose.yml existe déjà, utilisation du fichier existant"
+        return 0
+    fi
+
     cat > /opt/monitoring/docker-compose.yml << 'EOF'
 version: '3'
 
@@ -252,6 +258,14 @@ EOF
 create_cloudwatch_config() {
     log "Création du fichier de configuration CloudWatch Exporter"
     mkdir -p /opt/monitoring/cloudwatch-config
+
+    # Vérifier si le fichier existe déjà dans le répertoire config
+    if [ -f "/opt/monitoring/config/cloudwatch-config.yml" ]; then
+        log "Utilisation du fichier de configuration CloudWatch existant"
+        cp /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/
+        return 0
+    fi
+
     cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
@@ -293,6 +307,14 @@ EOF
 # Fonction pour créer le fichier prometheus.yml
 create_prometheus_config() {
     log "Création du fichier prometheus.yml"
+
+    # Vérifier si le fichier existe déjà dans le répertoire config
+    if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
+        log "Utilisation du fichier de configuration Prometheus existant"
+        cp /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+        return 0
+    fi
+
     cat > /opt/monitoring/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
@@ -323,6 +345,14 @@ EOF
 # Fonction pour créer le fichier loki-config.yml
 create_loki_config() {
     log "Création du fichier loki-config.yml"
+
+    # Vérifier si le fichier existe déjà dans le répertoire config
+    if [ -f "/opt/monitoring/config/loki-config.yml" ]; then
+        log "Utilisation du fichier de configuration Loki existant"
+        cp /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+        return 0
+    fi
+
     cat > /opt/monitoring/loki-config.yml << "EOF"
 auth_enabled: false
 
@@ -369,6 +399,14 @@ EOF
 # Fonction pour créer le fichier promtail-config.yml
 create_promtail_config() {
     log "Création du fichier promtail-config.yml"
+
+    # Vérifier si le fichier existe déjà dans le répertoire config
+    if [ -f "/opt/monitoring/config/promtail-config.yml" ]; then
+        log "Utilisation du fichier de configuration Promtail existant"
+        cp /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+        return 0
+    }
+
     cat > /opt/monitoring/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
@@ -433,6 +471,14 @@ EOF
 create_container_alerts() {
     log "Création du fichier container-alerts.yml"
     mkdir -p /opt/monitoring/prometheus-rules
+
+    # Vérifier si le fichier existe déjà dans le répertoire config
+    if [ -f "/opt/monitoring/config/prometheus/container-alerts.yml" ]; then
+        log "Utilisation du fichier d'alertes existant"
+        cp /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+        return 0
+    }
+
     cat > /opt/monitoring/prometheus-rules/container-alerts.yml << "EOF"
 groups:
   - name: containers
@@ -483,7 +529,7 @@ create_docker_manager_script() {
 
     # Télécharger le script docker-manager.sh depuis S3 si disponible
     if [ ! -z "$S3_BUCKET_NAME" ]; then
-        aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
+        aws s3 cp s3://$S3_BUCKET_NAME/scripts/utils/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
     fi
 
     # Si le téléchargement a échoué, créer une version simplifiée du script

@@ -182,9 +182,7 @@ fi
 # Téléchargement des fichiers de configuration supplémentaires
 log "Téléchargement des fichiers de configuration supplémentaires"
 aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/ /opt/monitoring/
-aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/docker/monitoring/ /opt/monitoring/docker/
-aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/docker/prometheus/ /opt/monitoring/prometheus/
-aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/docker/grafana/ /opt/monitoring/grafana/
+aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/config/ /opt/monitoring/config/
 
 # Rendre les scripts exécutables
 log "Rendre les scripts exécutables"
