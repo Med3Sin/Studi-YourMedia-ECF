@@ -55,11 +55,11 @@ log "Copie des fichiers de configuration..."
 cp container-health-check.sh /opt/monitoring/
 cp container-health-check.service /etc/systemd/system/
 cp container-health-check.timer /etc/systemd/system/
-cp prometheus-rules/container-alerts.yml /opt/monitoring/prometheus-rules/
+cp /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/
 
 # 2. Logs centralisés
-cp loki-config.yml /opt/monitoring/
-cp promtail-config.yml /opt/monitoring/
+cp /opt/monitoring/config/loki-config.yml /opt/monitoring/
+cp /opt/monitoring/config/promtail-config.yml /opt/monitoring/
 
 # 3. Automatisation des tests
 cp container-tests.sh /opt/monitoring/
