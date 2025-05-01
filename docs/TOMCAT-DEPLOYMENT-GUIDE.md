@@ -105,7 +105,7 @@ ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << EOF
     sudo /usr/local/bin/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
   else
     # Télécharger le script depuis GitHub
-    sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+    sudo curl -L -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
     sudo chmod +x /tmp/deploy-war.sh
     sudo /tmp/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
     sudo rm /tmp/deploy-war.sh
@@ -147,4 +147,13 @@ Si vous rencontrez des problèmes lors du déploiement, vérifiez les points sui
 4. **Permissions du répertoire webapps** : Vérifiez que le répertoire `/opt/tomcat/webapps/` appartient à `tomcat:tomcat`
    ```bash
    ls -la /opt/tomcat/webapps/
+   ```
+
+5. **Problèmes de téléchargement depuis GitHub** : Si vous rencontrez des erreurs 404 lors du téléchargement des scripts depuis GitHub, assurez-vous d'utiliser l'option `-L` avec curl pour suivre les redirections HTTP :
+   ```bash
+   # Incorrect
+   sudo curl -s -o /tmp/script.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/path/to/script.sh"
+
+   # Correct
+   sudo curl -L -o /tmp/script.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/path/to/script.sh"
    ```

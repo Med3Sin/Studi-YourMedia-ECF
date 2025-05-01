@@ -115,7 +115,7 @@ Vous pouvez télécharger le fichier docker-compose.yml préconfiguré directeme
 
 ```bash
 # Télécharger le fichier docker-compose.yml depuis GitHub
-curl -s -o /opt/monitoring/docker-compose.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/docker-compose.yml"
+curl -L -o /opt/monitoring/docker-compose.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/docker-compose.yml"
 
 # Ou si vous avez cloné le dépôt Git
 cp /chemin/vers/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
@@ -129,7 +129,7 @@ Vous pouvez télécharger le fichier prometheus.yml préconfiguré directement d
 
 ```bash
 # Télécharger le fichier prometheus.yml depuis GitHub
-curl -s -o /opt/monitoring/prometheus.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/config/prometheus/prometheus.yml"
+curl -L -o /opt/monitoring/prometheus.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/config/prometheus/prometheus.yml"
 
 # Ou si vous avez cloné le dépôt Git
 cp /chemin/vers/scripts/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
@@ -184,8 +184,19 @@ Vérifiez les logs des conteneurs :
 ```bash
 docker logs prometheus
 docker logs grafana
-
 docker logs mysql-exporter
+```
+
+### Problèmes de téléchargement depuis GitHub
+
+Si vous rencontrez des erreurs 404 lors du téléchargement des scripts ou des fichiers de configuration depuis GitHub, assurez-vous d'utiliser l'option `-L` avec curl pour suivre les redirections HTTP :
+
+```bash
+# Incorrect
+curl -s -o /opt/monitoring/file.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/path/to/file.yml"
+
+# Correct
+curl -L -o /opt/monitoring/file.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/path/to/file.yml"
 ```
 
 
