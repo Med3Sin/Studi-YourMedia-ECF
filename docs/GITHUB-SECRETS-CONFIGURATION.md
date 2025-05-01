@@ -21,6 +21,7 @@ Les secrets suivants sont considérés comme les secrets standard pour le projet
 | `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Authentification Grafana |
 | `TF_API_TOKEN` | Token d'API Terraform Cloud | Authentification Terraform Cloud |
 | `TF_WORKSPACE_ID` | ID de l'espace de travail Terraform Cloud | Configuration Terraform Cloud |
+| `GH_PAT` | Token d'accès personnel GitHub | Téléchargement des scripts depuis GitHub |
 
 ## Configuration des secrets GitHub
 
@@ -35,6 +36,8 @@ Pour configurer les secrets GitHub, suivez ces étapes :
 ## Synchronisation avec Terraform Cloud
 
 Le script `scripts/utils/sync-github-secrets-to-terraform.sh` synchronise automatiquement ces secrets entre GitHub et Terraform Cloud. Il crée également les variables de compatibilité nécessaires.
+
+> **Note importante** : Le secret `GH_PAT` est particulièrement important depuis la version 2.0 du projet, car il est utilisé pour télécharger les scripts directement depuis GitHub au lieu de les stocker dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 Pour exécuter ce script, utilisez la commande suivante :
 

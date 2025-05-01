@@ -120,7 +120,7 @@ jobs:
           # Test de santé pour l'application mobile
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "Démarrage du conteneur mobile pour les tests..."
-            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}
+            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}
 
             echo "Attente de 15 secondes pour le démarrage du conteneur..."
             sleep 15
@@ -143,7 +143,7 @@ jobs:
             echo "Démarrage du conteneur Grafana pour les tests..."
             docker run -d --name grafana-test -p 3000:3000 \
               -e "GF_SECURITY_ADMIN_PASSWORD=${{ secrets.GF_SECURITY_ADMIN_PASSWORD || 'YourMedia2025!' }}" \
-              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}
+              ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}
 
             echo "Attente de 15 secondes pour le démarrage du conteneur..."
             sleep 15
@@ -163,7 +163,7 @@ jobs:
             # Test de santé pour Prometheus
             echo "Démarrage du conteneur Prometheus pour les tests..."
             docker run -d --name prometheus-test -p 9090:9090 \
-              ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}
+              ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}
 
             echo "Attente de 15 secondes pour le démarrage du conteneur..."
             sleep 15
@@ -189,10 +189,10 @@ jobs:
           echo "* **Version:** ${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Action:** ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Docker Hub Repository:** https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
-            echo "* **Mobile App Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Mobile App Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Mobile App Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat mobile-scan.txt >> $GITHUB_STEP_SUMMARY
@@ -200,8 +200,8 @@ jobs:
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
-            echo "* **Grafana Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
-            echo "* **Prometheus Image:** ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Grafana Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
+            echo "* **Prometheus Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
 
 
             echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
@@ -251,8 +251,17 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/utils/docker-manager.sh
-          ./scripts/utils/docker-manager.sh deploy monitoring
+          # Vérifier si le script docker-manager.sh existe
+          if [ -f "./scripts/utils/docker-manager.sh" ]; then
+            chmod +x ./scripts/utils/docker-manager.sh
+            ./scripts/utils/docker-manager.sh deploy monitoring
+          else
+            # Télécharger le script depuis GitHub
+            echo "Script docker-manager.sh non trouvé, téléchargement depuis GitHub..."
+            curl -s -o ./docker-manager.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/docker-manager.sh"
+            chmod +x ./docker-manager.sh
+            ./docker-manager.sh deploy monitoring
+          fi
 
       - name: Deploy app containers
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
@@ -264,8 +273,17 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/utils/docker-manager.sh
-          ./scripts/utils/docker-manager.sh deploy mobile
+          # Vérifier si le script docker-manager.sh existe
+          if [ -f "./scripts/utils/docker-manager.sh" ]; then
+            chmod +x ./scripts/utils/docker-manager.sh
+            ./scripts/utils/docker-manager.sh deploy mobile
+          else
+            # Télécharger le script depuis GitHub
+            echo "Script docker-manager.sh non trouvé, téléchargement depuis GitHub..."
+            curl -s -o ./docker-manager.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/docker-manager.sh"
+            chmod +x ./docker-manager.sh
+            ./docker-manager.sh deploy mobile
+          fi
 
       - name: Summary
         run: |
@@ -318,8 +336,17 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/utils/docker-manager.sh
-          ./scripts/utils/docker-manager.sh deploy monitoring
+          # Vérifier si le script docker-manager.sh existe
+          if [ -f "./scripts/utils/docker-manager.sh" ]; then
+            chmod +x ./scripts/utils/docker-manager.sh
+            ./scripts/utils/docker-manager.sh deploy monitoring
+          else
+            # Télécharger le script depuis GitHub
+            echo "Script docker-manager.sh non trouvé, téléchargement depuis GitHub..."
+            curl -s -o ./docker-manager.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/docker-manager.sh"
+            chmod +x ./docker-manager.sh
+            ./docker-manager.sh deploy monitoring
+          fi
 
       - name: Deploy app containers
         if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'mobile' }}
@@ -331,8 +358,17 @@ jobs:
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
-          chmod +x ./scripts/utils/docker-manager.sh
-          ./scripts/utils/docker-manager.sh deploy mobile
+          # Vérifier si le script docker-manager.sh existe
+          if [ -f "./scripts/utils/docker-manager.sh" ]; then
+            chmod +x ./scripts/utils/docker-manager.sh
+            ./scripts/utils/docker-manager.sh deploy mobile
+          else
+            # Télécharger le script depuis GitHub
+            echo "Script docker-manager.sh non trouvé, téléchargement depuis GitHub..."
+            curl -s -o ./docker-manager.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/docker-manager.sh"
+            chmod +x ./docker-manager.sh
+            ./docker-manager.sh deploy mobile
+          fi
 
       - name: Summary
         run: |

@@ -171,9 +171,24 @@ jobs:
                 exit 1
             fi
 
-            # Déployer le WAR avec le script deploy-war.sh
-            echo "Déploiement du WAR avec le script deploy-war.sh..."
-            sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            # Vérifier si le script deploy-war.sh existe
+            echo "Vérification du script deploy-war.sh..."
+            if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+                # Utiliser le script dans /opt/yourmedia
+                echo "Utilisation du script deploy-war.sh dans /opt/yourmedia..."
+                sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
+                # Utiliser le script dans /usr/local/bin
+                echo "Utilisation du script deploy-war.sh dans /usr/local/bin..."
+                sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            else
+                # Télécharger le script depuis GitHub
+                echo "Script deploy-war.sh non trouvé, téléchargement depuis GitHub..."
+                sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+                sudo chmod +x /tmp/deploy-war.sh
+                sudo /tmp/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+                sudo rm /tmp/deploy-war.sh
+            fi
 
             # Supprimer le fichier temporaire
             sudo rm /tmp/${{ env.DEPLOY_WAR_NAME }}
