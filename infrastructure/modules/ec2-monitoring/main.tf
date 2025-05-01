@@ -251,9 +251,27 @@ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Créer le tag pour le nom du bucket S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du tag pour le bucket S3"
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-# Correction de la syntaxe de la commande create-tags
-aws ec2 create-tags --region ${var.aws_region} --resources "$INSTANCE_ID" --tags "Key=S3BucketName,Value=${var.s3_bucket_name}"
+# Attendre que les métadonnées de l'instance soient disponibles
+echo "Attente de la disponibilité des métadonnées de l'instance..."
+for i in {1..10}; do
+  INSTANCE_ID=$(curl -s --connect-timeout 5 --max-time 10 http://169.254.169.254/latest/meta-data/instance-id)
+  if [ ! -z "$INSTANCE_ID" ]; then
+    echo "ID de l'instance récupéré: $INSTANCE_ID"
+    break
+  fi
+  echo "Tentative $i: Métadonnées non disponibles, nouvelle tentative dans 5 secondes..."
+  sleep 5
+done
+
+# Vérifier que l'ID de l'instance a été récupéré
+if [ -z "$INSTANCE_ID" ]; then
+  echo "ERREUR: Impossible de récupérer l'ID de l'instance après plusieurs tentatives."
+  # Continuer malgré l'erreur, le tag sera créé plus tard par le script d'initialisation
+else
+  # Correction de la syntaxe de la commande create-tags
+  echo "Création du tag S3BucketName pour l'instance $INSTANCE_ID..."
+  aws ec2 create-tags --region ${var.aws_region} --resources "$INSTANCE_ID" --tags "Key=S3BucketName,Value=${var.s3_bucket_name}"
+fi
 
 # Télécharger et exécuter le script d'initialisation depuis S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis S3"
