@@ -112,14 +112,8 @@ jobs:
             echo "Aucune clé SSH privée configurée."
           fi
 
-      # Étape 5: Téléchargement des scripts Terraform
-      - name: Download Terraform Scripts
-        id: download_scripts
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-scripts
-          path: ${{ env.TF_WORKING_DIR }}
-        continue-on-error: true
+      # Note: Nous n'avons plus besoin de télécharger les scripts Terraform
+      # car nous utilisons directement les fichiers du dépôt GitHub
 
       # Étape 6: Initialisation de Terraform
       - name: Terraform Init
