@@ -259,11 +259,11 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-monitoring-instance"
-    Project     = var.project_name
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-    Role        = "Monitoring"
+    Name         = "${var.project_name}-${var.environment}-monitoring-instance"
+    Project      = var.project_name
+    Environment  = var.environment
+    ManagedBy    = "Terraform"
+    Role         = "Monitoring"
     S3BucketName = var.s3_bucket_name
   }
 

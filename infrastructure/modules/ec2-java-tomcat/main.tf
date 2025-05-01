@@ -176,9 +176,9 @@ resource "aws_instance" "app_server" {
   depends_on = [aws_iam_instance_profile.ec2_profile]
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-app-server"
-    Project     = var.project_name
-    Environment = var.environment
+    Name         = "${var.project_name}-${var.environment}-app-server"
+    Project      = var.project_name
+    Environment  = var.environment
     S3BucketName = var.s3_bucket_name
   }
 }
