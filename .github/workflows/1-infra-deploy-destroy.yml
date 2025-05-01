@@ -20,7 +20,6 @@ on:
           - plan     # Prévisualiser les changements sans les appliquer
           - apply    # Appliquer les changements à l'infrastructure
           - destroy  # Détruire l'infrastructure existante
-          - check-only # Vérifier uniquement la configuration
       environment:
         description: 'Environnement de déploiement'
         required: true
@@ -42,7 +41,6 @@ env:
 jobs:
   terraform:
     name: 'Terraform ${{ github.event.inputs.action }} (Infrastructure)'
-    if: github.event.inputs.action != 'check-only'
     runs-on: ubuntu-latest
     defaults:
       run:
