@@ -17,10 +17,11 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
     ]
   }
 
-  # Permission pour créer des tags EC2
+  # Permission pour créer et décrire des tags EC2
   statement {
     actions = [
-      "ec2:CreateTags"
+      "ec2:CreateTags",
+      "ec2:DescribeTags"
     ]
     resources = [
       "arn:aws:ec2:${var.aws_region}:*:*"
@@ -155,7 +156,8 @@ sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 # Créer le tag pour le nom du bucket S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du tag pour le bucket S3"
 INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-aws ec2 create-tags --region ${var.aws_region} --resources $INSTANCE_ID --tags Key=S3BucketName,Value=${var.s3_bucket_name}
+# Correction de la syntaxe de la commande create-tags
+aws ec2 create-tags --region ${var.aws_region} --resources "$INSTANCE_ID" --tags "Key=S3BucketName,Value=${var.s3_bucket_name}"
 
 # Télécharger et exécuter le script d'initialisation depuis S3
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis S3"
