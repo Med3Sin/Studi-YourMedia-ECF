@@ -36,8 +36,12 @@
 #   - RDS_PASSWORD / DB_PASSWORD : Mot de passe RDS
 #   - RDS_ENDPOINT / DB_ENDPOINT : Point de terminaison RDS
 #   - GRAFANA_ADMIN_PASSWORD / GF_SECURITY_ADMIN_PASSWORD : Mot de passe administrateur Grafana
-#   - DOCKER_USERNAME / DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
-#   - DOCKER_REPO / DOCKERHUB_REPO : Nom du dépôt Docker Hub
+#   - DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub (standard)
+#   - DOCKERHUB_TOKEN : Token d'authentification Docker Hub (standard)
+#   - DOCKERHUB_REPO : Nom du dépôt Docker Hub (standard)
+#   - DOCKER_USERNAME : Alias pour DOCKERHUB_USERNAME (compatibilité)
+#   - DOCKER_PASSWORD : Alias pour DOCKERHUB_TOKEN (compatibilité)
+#   - DOCKER_REPO : Alias pour DOCKERHUB_REPO (compatibilité)
 #==============================================================================
 # Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
 #==============================================================================
@@ -134,139 +138,24 @@ create_docker_compose_file() {
         return 0
     fi
 
-    cat > /opt/monitoring/docker-compose.yml << 'EOF'
-version: '3'
-
-services:
-  prometheus:
-    image: prom/prometheus:v2.45.0
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /opt/monitoring/prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=7d'
-      - '--storage.tsdb.retention.size=500MB'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    mem_limit: 256m
-    cpu_shares: 256
-
-  grafana:
-    image: grafana/grafana:10.0.3
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - /opt/monitoring/grafana-data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_INSTALL_PLUGINS=
-    depends_on:
-      - prometheus
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    mem_limit: 256m
-    cpu_shares: 256
-
-  # Exportateur CloudWatch pour surveiller les services AWS
-  cloudwatch-exporter:
-    image: prom/cloudwatch-exporter:latest
-    container_name: cloudwatch-exporter
-    ports:
-      - "9106:9106"
-    volumes:
-      - /opt/monitoring/cloudwatch-config:/config
-    command: "--config.file=/config/cloudwatch-config.yml"
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    mem_limit: 128m
-    cpu_shares: 128
-
-  # Exportateur MySQL pour surveiller RDS
-  mysql-exporter:
-    image: prom/mysqld-exporter:v0.15.0
-    container_name: mysql-exporter
-    ports:
-      - "9104:9104"
-    environment:
-      - DATA_SOURCE_NAME=${RDS_USERNAME}:${RDS_PASSWORD}@(${RDS_HOST}:${RDS_PORT})/
-    command:
-      - '--collect.info_schema.tables'
-      - '--collect.global_status'
-      - '--collect.global_variables'
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    mem_limit: 128m
-    cpu_shares: 128
-
-  # Node Exporter pour surveiller l'instance EC2
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    ports:
-      - "9100:9100"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
-    mem_limit: 128m
-    cpu_shares: 128
-EOF
-
-    log "Fichier docker-compose.yml créé avec succès"
+    # Note: La création du fichier docker-compose.yml est maintenant gérée dans la partie principale du script
+    # pour éviter les duplications et incohérences
+    log "Le fichier docker-compose.yml sera créé dans la partie principale du script"
     return 0
 }
 
 # Fonction pour créer le fichier de configuration CloudWatch Exporter
 create_cloudwatch_config() {
     log "Création du fichier de configuration CloudWatch Exporter"
-    mkdir -p /opt/monitoring/cloudwatch-config
+    mkdir -p /opt/monitoring/config
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/cloudwatch-config.yml" ]; then
-        log "Utilisation du fichier de configuration CloudWatch existant"
-        cp /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/
+        log "Le fichier de configuration CloudWatch existe déjà"
         return 0
     fi
 
-    cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
+    cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -300,6 +189,10 @@ metrics:
     aws_statistics: [Average]
 EOF
 
+    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+    mkdir -p /opt/monitoring/cloudwatch-config
+    ln -sf /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+
     log "Fichier de configuration CloudWatch Exporter créé avec succès"
     return 0
 }
@@ -307,15 +200,15 @@ EOF
 # Fonction pour créer le fichier prometheus.yml
 create_prometheus_config() {
     log "Création du fichier prometheus.yml"
+    mkdir -p /opt/monitoring/config/prometheus
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
-        log "Utilisation du fichier de configuration Prometheus existant"
-        cp /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+        log "Le fichier de configuration Prometheus existe déjà"
         return 0
     fi
 
-    cat > /opt/monitoring/prometheus.yml << "EOF"
+    cat > /opt/monitoring/config/prometheus/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -338,6 +231,9 @@ scrape_configs:
       - targets: ['cloudwatch-exporter:9106']
 EOF
 
+    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+    ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+
     log "Fichier prometheus.yml créé avec succès"
     return 0
 }
@@ -345,15 +241,15 @@ EOF
 # Fonction pour créer le fichier loki-config.yml
 create_loki_config() {
     log "Création du fichier loki-config.yml"
+    mkdir -p /opt/monitoring/config
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/loki-config.yml" ]; then
-        log "Utilisation du fichier de configuration Loki existant"
-        cp /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+        log "Le fichier de configuration Loki existe déjà"
         return 0
     fi
 
-    cat > /opt/monitoring/loki-config.yml << "EOF"
+    cat > /opt/monitoring/config/loki-config.yml << "EOF"
 auth_enabled: false
 
 server:
@@ -392,6 +288,9 @@ analytics:
   reporting_enabled: false
 EOF
 
+    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+    ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+
     log "Fichier loki-config.yml créé avec succès"
     return 0
 }
@@ -399,15 +298,15 @@ EOF
 # Fonction pour créer le fichier promtail-config.yml
 create_promtail_config() {
     log "Création du fichier promtail-config.yml"
+    mkdir -p /opt/monitoring/config
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/promtail-config.yml" ]; then
-        log "Utilisation du fichier de configuration Promtail existant"
-        cp /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+        log "Le fichier de configuration Promtail existe déjà"
         return 0
-    }
+    fi
 
-    cat > /opt/monitoring/promtail-config.yml << "EOF"
+    cat > /opt/monitoring/config/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -463,6 +362,9 @@ scrape_configs:
           source: message
 EOF
 
+    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+    ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+
     log "Fichier promtail-config.yml créé avec succès"
     return 0
 }
@@ -471,15 +373,17 @@ EOF
 create_container_alerts() {
     log "Création du fichier container-alerts.yml"
     mkdir -p /opt/monitoring/prometheus-rules
+    mkdir -p /opt/monitoring/config/prometheus
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/prometheus/container-alerts.yml" ]; then
-        log "Utilisation du fichier d'alertes existant"
-        cp /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+        log "Le fichier d'alertes existe déjà"
+        # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+        ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
         return 0
     }
 
-    cat > /opt/monitoring/prometheus-rules/container-alerts.yml << "EOF"
+    cat > /opt/monitoring/config/prometheus/container-alerts.yml << "EOF"
 groups:
   - name: containers
     rules:
@@ -518,6 +422,9 @@ groups:
           summary: "Container {{ $labels.name }} high restart count"
           description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
 EOF
+
+    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
+    ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
 
     log "Fichier container-alerts.yml créé avec succès"
     return 0
@@ -1076,6 +983,8 @@ export AWS_REGION="eu-west-3"
 # Variables Docker
 export DOCKER_USERNAME="${DOCKER_USERNAME:-medsin}"
 export DOCKER_REPO="${DOCKER_REPO:-yourmedia-ecf}"
+export DOCKER_PASSWORD="${DOCKERHUB_TOKEN:-$DOCKER_PASSWORD}"
+# Variables de compatibilité (pour les scripts existants)
 export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
 export DOCKERHUB_REPO="$DOCKER_REPO"
 
@@ -1155,44 +1064,13 @@ fi
 
 # Installation de Docker pour Amazon Linux 2023
 log "Installation de Docker"
-if ! command -v docker &> /dev/null; then
-    log "Installation de Docker natif pour Amazon Linux 2023"
-    dnf install -y docker
-    systemctl start docker
-    systemctl enable docker
-
-    # Créer le groupe docker s'il n'existe pas
-    getent group docker &>/dev/null || groupadd docker
-
-    # Ajouter l'utilisateur ec2-user au groupe docker
-    usermod -aG docker ec2-user
-    log "Utilisateur ec2-user ajouté au groupe docker"
-else
-    log "Docker est déjà installé"
-    # S'assurer que Docker est démarré
-    if ! systemctl is-active --quiet docker; then
-        systemctl start docker
-        systemctl enable docker
-    fi
-    # S'assurer que l'utilisateur ec2-user est dans le groupe docker
-    if ! groups ec2-user | grep -q docker; then
-        usermod -a -G docker ec2-user
-    fi
-fi
+# Utiliser la fonction install_docker définie plus haut
+install_docker
 
 # Installation de Docker Compose
 log "Installation de Docker Compose"
-if ! command -v docker-compose &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-
-    # Créer un lien symbolique
-    if [ ! -f "/usr/bin/docker-compose" ] && [ ! -L "/usr/bin/docker-compose" ]; then
-        ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-    fi
-else
-    log "Docker Compose est déjà installé"
-fi
+# Utiliser la fonction install_docker_compose définie plus haut
+install_docker_compose
 
 # Création des répertoires pour les données persistantes
 log "Création des répertoires pour les données persistantes"
@@ -1227,8 +1105,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - /opt/monitoring/prometheus-data:/prometheus
+      - /opt/monitoring/config/prometheus:/etc/prometheus/rules
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -1249,6 +1128,8 @@ services:
       - "3000:3000"
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
+      - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -1264,8 +1145,6 @@ services:
         max-file: "3"
     mem_limit: 512m
 
-
-
   # Exportateur CloudWatch pour surveiller les services AWS
   cloudwatch-exporter:
     image: prom/cloudwatch-exporter:latest
@@ -1273,7 +1152,7 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config:/config
+      - /opt/monitoring/config/cloudwatch-config.yml:/config/cloudwatch-config.yml
     command: "--config.file=/config/cloudwatch-config.yml"
     restart: always
     logging:
@@ -1303,12 +1182,35 @@ services:
         max-size: "10m"
         max-file: "3"
     mem_limit: 256m
+
+  # Node Exporter pour surveiller l'instance EC2
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
 EOF
 
 # Création du fichier de configuration CloudWatch Exporter
 log "Création du fichier de configuration CloudWatch Exporter"
-mkdir -p /opt/monitoring/cloudwatch-config
-cat > /opt/monitoring/cloudwatch-config/cloudwatch-config.yml << EOF
+mkdir -p /opt/monitoring/config
+cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -1342,12 +1244,20 @@ metrics:
     aws_statistics: [Average]
 EOF
 
+# Créer un lien symbolique pour la compatibilité avec les anciens scripts
+mkdir -p /opt/monitoring/cloudwatch-config
+ln -sf /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml"
-cat > /opt/monitoring/prometheus.yml << "EOF"
+mkdir -p /opt/monitoring/config/prometheus
+cat > /opt/monitoring/config/prometheus/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
 
 scrape_configs:
   - job_name: 'prometheus'
@@ -1367,9 +1277,13 @@ scrape_configs:
       - targets: ['cloudwatch-exporter:9106']
 EOF
 
+# Créer un lien symbolique pour la compatibilité avec les anciens scripts
+ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+
 # Création du fichier loki-config.yml
 log "Création du fichier loki-config.yml"
-cat > /opt/monitoring/loki-config.yml << "EOF"
+mkdir -p /opt/monitoring/config
+cat > /opt/monitoring/config/loki-config.yml << "EOF"
 auth_enabled: false
 
 server:
@@ -1408,9 +1322,13 @@ analytics:
   reporting_enabled: false
 EOF
 
+# Créer un lien symbolique pour la compatibilité avec les anciens scripts
+ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+
 # Création du fichier promtail-config.yml
 log "Création du fichier promtail-config.yml"
-cat > /opt/monitoring/promtail-config.yml << "EOF"
+mkdir -p /opt/monitoring/config
+cat > /opt/monitoring/config/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -1466,15 +1384,18 @@ scrape_configs:
           source: message
 EOF
 
+# Créer un lien symbolique pour la compatibilité avec les anciens scripts
+ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+
 # Création du fichier container-alerts.yml
 log "Création du fichier container-alerts.yml"
-mkdir -p /opt/monitoring/prometheus-rules
-cat > /opt/monitoring/prometheus-rules/container-alerts.yml << "EOF"
+mkdir -p /opt/monitoring/config/prometheus
+cat > /opt/monitoring/config/prometheus/container-alerts.yml << "EOF"
 groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|node-exporter|loki|promtail"})
         for: 1m
         labels:
           severity: critical
@@ -1483,7 +1404,7 @@ groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|node-exporter|loki|promtail"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -1492,7 +1413,7 @@ groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|node-exporter|loki|promtail"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|node-exporter|loki|promtail"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -1501,13 +1422,17 @@ groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|node-exporter|loki|promtail"}[15m]) > 3
         labels:
           severity: warning
         annotations:
           summary: "Container {{ $labels.name }} high restart count"
           description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
 EOF
+
+# Créer un lien symbolique pour la compatibilité avec les anciens scripts
+mkdir -p /opt/monitoring/prometheus-rules
+ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
 
 # Télécharger le script docker-manager.sh depuis S3 si disponible
 log "Téléchargement du script docker-manager.sh depuis S3"

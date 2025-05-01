@@ -170,22 +170,24 @@ variable "grafana_admin_password" {
 
 
 
+# Variables Docker Hub (minuscules)
+# Ces variables sont utilisées dans Terraform et sont des alias pour les variables standard
 variable "dockerhub_username" {
-  description = "Nom d'utilisateur Docker Hub pour l'authentification."
+  description = "Alias pour DOCKERHUB_USERNAME (compatibilité Terraform)."
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "dockerhub_token" {
-  description = "Token Docker Hub pour l'authentification."
+  description = "Alias pour DOCKERHUB_TOKEN (compatibilité Terraform)."
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "dockerhub_repo" {
-  description = "Nom du dépôt Docker Hub pour stocker les images."
+  description = "Alias pour DOCKERHUB_REPO (compatibilité Terraform)."
   type        = string
   default     = ""
   sensitive   = true
@@ -197,11 +199,12 @@ variable "last_rotation_date" {
   default     = ""
 }
 
-# Variables avec casse différente pour Terraform Cloud
-# Ces variables sont utilisées dans Terraform Cloud mais déclarées avec une casse différente
+# Variables Docker Hub standardisées (majuscules)
+# Ces variables sont utilisées dans Terraform Cloud et les workflows GitHub Actions
+# Elles sont considérées comme les variables standard pour Docker Hub
 
 variable "DOCKERHUB_TOKEN" {
-  description = "Token Docker Hub pour l'authentification (version majuscule)."
+  description = "Token Docker Hub pour l'authentification (standard)."
   type        = string
   default     = ""
   sensitive   = true
@@ -271,14 +274,14 @@ variable "GRAFANA_ADMIN_PASSWORD" {
 }
 
 variable "DOCKERHUB_USERNAME" {
-  description = "Nom d'utilisateur Docker Hub pour l'authentification (version majuscule)."
+  description = "Nom d'utilisateur Docker Hub pour l'authentification (standard)."
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "DOCKERHUB_REPO" {
-  description = "Nom du dépôt Docker Hub pour stocker les images (version majuscule)."
+  description = "Nom du dépôt Docker Hub pour stocker les images (standard)."
   type        = string
   default     = ""
   sensitive   = true
@@ -299,14 +302,14 @@ variable "ec2_public_ip" {
 }
 
 variable "docker_username" {
-  description = "Nom d'utilisateur Docker pour l'authentification."
+  description = "Alias pour DOCKERHUB_USERNAME (compatibilité)."
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "docker_repo" {
-  description = "Nom du dépôt Docker pour stocker les images."
+  description = "Alias pour DOCKERHUB_REPO (compatibilité)."
   type        = string
   default     = ""
 }
@@ -346,7 +349,7 @@ variable "AWS_DEFAULT_REGION" {
 }
 
 variable "DOCKER_USERNAME" {
-  description = "Nom d'utilisateur Docker Hub (alias)."
+  description = "Alias pour DOCKERHUB_USERNAME (compatibilité)."
   type        = string
   default     = ""
   sensitive   = true

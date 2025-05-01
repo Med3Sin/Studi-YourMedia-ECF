@@ -23,6 +23,8 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
 - [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
+- [Standardisation des variables Docker Hub](docs/DOCKER-VARIABLES-STANDARDISATION.md) : Guide de standardisation des variables Docker Hub
+- [Configuration des secrets GitHub](docs/GITHUB-SECRETS-CONFIGURATION.md) : Guide de configuration des secrets GitHub
 
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
@@ -436,15 +438,18 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 
 * `AWS_ACCESS_KEY_ID`: Votre Access Key ID AWS.
 * `AWS_SECRET_ACCESS_KEY`: Votre Secret Access Key AWS.
-* `DB_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
-* `DB_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
+* `RDS_USERNAME`: Le nom d'utilisateur pour la base de données RDS (ex: `admin`).
+* `RDS_PASSWORD`: Le mot de passe pour la base de données RDS (choisissez un mot de passe sécurisé).
 * `EC2_SSH_PRIVATE_KEY`: Le contenu de votre clé SSH privée (utilisée pour se connecter à l'EC2 lors des déploiements).
 * `EC2_SSH_PUBLIC_KEY`: Le contenu de votre clé SSH publique (utilisée pour configurer l'accès SSH aux instances EC2).
 * `EC2_KEY_PAIR_NAME`: Le nom de la paire de clés EC2 dans AWS (utilisé par Terraform pour configurer les instances EC2).
-* `DOCKERHUB_USERNAME`: Votre nom d'utilisateur Docker Hub.
-* `DOCKERHUB_TOKEN`: Votre token d'accès Docker Hub.
-
+* `DOCKERHUB_USERNAME`: Votre nom d'utilisateur Docker Hub (standard).
+* `DOCKERHUB_TOKEN`: Votre token d'accès Docker Hub (standard).
+* `DOCKERHUB_REPO`: Le nom de votre dépôt Docker Hub (standard, ex: `yourmedia-ecf`).
+* `GF_SECURITY_ADMIN_PASSWORD`: Le mot de passe administrateur Grafana.
 * `GH_PAT`: Un Personal Access Token GitHub pour les intégrations.
+
+Pour plus de détails sur la standardisation des variables Docker Hub, consultez le [Guide de standardisation des variables Docker Hub](docs/DOCKER-VARIABLES-STANDARDISATION.md).
 
 **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 

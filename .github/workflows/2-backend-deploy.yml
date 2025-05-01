@@ -36,8 +36,15 @@ env:
   WAR_NAME: yourmedia-backend.war # Nom du fichier WAR (sera modifié pour inclure l'environnement)
 
 jobs:
+  # Vérification des secrets avant de continuer
+  check-secrets:
+    name: 'Vérification des secrets'
+    uses: ./.github/workflows/0-verification-secrets.yml
+
   build-and-deploy:
     name: Compilation du WAR et Déploiement sur EC2 Tomcat
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.status == 'success'
     runs-on: ubuntu-latest
 
     steps:

@@ -20,6 +20,7 @@ on:
           - plan     # Prévisualiser les changements sans les appliquer
           - apply    # Appliquer les changements à l'infrastructure
           - destroy  # Détruire l'infrastructure existante
+          - check-only # Vérifier uniquement la configuration
       environment:
         description: 'Environnement de déploiement'
         required: true
@@ -39,8 +40,16 @@ env:
   AWS_DEFAULT_REGION: eu-west-3    # Région AWS par défaut (Paris)
 
 jobs:
+  # Vérification des secrets avant de continuer
+  check-secrets:
+    name: 'Vérification des secrets'
+    if: github.event.inputs.action == 'check-only' || github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy'
+    uses: ./.github/workflows/0-verification-secrets.yml
+
   terraform:
     name: 'Terraform ${{ github.event.inputs.action }} (Infrastructure)'
+    needs: [check-secrets]
+    if: github.event.inputs.action != 'check-only' && (needs.check-secrets.outputs.status == 'success' || github.event.inputs.action == 'plan')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -74,7 +83,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Étape 4: Configuration des variables d'environnement et des clés SSH
@@ -171,9 +180,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}" \
+            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
             -no-color \
             -out=tfplan
           echo "::endgroup::"
@@ -332,9 +341,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}" \
+            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
             -var="grafana_admin_password=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
 
           # Récupérer le nom du bucket S3
@@ -518,8 +527,8 @@ jobs:
           # Exécuter le script de nettoyage des conteneurs
           if [ ! -z "$EC2_PUBLIC_IP" ] && [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
             echo "Nettoyage des conteneurs Docker sur les instances EC2..."
-            chmod +x ${GITHUB_WORKSPACE}/scripts/docker/cleanup-containers.sh
-            ${GITHUB_WORKSPACE}/scripts/docker/cleanup-containers.sh $MONITORING_EC2_PUBLIC_IP $EC2_PUBLIC_IP ~/.ssh/id_rsa
+            chmod +x ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh
+            ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh cleanup all --type=all
             echo "Nettoyage des conteneurs Docker terminé."
           else
             echo "Adresses IP des instances EC2 non disponibles. Impossible de nettoyer les conteneurs Docker."

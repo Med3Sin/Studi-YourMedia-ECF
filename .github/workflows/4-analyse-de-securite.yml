@@ -1,0 +1,249 @@
+name: 4 - Analyse de Sécurité
+
+# -----------------------------------------------------------------------
+# Ce workflow gère l'analyse de sécurité du code, des images Docker et de l'infrastructure.
+# Il utilise plusieurs outils comme Trivy, OWASP Dependency Check et tfsec.
+# -----------------------------------------------------------------------
+
+on:
+  workflow_dispatch:     # Permet l'exécution manuelle uniquement
+
+jobs:
+  # Vérification des secrets avant de continuer
+  check-secrets:
+    name: 'Vérification des secrets'
+    uses: ./.github/workflows/0-verification-secrets.yml
+
+  scan-docker-images:
+    name: Analyse des Images Docker
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.status == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.45.1
+          trivy --version
+
+      - name: Build React Native Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app-react
+          file: ./app-react/Dockerfile
+          push: false
+          load: true
+          tags: yourmedia-ecf:react-native-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Grafana Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/config/grafana
+          push: false
+          load: true
+          tags: yourmedia-ecf:grafana-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Prometheus Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/config/prometheus
+          push: false
+          load: true
+          tags: yourmedia-ecf:prometheus-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan React Native Image
+        run: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o react-native-scan.html yourmedia-ecf:react-native-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o react-native-scan.json yourmedia-ecf:react-native-scan
+          echo "React Native Image Vulnerabilities:"
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:react-native-scan
+
+      - name: Scan Grafana Image
+        run: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o grafana-scan.html yourmedia-ecf:grafana-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o grafana-scan.json yourmedia-ecf:grafana-scan
+          echo "Grafana Image Vulnerabilities:"
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:grafana-scan
+
+      - name: Scan Prometheus Image
+        run: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o prometheus-scan.html yourmedia-ecf:prometheus-scan
+          trivy image --scanners vuln --severity HIGH,CRITICAL --format json -o prometheus-scan.json yourmedia-ecf:prometheus-scan
+          echo "Prometheus Image Vulnerabilities:"
+          trivy image --scanners vuln --severity HIGH,CRITICAL yourmedia-ecf:prometheus-scan
+
+      - name: Upload Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports
+          path: |
+            *-scan.html
+            *-scan.json
+
+      - name: Generate Security Report
+        run: |
+          echo "## Résumé de l'Analyse de Sécurité des Images" > $GITHUB_STEP_SUMMARY
+          echo "### Image React Native" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:react-native-scan >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Image Grafana" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:grafana-scan >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Image Prometheus" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          trivy image --scanners vuln --severity HIGH,CRITICAL --no-progress yourmedia-ecf:prometheus-scan >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  scan-code:
+    name: Analyse du Code Source
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.status == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'app-react/package-lock.json'
+
+      - name: Install dependencies for React Native
+        run: |
+          cd app-react
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd app-react
+          npm install eslint eslint-plugin-react eslint-plugin-react-native
+          npx eslint --ext .js,.jsx .
+
+      - name: Run OWASP Dependency Check for Java
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'YourMedia'
+          path: 'app-java'
+          format: 'HTML'
+          out: 'reports'
+          args: >
+            --failOnCVSS 7
+            --enableRetired
+
+      - name: Run npm audit for React Native
+        run: |
+          cd app-react
+          npm audit --json > ../npm-audit.json || true
+          echo "## Résultats de l'Audit npm" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          npm audit >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Code Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-scan-reports
+          path: |
+            reports/
+            npm-audit.json
+
+  scan-infrastructure:
+    name: Analyse de l'Infrastructure
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.status == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+      - name: Run tfsec
+        run: |
+          tfsec ./infrastructure --format json > tfsec-results.json
+          tfsec ./infrastructure --format default > tfsec-results.txt
+          echo "## Résultats de l'Analyse de Sécurité de l'Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat tfsec-results.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Infrastructure Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-scan-reports
+          path: |
+            tfsec-results.json
+            tfsec-results.txt
+
+  notify:
+    name: Notification des Résultats
+    needs: [scan-docker-images, scan-code, scan-infrastructure]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check workflow status
+        id: check
+        run: |
+          if [[ "${{ needs.scan-docker-images.result }}" == "failure" || "${{ needs.scan-code.result }}" == "failure" || "${{ needs.scan-infrastructure.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Summary
+        run: |
+          echo "# Résultats de l'Analyse de Sécurité" >> $GITHUB_STEP_SUMMARY
+          echo "## Statut Général" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.check.outputs.status }}" == "failure" ]]; then
+            echo "❌ **ÉCHEC**: Problèmes de sécurité détectés" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **SUCCÈS**: Aucun problème de sécurité critique détecté" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "## Résultats des Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse des Images Docker: ${{ needs.scan-docker-images.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse du Code Source: ${{ needs.scan-code.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Analyse de l'Infrastructure: ${{ needs.scan-infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Prochaines Étapes" >> $GITHUB_STEP_SUMMARY
+          echo "1. Télécharger les artefacts pour des rapports détaillés" >> $GITHUB_STEP_SUMMARY
+          echo "2. Corriger les problèmes critiques ou de haute sévérité" >> $GITHUB_STEP_SUMMARY
+          echo "3. Relancer l'analyse après les corrections" >> $GITHUB_STEP_SUMMARY
