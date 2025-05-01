@@ -25,6 +25,7 @@ Toute la documentation du projet est maintenant centralisée dans le dossier `do
 - [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
 - [Standardisation des variables Docker Hub](docs/DOCKER-VARIABLES-STANDARDISATION.md) : Guide de standardisation des variables Docker Hub
 - [Configuration des secrets GitHub](docs/GITHUB-SECRETS-CONFIGURATION.md) : Guide de configuration des secrets GitHub
+- [Téléchargement des scripts depuis GitHub](docs/SCRIPTS-GITHUB-APPROACH.md) : Nouvelle approche pour télécharger les scripts depuis GitHub
 
 - [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
 - [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture

@@ -201,6 +201,10 @@ module "ec2-java-tomcat" {
   dockerhub_token    = var.dockerhub_token
   dockerhub_repo     = var.dockerhub_repo
 
+  # Variables pour GitHub
+  repo_owner = var.repo_owner
+  repo_name  = var.repo_name
+
   # Dépendances explicites
   depends_on = [
     module.s3,
@@ -249,6 +253,10 @@ module "ec2-monitoring" {
   docker_username        = var.dockerhub_username
   docker_repo            = var.dockerhub_repo
   dockerhub_token        = var.dockerhub_token
+
+  # Variables pour GitHub
+  repo_owner = var.repo_owner
+  repo_name  = var.repo_name
 
   # Dépendances explicites
   depends_on = [

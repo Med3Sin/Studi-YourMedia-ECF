@@ -405,12 +405,12 @@ jobs:
           echo "Infrastructure déployée avec succès"
           echo "::endgroup::"
 
-      # Étape 8.1: Configuration des permissions des scripts dans S3
-      - name: Configure Script Permissions in S3
-        id: configure_scripts
+      # Étape 8.1: Vérification des scripts GitHub
+      - name: Verify GitHub Scripts
+        id: verify_scripts
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "::group::Configuration des permissions des scripts dans S3"
+          echo "::group::Vérification des scripts GitHub"
           # Créer le fichier de clé SSH si le secret est disponible
           if [ ! -z "${{ secrets.EC2_SSH_PRIVATE_KEY }}" ]; then
             mkdir -p ~/.ssh
@@ -418,8 +418,6 @@ jobs:
             chmod 600 ~/.ssh/id_rsa
             echo "Clé SSH privée configurée."
           fi
-
-          echo "Configuration des permissions des scripts dans le bucket S3: ${S3_BUCKET_NAME}"
 
           # Définir le chemin absolu vers le répertoire de travail
           WORKSPACE_DIR="${GITHUB_WORKSPACE}"
@@ -430,83 +428,34 @@ jobs:
           ls -la ${WORKSPACE_DIR}
           ls -la ${WORKSPACE_DIR}/scripts || echo "Répertoire scripts non trouvé"
 
-          # Vérifier que tous les scripts sont présents dans le bucket S3
-          echo "Vérification de la présence des scripts dans le bucket S3..."
-          aws s3 ls s3://${S3_BUCKET_NAME}/scripts/ --recursive || echo "Certains scripts peuvent être manquants, ils seront copiés maintenant"
-
-          # Copier tous les scripts centralisés (en cas de scripts manquants)
-          echo "Copie des scripts manquants..."
-          aws s3 cp --recursive ${WORKSPACE_DIR}/scripts/ s3://${S3_BUCKET_NAME}/scripts/
-
           # S'assurer que les scripts shell sont exécutables
           echo "Vérification des permissions des scripts shell..."
           find ${WORKSPACE_DIR}/scripts -name "*.sh" -type f -exec chmod +x {} \;
-
-          # Mettre à jour les scripts shell avec les bonnes permissions
-          echo "Mise à jour des scripts shell avec les bonnes permissions..."
-          cd ${WORKSPACE_DIR}
-          find scripts -name "*.sh" -type f | while read file; do
-            # Extraire le chemin relatif à partir de scripts/
-            aws s3 cp "$file" "s3://${S3_BUCKET_NAME}/$file"
-          done
 
           # Vérifier que les scripts d'initialisation sont présents
           echo "Vérification des scripts d'initialisation..."
 
           # Scripts de monitoring
           if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh" ]; then
-            echo "Script init-monitoring.sh trouvé, configuration des permissions..."
+            echo "Script init-monitoring.sh trouvé, vérification des permissions..."
             chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh
-            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/init-monitoring.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/init-monitoring.sh
           else
             echo "AVERTISSEMENT: Le script init-monitoring.sh n'a pas été trouvé."
           fi
 
           # Scripts Java/Tomcat
           if [ -f "${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh" ]; then
-            echo "Script init-java-tomcat.sh trouvé, configuration des permissions..."
+            echo "Script init-java-tomcat.sh trouvé, vérification des permissions..."
             chmod +x ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh
-            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-java-tomcat/init-java-tomcat.sh s3://${S3_BUCKET_NAME}/scripts/ec2-java-tomcat/init-java-tomcat.sh
           else
             echo "AVERTISSEMENT: Le script init-java-tomcat.sh n'a pas été trouvé."
           fi
 
-          # Vérifier que les fichiers Docker Compose sont présents
-          echo "Vérification des fichiers Docker Compose..."
-          if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/docker-compose.yml" ]; then
-            echo "Fichier docker-compose.yml trouvé, mise à jour dans S3..."
-            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/docker-compose.yml s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/docker-compose.yml
-          else
-            echo "AVERTISSEMENT: Le fichier docker-compose.yml n'a pas été trouvé."
-          fi
-
-          # Vérifier que les scripts de surveillance sont présents
-          echo "Vérification des scripts de surveillance..."
-          if [ -f "${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh" ]; then
-            echo "Script container-monitor.sh trouvé, configuration des permissions..."
-            chmod +x ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh
-            aws s3 cp ${WORKSPACE_DIR}/scripts/ec2-monitoring/container-monitor.sh s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/container-monitor.sh
-          else
-            echo "AVERTISSEMENT: Le script container-monitor.sh n'a pas été trouvé."
-          fi
-
-          echo "Configuration des permissions des scripts terminée dans le bucket S3: ${S3_BUCKET_NAME}"
+          echo "Vérification des scripts GitHub terminée"
           echo "::endgroup::"
 
-      # Étape 8.1.6: Vérification de la disponibilité des scripts dans S3
-      - name: Verify Scripts Availability in S3
-        id: verify_scripts
-        if: github.event.inputs.action == 'apply'
-        run: |
-          echo "::group::Vérification de la disponibilité des scripts dans S3"
-          echo "Attente de 15 secondes pour s'assurer que les scripts sont disponibles..."
-          sleep 15
-
-          # Vérifier que les scripts sont accessibles
-          echo "Vérification de la disponibilité des scripts dans S3..."
-          aws s3 ls s3://${S3_BUCKET_NAME}/scripts/ --recursive
-          echo "Scripts vérifiés et accessibles dans S3."
-          echo "::endgroup::"
+      # Les scripts sont maintenant téléchargés directement depuis GitHub
+      # Aucune vérification de disponibilité dans S3 n'est nécessaire
 
       # Étape 8.2: Récupération des outputs Terraform
       - name: Get Terraform Outputs

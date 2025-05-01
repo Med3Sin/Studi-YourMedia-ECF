@@ -104,59 +104,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
 
 
 
-# Téléchargement des fichiers de configuration et des scripts dans le bucket S3
-
-# Scripts de monitoring
-resource "aws_s3_object" "monitoring_setup_script" {
-  count  = fileexists("scripts/ec2-monitoring/setup-monitoring.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-monitoring/setup-monitoring.sh"
-  source = "scripts/ec2-monitoring/setup-monitoring.sh"
-}
-
-resource "aws_s3_object" "monitoring_init_script" {
-  count  = fileexists("scripts/ec2-monitoring/init-monitoring.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-monitoring/init-monitoring.sh"
-  source = "scripts/ec2-monitoring/init-monitoring.sh"
-}
-
-resource "aws_s3_object" "monitoring_docker_compose" {
-  count  = fileexists("scripts/ec2-monitoring/docker-compose.yml") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-monitoring/docker-compose.yml"
-  source = "scripts/ec2-monitoring/docker-compose.yml"
-}
-
-# Scripts Java/Tomcat
-resource "aws_s3_object" "java_tomcat_setup_script" {
-  count  = fileexists("scripts/ec2-java-tomcat/setup-java-tomcat.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-java-tomcat/setup-java-tomcat.sh"
-  source = "scripts/ec2-java-tomcat/setup-java-tomcat.sh"
-}
-
-resource "aws_s3_object" "java_tomcat_init_script" {
-  count  = fileexists("scripts/ec2-java-tomcat/init-java-tomcat.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-java-tomcat/init-java-tomcat.sh"
-  source = "scripts/ec2-java-tomcat/init-java-tomcat.sh"
-}
-
-resource "aws_s3_object" "deploy_war_script" {
-  count  = fileexists("scripts/ec2-java-tomcat/deploy-war.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/ec2-java-tomcat/deploy-war.sh"
-  source = "scripts/ec2-java-tomcat/deploy-war.sh"
-}
-
-# Scripts Docker
-resource "aws_s3_object" "docker_manager_script" {
-  count  = fileexists("scripts/utils/docker-manager.sh") ? 1 : 0
-  bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/utils/docker-manager.sh"
-  source = "scripts/utils/docker-manager.sh"
-}
+# Les scripts ne sont plus téléchargés dans le bucket S3
+# Ils sont maintenant téléchargés directement depuis GitHub lors de l'initialisation des instances EC2
+# Cette approche simplifie le déploiement et évite les problèmes de copie des scripts dans S3
 
 # Création du fichier JSON pour stocker les variables d'environnement sensibles
 resource "local_file" "env_json" {

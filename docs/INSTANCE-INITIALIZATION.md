@@ -20,13 +20,15 @@ Ce document décrit le processus d'initialisation des instances EC2 dans le proj
 
 ## Vue d'ensemble
 
-Les instances EC2 du projet YourMédia (Java/Tomcat et Monitoring) sont initialisées à l'aide de scripts qui sont téléchargés depuis un bucket S3. Ces scripts configurent l'environnement, installent les dépendances nécessaires et déploient les applications.
+Les instances EC2 du projet YourMédia (Java/Tomcat et Monitoring) sont initialisées à l'aide de scripts qui sont téléchargés directement depuis GitHub. Cette nouvelle approche remplace l'ancienne méthode qui utilisait un bucket S3 pour stocker les scripts. Les scripts configurent l'environnement, installent les dépendances nécessaires et déploient les applications.
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 ## Problèmes identifiés
 
 Plusieurs problèmes ont été identifiés dans le processus d'initialisation des instances EC2 :
 
-1. **Transmission des variables d'environnement** : Les variables d'environnement, notamment `S3_BUCKET_NAME`, n'étaient pas correctement transmises aux scripts d'initialisation, ce qui entraînait des erreurs lors du téléchargement des scripts depuis S3.
+1. **Transmission des variables d'environnement** : Les variables d'environnement n'étaient pas correctement transmises aux scripts d'initialisation, ce qui entraînait des erreurs lors du téléchargement des scripts.
 
 2. **Installation de Docker** : L'installation de Docker échouait parfois, ce qui empêchait le déploiement des conteneurs.
 
@@ -82,50 +84,43 @@ sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Définir les variables d'environnement pour le script
-# Utiliser des valeurs par défaut si les variables ne sont pas définies
-S3_BUCKET_NAME="${var.s3_bucket_name}"
 EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 DB_USERNAME="${var.db_username}"
 DB_PASSWORD="${var.db_password}"
 RDS_ENDPOINT="${var.rds_endpoint}"
-
 GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
 
-# Vérifier que le nom du bucket S3 est défini
-if [ -z "$S3_BUCKET_NAME" ]; then
-  echo "ERREUR: La variable S3_BUCKET_NAME n'est pas définie."
-  exit 1
-fi
-
-# Télécharger et exécuter le script d'initialisation depuis S3
-sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/init-instance-env.sh /tmp/init-instance.sh
-sudo chmod +x /tmp/init-instance.sh
+# Télécharger et exécuter le script d'initialisation depuis GitHub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
+sudo mkdir -p /opt/monitoring
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+sudo curl -s -o /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+sudo chmod +x /opt/monitoring/init-monitoring.sh
 
 # Exporter les variables d'environnement pour le script
 export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
 export DB_USERNAME="$DB_USERNAME"
 export DB_PASSWORD="$DB_PASSWORD"
 export RDS_ENDPOINT="$RDS_ENDPOINT"
-
 export GRAFANA_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
-export S3_BUCKET_NAME="$S3_BUCKET_NAME"
 
 # Exécuter le script d'initialisation avec les variables d'environnement
-sudo -E /tmp/init-instance.sh
+sudo -E /opt/monitoring/init-monitoring.sh
 EOF
 ```
 
-### Script d'initialisation `init-instance-env.sh`
+### Script d'initialisation `init-monitoring.sh`
 
 Le script d'initialisation a été modifié pour :
 
 1. Vérifier l'existence des variables d'environnement requises
 2. Ajouter des vérifications d'erreur pour chaque étape critique
-3. Installer Docker manuellement si le script d'installation échoue
+3. Télécharger les scripts supplémentaires depuis GitHub
+4. Installer Docker manuellement si le script d'installation échoue
 
 ```bash
 #!/bin/bash
-# Script simplifié d'initialisation pour l'instance EC2 de monitoring avec variables d'environnement
+# Script d'initialisation pour l'instance EC2 de monitoring
 
 # Fonction pour afficher les messages
 log() {
@@ -138,11 +133,6 @@ error_exit() {
     exit 1
 }
 
-# Vérification des variables d'environnement requises
-if [ -z "$S3_BUCKET_NAME" ]; then
-    error_exit "La variable d'environnement S3_BUCKET_NAME n'est pas définie."
-fi
-
 # Vérification des dépendances
 check_dependency() {
     local cmd=$1
@@ -154,9 +144,13 @@ check_dependency() {
     fi
 }
 
-# Création du répertoire de monitoring
-log "Création du répertoire de monitoring"
+# Création des répertoires nécessaires
+log "Création des répertoires nécessaires"
 sudo mkdir -p /opt/monitoring
+sudo mkdir -p /opt/monitoring/config
+sudo mkdir -p /opt/monitoring/data
+sudo mkdir -p /opt/monitoring/logs
+sudo mkdir -p /opt/monitoring/secure
 
 # Configuration des clés SSH
 log "Configuration des clés SSH"
@@ -173,32 +167,44 @@ sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 
 # Vérification des dépendances essentielles
 log "Vérification des dépendances essentielles"
-check_dependency aws aws-cli
 check_dependency curl curl
-check_dependency sed sed
+check_dependency jq jq
 
 # Afficher les variables d'environnement pour le débogage
 log "Variables d'environnement:"
-log "S3_BUCKET_NAME=$S3_BUCKET_NAME"
 log "EC2_INSTANCE_PRIVATE_IP=$EC2_INSTANCE_PRIVATE_IP"
 
-# Téléchargement des scripts depuis S3
-log "Téléchargement des scripts depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/setup.sh /opt/monitoring/setup.sh || error_exit "Impossible de télécharger setup.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/install-docker.sh /opt/monitoring/install-docker.sh || error_exit "Impossible de télécharger install-docker.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/ec2-monitoring/fix_permissions.sh /opt/monitoring/fix_permissions.sh || error_exit "Impossible de télécharger fix_permissions.sh depuis S3"
-sudo aws s3 cp s3://${S3_BUCKET_NAME}/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || error_exit "Impossible de télécharger docker-manager.sh depuis S3"
+# Téléchargement des scripts depuis GitHub
+log "Téléchargement des scripts depuis GitHub"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
 
-# Rendre les scripts exécutables
-sudo chmod +x /opt/monitoring/install-docker.sh
-sudo chmod +x /opt/monitoring/setup.sh
-sudo chmod +x /opt/monitoring/fix_permissions.sh
-sudo chmod +x /opt/monitoring/docker-manager.sh
+# Téléchargement du script de configuration
+log "Téléchargement du script setup-monitoring.sh"
+curl -s -o /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
+chmod +x /opt/monitoring/setup-monitoring.sh
 
-# Copier docker-manager.sh dans /usr/local/bin/
-log "Copie de docker-manager.sh dans /usr/local/bin/"
-sudo cp /opt/monitoring/docker-manager.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/docker-manager.sh
+# Téléchargement des fichiers de configuration supplémentaires depuis GitHub
+log "Téléchargement des fichiers de configuration supplémentaires depuis GitHub"
+
+# Téléchargement des fichiers de configuration Prometheus
+log "Téléchargement des fichiers de configuration Prometheus"
+mkdir -p /opt/monitoring/config/prometheus
+curl -s -o /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+curl -s -o /opt/monitoring/config/prometheus/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+
+# Téléchargement des fichiers de configuration Grafana
+log "Téléchargement des fichiers de configuration Grafana"
+mkdir -p /opt/monitoring/config/grafana
+curl -s -o /opt/monitoring/config/grafana/grafana.ini "$GITHUB_RAW_URL/scripts/config/grafana/grafana.ini"
+
+# Téléchargement des fichiers de configuration Loki et Promtail
+log "Téléchargement des fichiers de configuration Loki et Promtail"
+curl -s -o /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+curl -s -o /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+
+# Téléchargement du fichier docker-compose.yml
+log "Téléchargement du fichier docker-compose.yml"
+curl -s -o /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
 
 # Création d'un fichier de variables d'environnement pour les scripts
 log "Création du fichier de variables d'environnement"
@@ -207,31 +213,22 @@ export EC2_INSTANCE_PRIVATE_IP="${EC2_INSTANCE_PRIVATE_IP}"
 export DB_USERNAME="${DB_USERNAME}"
 export DB_PASSWORD="${DB_PASSWORD}"
 export RDS_ENDPOINT="${RDS_ENDPOINT}"
-
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD}"
-export S3_BUCKET_NAME="${S3_BUCKET_NAME}"
 EOF
 
 sudo mv /tmp/monitoring-env.sh /opt/monitoring/env.sh
 sudo chmod +x /opt/monitoring/env.sh
 
-# Modification du script setup.sh pour utiliser les variables d'environnement
-log "Modification du script setup.sh pour utiliser les variables d'environnement"
-sudo sed -i '1s|^|#!/bin/bash\nsource /opt/monitoring/env.sh\n\n|' /opt/monitoring/setup.sh
-
 # Installation manuelle de Docker si le script échoue
 log "Installation de Docker"
 if ! command -v docker &> /dev/null; then
-    log "Docker n'est pas installé. Installation via le script..."
-    sudo /opt/monitoring/install-docker.sh || {
-        log "Installation manuelle de Docker..."
-        sudo dnf update -y
-        sudo dnf install -y dnf-utils
-        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo dnf install -y docker-ce docker-ce-cli containerd.io
-        sudo systemctl start docker
-        sudo systemctl enable docker
-    }
+    log "Docker n'est pas installé. Installation..."
+    sudo dnf update -y
+    sudo dnf install -y dnf-utils
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    sudo dnf install -y docker-ce docker-ce-cli containerd.io
+    sudo systemctl start docker
+    sudo systemctl enable docker
 fi
 
 # Vérification de l'installation de Docker
@@ -242,9 +239,26 @@ else
     error_exit "L'installation de Docker a échoué."
 fi
 
+# Installation de Docker Compose
+log "Installation de Docker Compose"
+if ! command -v docker-compose &> /dev/null; then
+    log "Docker Compose n'est pas installé. Installation..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+fi
+
+# Vérification de l'installation de Docker Compose
+if command -v docker-compose &> /dev/null; then
+    log "Docker Compose est installé avec succès."
+    docker-compose --version
+else
+    error_exit "L'installation de Docker Compose a échoué."
+fi
+
 # Exécution du script d'installation
 log "Exécution du script d'installation"
-sudo /opt/monitoring/setup.sh || error_exit "L'exécution du script setup.sh a échoué."
+source /opt/monitoring/env.sh
+sudo -E /opt/monitoring/setup-monitoring.sh || error_exit "L'exécution du script setup-monitoring.sh a échoué."
 
 log "Initialisation terminée avec succès"
 ```

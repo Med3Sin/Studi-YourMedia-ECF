@@ -177,10 +177,11 @@ else
   aws ec2 create-tags --region ${var.aws_region} --resources "$INSTANCE_ID" --tags "Key=S3BucketName,Value=${var.s3_bucket_name}"
 fi
 
-# Télécharger et exécuter le script d'initialisation depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis S3"
+# Télécharger et exécuter le script d'initialisation depuis GitHub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/yourmedia
-sudo aws s3 cp s3://${var.s3_bucket_name}/scripts/ec2-java-tomcat/init-java-tomcat.sh /opt/yourmedia/init-java-tomcat.sh
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+sudo curl -s -o /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh"
 sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
 
 # Exécuter le script d'initialisation

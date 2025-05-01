@@ -196,3 +196,16 @@ variable "dockerhub_token" {
   sensitive   = true
   default     = ""
 }
+
+# Variables pour GitHub
+variable "repo_owner" {
+  description = "Propriétaire du dépôt GitHub (utilisateur ou organisation)"
+  type        = string
+  default     = "Med3Sin"
+}
+
+variable "repo_name" {
+  description = "Nom du dépôt GitHub"
+  type        = string
+  default     = "Studi-YourMedia-ECF"
+}
