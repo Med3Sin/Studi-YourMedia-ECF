@@ -153,9 +153,9 @@ resource "aws_s3_object" "deploy_war_script" {
 # Scripts Docker
 resource "aws_s3_object" "docker_manager_script" {
   bucket = aws_s3_bucket.media_storage.id
-  key    = "scripts/docker/docker-manager.sh"
-  source = "${path.module}/../../scripts/docker/docker-manager.sh"
-  etag   = filemd5("${path.module}/../../scripts/docker/docker-manager.sh")
+  key    = "scripts/utils/docker-manager.sh"
+  source = "${path.module}/../../scripts/utils/docker-manager.sh"
+  etag   = filemd5("${path.module}/../../scripts/utils/docker-manager.sh")
 }
 
 # Création du fichier JSON pour stocker les variables d'environnement sensibles
