@@ -101,14 +101,26 @@ check_dependency curl curl
 check_dependency jq jq
 check_dependency docker docker
 
-# Téléchargement des scripts depuis S3
-log "Téléchargement des scripts depuis S3"
-aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/setup-monitoring.sh /opt/monitoring/setup-monitoring.sh
+# Téléchargement des scripts depuis GitHub
+log "Téléchargement des scripts depuis GitHub"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
+
+# Téléchargement du script de configuration
+log "Téléchargement du script setup-monitoring.sh"
+curl -s -o /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
 chmod +x /opt/monitoring/setup-monitoring.sh
 
-# Récupération des variables depuis S3
-log "Récupération des variables depuis S3"
-aws s3 cp s3://$S3_BUCKET_NAME/secrets/env.json /tmp/env.json
+# Création d'un fichier env.json vide si nécessaire
+log "Création d'un fichier env.json vide"
+echo '{
+  "RDS_USERNAME": "",
+  "RDS_PASSWORD": "",
+  "RDS_ENDPOINT": "",
+  "RDS_NAME": "",
+  "GRAFANA_ADMIN_PASSWORD": "admin",
+  "S3_BUCKET_NAME": "",
+  "AWS_REGION": "eu-west-3"
+}' > /tmp/env.json
 
 # Extraction des variables
 RDS_USERNAME=$(jq -r '.RDS_USERNAME' /tmp/env.json)
@@ -206,10 +218,35 @@ else
     log "Docker Compose est déjà installé"
 fi
 
-# Téléchargement des fichiers de configuration supplémentaires
-log "Téléchargement des fichiers de configuration supplémentaires"
-aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/ /opt/monitoring/
-aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/config/ /opt/monitoring/config/
+# Téléchargement des fichiers de configuration supplémentaires depuis GitHub
+log "Téléchargement des fichiers de configuration supplémentaires depuis GitHub"
+
+# Téléchargement des fichiers de configuration Prometheus
+log "Téléchargement des fichiers de configuration Prometheus"
+mkdir -p /opt/monitoring/config/prometheus
+curl -s -o /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+curl -s -o /opt/monitoring/config/prometheus/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+
+# Téléchargement des fichiers de configuration Grafana
+log "Téléchargement des fichiers de configuration Grafana"
+mkdir -p /opt/monitoring/config/grafana
+curl -s -o /opt/monitoring/config/grafana/grafana.ini "$GITHUB_RAW_URL/scripts/config/grafana/grafana.ini"
+
+# Téléchargement des fichiers de configuration Loki et Promtail
+log "Téléchargement des fichiers de configuration Loki et Promtail"
+curl -s -o /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+curl -s -o /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+
+# Téléchargement du fichier docker-compose.yml
+log "Téléchargement du fichier docker-compose.yml"
+curl -s -o /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
+
+# Téléchargement des services systemd
+log "Téléchargement des services systemd"
+curl -s -o /opt/monitoring/container-health-check.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-health-check.service"
+curl -s -o /opt/monitoring/container-health-check.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-health-check.timer"
+curl -s -o /opt/monitoring/container-tests.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-tests.service"
+curl -s -o /opt/monitoring/container-tests.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-tests.timer"
 
 # Créer des liens symboliques pour la compatibilité avec les anciens scripts
 log "Création de liens symboliques pour la compatibilité"

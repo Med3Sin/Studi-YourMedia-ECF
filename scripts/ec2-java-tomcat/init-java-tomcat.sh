@@ -45,17 +45,30 @@ fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Nom du bucket S3: $S3_BUCKET_NAME"
 
-# Téléchargement des scripts depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis S3"
-aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/setup-java-tomcat.sh /opt/yourmedia/setup-java-tomcat.sh
+# Téléchargement des scripts depuis GitHub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis GitHub"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
+
+# Téléchargement du script de configuration
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script setup-java-tomcat.sh"
+curl -s -o /opt/yourmedia/setup-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/setup-java-tomcat.sh"
 chmod +x /opt/yourmedia/setup-java-tomcat.sh
 
-aws s3 cp s3://$S3_BUCKET_NAME/scripts/ec2-java-tomcat/deploy-war.sh /opt/yourmedia/deploy-war.sh
+# Téléchargement du script de déploiement
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script deploy-war.sh"
+curl -s -o /opt/yourmedia/deploy-war.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/deploy-war.sh"
 chmod +x /opt/yourmedia/deploy-war.sh
 
-# Récupération des variables depuis S3
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Récupération des variables depuis S3"
-aws s3 cp s3://$S3_BUCKET_NAME/secrets/env.json /tmp/env.json
+# Création d'un fichier env.json vide si nécessaire
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un fichier env.json vide"
+echo '{
+  "RDS_USERNAME": "",
+  "RDS_PASSWORD": "",
+  "RDS_ENDPOINT": "",
+  "RDS_NAME": "",
+  "S3_BUCKET_NAME": "",
+  "AWS_REGION": "eu-west-3"
+}' > /tmp/env.json
 
 # Extraction des variables
 RDS_USERNAME=$(jq -r '.RDS_USERNAME' /tmp/env.json)
