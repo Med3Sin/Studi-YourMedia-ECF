@@ -273,6 +273,12 @@ variable "GRAFANA_ADMIN_PASSWORD" {
   sensitive   = true
 }
 
+variable "grafana_url" {
+  description = "URL de l'interface Grafana."
+  type        = string
+  default     = ""
+}
+
 variable "DOCKERHUB_USERNAME" {
   description = "Nom d'utilisateur Docker Hub pour l'authentification (standard)."
   type        = string
@@ -399,6 +405,12 @@ variable "TF_MONITORING_EC2_PUBLIC_IP" {
 
 variable "TF_S3_BUCKET_NAME" {
   description = "Nom du bucket S3 généré par Terraform."
+  type        = string
+  default     = ""
+}
+
+variable "s3_bucket_name" {
+  description = "Nom du bucket S3 (alias pour TF_S3_BUCKET_NAME)."
   type        = string
   default     = ""
 }
