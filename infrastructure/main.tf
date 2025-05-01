@@ -142,7 +142,7 @@ module "s3" {
   environment             = var.environment
   aws_region              = var.aws_region
   monitoring_scripts_path = "${path.module}/scripts" # Chemin vers les scripts
-  scripts_base_path       = "../.."                  # Chemin de base vers les scripts
+  scripts_base_path       = "${path.root}"           # Chemin absolu vers la racine du projet
 
   # Variables sensibles
   rds_username           = var.db_username

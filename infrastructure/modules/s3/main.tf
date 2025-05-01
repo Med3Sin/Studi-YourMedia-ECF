@@ -110,45 +110,45 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
 resource "aws_s3_object" "monitoring_setup_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-monitoring/setup-monitoring.sh"
-  content = var.monitoring_setup_script_content != "" ? var.monitoring_setup_script_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/setup-monitoring.sh")
+  source  = "${var.scripts_base_path}/scripts/ec2-monitoring/setup-monitoring.sh"
 }
 
 resource "aws_s3_object" "monitoring_init_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-monitoring/init-monitoring.sh"
-  content = var.monitoring_init_script_content != "" ? var.monitoring_init_script_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/init-monitoring.sh")
+  source  = "${var.scripts_base_path}/scripts/ec2-monitoring/init-monitoring.sh"
 }
 
 resource "aws_s3_object" "monitoring_docker_compose" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-monitoring/docker-compose.yml"
-  content = var.monitoring_docker_compose_content != "" ? var.monitoring_docker_compose_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/docker-compose.yml")
+  source  = "${var.scripts_base_path}/scripts/ec2-monitoring/docker-compose.yml"
 }
 
 # Scripts Java/Tomcat
 resource "aws_s3_object" "java_tomcat_setup_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-java-tomcat/setup-java-tomcat.sh"
-  content = var.java_tomcat_setup_script_content != "" ? var.java_tomcat_setup_script_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/setup-java-tomcat.sh")
+  source  = "${var.scripts_base_path}/scripts/ec2-java-tomcat/setup-java-tomcat.sh"
 }
 
 resource "aws_s3_object" "java_tomcat_init_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-java-tomcat/init-java-tomcat.sh"
-  content = var.java_tomcat_init_script_content != "" ? var.java_tomcat_init_script_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/init-java-tomcat.sh")
+  source  = "${var.scripts_base_path}/scripts/ec2-java-tomcat/init-java-tomcat.sh"
 }
 
 resource "aws_s3_object" "deploy_war_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/ec2-java-tomcat/deploy-war.sh"
-  content = var.deploy_war_script_content != "" ? var.deploy_war_script_content : file("${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/deploy-war.sh")
+  source  = "${var.scripts_base_path}/scripts/ec2-java-tomcat/deploy-war.sh"
 }
 
 # Scripts Docker
 resource "aws_s3_object" "docker_manager_script" {
   bucket  = aws_s3_bucket.media_storage.id
   key     = "scripts/utils/docker-manager.sh"
-  content = var.docker_manager_script_content != "" ? var.docker_manager_script_content : file("${path.module}/${var.scripts_base_path}/scripts/utils/docker-manager.sh")
+  source  = "${var.scripts_base_path}/scripts/utils/docker-manager.sh"
 }
 
 # Création du fichier JSON pour stocker les variables d'environnement sensibles
