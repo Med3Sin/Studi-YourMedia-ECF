@@ -94,7 +94,7 @@ GRAFANA_ADMIN_PASSWORD="${var.grafana_admin_password}"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/monitoring
 GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
-sudo curl -s -o /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+sudo curl -L -o /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
 sudo chmod +x /opt/monitoring/init-monitoring.sh
 
 # Exporter les variables d'environnement pour le script
@@ -180,7 +180,7 @@ GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/ma
 
 # Téléchargement du script de configuration
 log "Téléchargement du script setup-monitoring.sh"
-curl -s -o /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
+curl -L -o /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
 chmod +x /opt/monitoring/setup-monitoring.sh
 
 # Téléchargement des fichiers de configuration supplémentaires depuis GitHub
@@ -189,22 +189,22 @@ log "Téléchargement des fichiers de configuration supplémentaires depuis GitH
 # Téléchargement des fichiers de configuration Prometheus
 log "Téléchargement des fichiers de configuration Prometheus"
 mkdir -p /opt/monitoring/config/prometheus
-curl -s -o /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
-curl -s -o /opt/monitoring/config/prometheus/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+curl -L -o /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+curl -L -o /opt/monitoring/config/prometheus/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
 
 # Téléchargement des fichiers de configuration Grafana
 log "Téléchargement des fichiers de configuration Grafana"
 mkdir -p /opt/monitoring/config/grafana
-curl -s -o /opt/monitoring/config/grafana/grafana.ini "$GITHUB_RAW_URL/scripts/config/grafana/grafana.ini"
+curl -L -o /opt/monitoring/config/grafana/grafana.ini "$GITHUB_RAW_URL/scripts/config/grafana/grafana.ini"
 
 # Téléchargement des fichiers de configuration Loki et Promtail
 log "Téléchargement des fichiers de configuration Loki et Promtail"
-curl -s -o /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
-curl -s -o /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+curl -L -o /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+curl -L -o /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
 
 # Téléchargement du fichier docker-compose.yml
 log "Téléchargement du fichier docker-compose.yml"
-curl -s -o /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
+curl -L -o /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
 
 # Création d'un fichier de variables d'environnement pour les scripts
 log "Création du fichier de variables d'environnement"
@@ -323,19 +323,31 @@ Pour installer Docker sur Amazon Linux 2023, utilisez le script `scripts/ec2-mon
 
 Si vous rencontrez des problèmes avec l'initialisation des instances EC2, voici quelques étapes de dépannage :
 
-1. **Vérifier les logs d'initialisation** : Les logs d'initialisation sont disponibles dans le fichier `/var/log/cloud-init-output.log` sur l'instance EC2.
+1. **Vérifier les logs d'initialisation** : Les logs d'initialisation sont disponibles dans les fichiers `/var/log/cloud-init-output.log` et `/var/log/user-data-init.log` sur l'instance EC2.
 
-2. **Vérifier les variables d'environnement** : Les variables d'environnement sont affichées dans les logs d'initialisation. Vérifiez que la variable `S3_BUCKET_NAME` est correctement définie.
+2. **Vérifier les variables d'environnement** : Les variables d'environnement sont affichées dans les logs d'initialisation.
 
 3. **Vérifier l'installation de Docker** : Vous pouvez vérifier l'installation de Docker en exécutant la commande `docker --version` sur l'instance EC2.
 
-4. **Réexécuter le script d'initialisation** : Si nécessaire, vous pouvez réexécuter le script d'initialisation en exécutant la commande `sudo /opt/monitoring/init-instance-env.sh` sur l'instance EC2.
+4. **Réexécuter le script d'initialisation** : Si nécessaire, vous pouvez réexécuter le script d'initialisation en exécutant la commande `sudo /opt/monitoring/init-monitoring.sh` ou `sudo /opt/yourmedia/init-java-tomcat.sh` sur l'instance EC2.
 
-5. **Installer Docker manuellement** : Si l'installation de Docker échoue, vous pouvez l'installer manuellement en exécutant les commandes suivantes sur l'instance EC2 :
+5. **Problèmes de téléchargement depuis GitHub** : Si vous rencontrez des erreurs 404 lors du téléchargement des scripts depuis GitHub, assurez-vous d'utiliser l'option `-L` avec curl pour suivre les redirections HTTP :
+
+```bash
+# Incorrect
+curl -s -o /opt/monitoring/script.sh "https://raw.githubusercontent.com/user/repo/main/path/to/script.sh"
+
+# Correct
+curl -L -o /opt/monitoring/script.sh "https://raw.githubusercontent.com/user/repo/main/path/to/script.sh"
+```
+
+6. **Installer Docker manuellement** : Si l'installation de Docker échoue, vous pouvez l'installer manuellement en exécutant les commandes suivantes sur l'instance EC2 :
 
 ```bash
 sudo dnf update -y
-sudo dnf install -y docker
+sudo dnf install -y dnf-utils
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io
 sudo systemctl start docker
 sudo systemctl enable docker
 ```

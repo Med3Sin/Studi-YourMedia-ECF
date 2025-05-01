@@ -270,6 +270,8 @@ Les secrets suivants sont créés automatiquement par le workflow d'infrastructu
 * `S3_BUCKET_NAME` : Nom du bucket S3
 * `MONITORING_EC2_PUBLIC_IP` : Adresse IP publique de l'instance EC2 Monitoring
 
+> **Note importante** : Depuis la version 2.0 du projet, nous n'utilisons plus le tag S3BucketName sur les instances EC2, car les scripts sont téléchargés directement depuis GitHub. Les instances EC2 n'ont plus besoin de connaître le nom du bucket S3 pour télécharger les scripts.
+
 ### Création d'un GH_PAT
 
 1. Accédez à votre compte GitHub > Settings > Developer settings > Personal access tokens
