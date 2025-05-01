@@ -47,15 +47,42 @@ mkdir -p /opt/monitoring/prometheus-rules
 
 # Récupération du nom du bucket S3 depuis les métadonnées de l'instance
 log "Récupération du nom du bucket S3 depuis les métadonnées de l'instance"
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-S3_BUCKET_NAME=$(aws ec2 describe-tags --region $REGION --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3BucketName" --query "Tags[0].Value" --output text)
+
+# Attendre que les métadonnées soient disponibles
+MAX_RETRIES=10
+RETRY_INTERVAL=5
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    INSTANCE_ID=$(curl -s --connect-timeout 2 --max-time 5 http://169.254.169.254/latest/meta-data/instance-id)
+    if [ ! -z "$INSTANCE_ID" ]; then
+        log "ID de l'instance récupéré: $INSTANCE_ID"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    log "Tentative $RETRY_COUNT: Métadonnées non disponibles, nouvelle tentative dans $RETRY_INTERVAL secondes..."
+    sleep $RETRY_INTERVAL
+done
+
+# Récupérer la région
+REGION=$(curl -s --connect-timeout 2 --max-time 5 http://169.254.169.254/latest/meta-data/placement/region || echo "eu-west-3")
+log "Région AWS: $REGION"
+
+# Récupérer le nom du bucket S3 depuis les tags de l'instance
+if [ ! -z "$INSTANCE_ID" ]; then
+    S3_BUCKET_NAME=$(aws ec2 describe-tags --region "$REGION" --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3BucketName" --query "Tags[0].Value" --output text)
+else
+    S3_BUCKET_NAME="None"
+fi
 
 # Si le nom du bucket n'est pas trouvé, utiliser la valeur par défaut
 if [ -z "$S3_BUCKET_NAME" ] || [ "$S3_BUCKET_NAME" == "None" ]; then
     log "Nom du bucket S3 non trouvé dans les tags, utilisation de la valeur par défaut"
-    S3_BUCKET_NAME="yourmedia-ecf-studi"
+    # Récupérer le nom du bucket depuis les variables d'environnement Terraform
+    S3_BUCKET_NAME="yourmedia-dev-media-797748030261-e6ly5tku"
 fi
+
+log "Nom du bucket S3: $S3_BUCKET_NAME"
 
 # Vérification des dépendances essentielles
 log "Vérification des dépendances essentielles"
