@@ -444,7 +444,11 @@ jobs:
 
           # Mettre à jour les scripts shell avec les bonnes permissions
           echo "Mise à jour des scripts shell avec les bonnes permissions..."
-          find ${WORKSPACE_DIR}/scripts -name "*.sh" -type f -exec aws s3 cp {} s3://${S3_BUCKET_NAME}/{} \;
+          cd ${WORKSPACE_DIR}
+          find scripts -name "*.sh" -type f | while read file; do
+            # Extraire le chemin relatif à partir de scripts/
+            aws s3 cp "$file" "s3://${S3_BUCKET_NAME}/$file"
+          done
 
           # Vérifier que les scripts d'initialisation sont présents
           echo "Vérification des scripts d'initialisation..."
