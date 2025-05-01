@@ -34,7 +34,49 @@ variable "scripts_base_path" {
 variable "create_s3_objects" {
   description = "Si true, crée les objets S3 pour les scripts. Mettre à false lors de l'exécution dans Terraform Cloud."
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "monitoring_setup_script_content" {
+  description = "Contenu du script setup-monitoring.sh"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_init_script_content" {
+  description = "Contenu du script init-monitoring.sh"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_docker_compose_content" {
+  description = "Contenu du fichier docker-compose.yml pour le monitoring"
+  type        = string
+  default     = ""
+}
+
+variable "java_tomcat_setup_script_content" {
+  description = "Contenu du script setup-java-tomcat.sh"
+  type        = string
+  default     = ""
+}
+
+variable "java_tomcat_init_script_content" {
+  description = "Contenu du script init-java-tomcat.sh"
+  type        = string
+  default     = ""
+}
+
+variable "deploy_war_script_content" {
+  description = "Contenu du script deploy-war.sh"
+  type        = string
+  default     = ""
+}
+
+variable "docker_manager_script_content" {
+  description = "Contenu du script docker-manager.sh"
+  type        = string
+  default     = ""
 }
 
 variable "rds_username" {
