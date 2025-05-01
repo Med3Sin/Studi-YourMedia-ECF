@@ -40,16 +40,9 @@ env:
   AWS_DEFAULT_REGION: eu-west-3    # Région AWS par défaut (Paris)
 
 jobs:
-  # Vérification des secrets avant de continuer
-  check-secrets:
-    name: 'Vérification des secrets'
-    if: github.event.inputs.action == 'check-only' || github.event.inputs.action == 'apply' || github.event.inputs.action == 'destroy'
-    uses: ./.github/workflows/0-verification-secrets.yml
-
   terraform:
     name: 'Terraform ${{ github.event.inputs.action }} (Infrastructure)'
-    needs: [check-secrets]
-    if: github.event.inputs.action != 'check-only' && (needs.check-secrets.outputs.status == 'success' || github.event.inputs.action == 'plan')
+    if: github.event.inputs.action != 'check-only'
     runs-on: ubuntu-latest
     defaults:
       run:

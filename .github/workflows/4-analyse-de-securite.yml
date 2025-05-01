@@ -9,15 +9,8 @@ on:
   workflow_dispatch:     # Permet l'exécution manuelle uniquement
 
 jobs:
-  # Vérification des secrets avant de continuer
-  check-secrets:
-    name: 'Vérification des secrets'
-    uses: ./.github/workflows/0-verification-secrets.yml
-
   scan-docker-images:
     name: Analyse des Images Docker
-    needs: [check-secrets]
-    if: needs.check-secrets.outputs.status == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -117,8 +110,6 @@ jobs:
 
   scan-code:
     name: Analyse du Code Source
-    needs: [check-secrets]
-    if: needs.check-secrets.outputs.status == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -180,8 +171,6 @@ jobs:
 
   scan-infrastructure:
     name: Analyse de l'Infrastructure
-    needs: [check-secrets]
-    if: needs.check-secrets.outputs.status == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

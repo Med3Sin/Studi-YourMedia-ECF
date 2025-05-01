@@ -23,14 +23,8 @@ on:
           - monitoring
 
 jobs:
-  # Vérification des secrets avant de continuer
-  check-secrets:
-    name: 'Vérification des secrets'
-    uses: ./.github/workflows/0-verification-secrets.yml
-
   build-and-push:
     if: ${{ github.event.inputs.action == 'build' || github.event.inputs.action == 'both' }}
-    needs: [check-secrets]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -291,7 +285,6 @@ jobs:
   # Job de déploiement uniquement (pour l'action 'deploy')
   deploy:
     if: ${{ github.event.inputs.action == 'deploy' }}
-    needs: [check-secrets]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

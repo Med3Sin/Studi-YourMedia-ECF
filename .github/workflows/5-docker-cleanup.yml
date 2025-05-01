@@ -25,15 +25,8 @@ on:
         type: boolean
 
 jobs:
-  # Vérification des secrets avant de continuer
-  check-secrets:
-    name: 'Vérification des secrets'
-    uses: ./.github/workflows/0-verification-secrets.yml
-
   cleanup:
     name: 'Nettoyage des images Docker Hub'
-    needs: [check-secrets]
-    if: needs.check-secrets.outputs.status == 'success'
     runs-on: ubuntu-latest
 
     steps:
