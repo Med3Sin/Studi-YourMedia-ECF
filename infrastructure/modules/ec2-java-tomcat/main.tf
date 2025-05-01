@@ -16,6 +16,16 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
       "${var.s3_bucket_arn}/*" # Accès aux objets dans le bucket
     ]
   }
+
+  # Permission pour créer des tags EC2
+  statement {
+    actions = [
+      "ec2:CreateTags"
+    ]
+    resources = [
+      "arn:aws:ec2:${var.aws_region}:*:*"
+    ]
+  }
   # Ajouter ici d'autres permissions si nécessaire (ex: Secrets Manager, etc.)
 }
 

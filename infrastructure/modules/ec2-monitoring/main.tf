@@ -161,6 +161,14 @@ resource "aws_iam_policy" "monitoring_policy" {
         # Limiter l'accès aux logs pour améliorer la sécurité
         Resource = "arn:aws:logs:${var.aws_region}:*:log-group:/aws/ec2/*"
       },
+      {
+        Action = [
+          "ec2:CreateTags",
+        ]
+        Effect = "Allow"
+        # Permission pour créer des tags EC2
+        Resource = "arn:aws:ec2:${var.aws_region}:*:*"
+      },
     ]
   })
 
