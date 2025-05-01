@@ -310,7 +310,8 @@ check_deploy_vars() {
         log_error "La clé SSH privée n'est pas définie. Veuillez définir la variable EC2_SSH_PRIVATE_KEY."
     fi
 
-    if [ -z "$DOCKERHUB_TOKEN" ]; then
+    # Pour l'action cleanup, nous n'avons pas besoin de vérifier le token Docker Hub
+    if [ "$ACTION" != "cleanup" ] && [ -z "$DOCKERHUB_TOKEN" ]; then
         log_error "Le token Docker Hub n'est pas défini. Veuillez définir la variable DOCKERHUB_TOKEN."
     fi
 
@@ -327,11 +328,10 @@ check_deploy_vars() {
         fi
 
         # Vérifier les variables de base de données pour le monitoring
-        if [ -z "$RDS_USERNAME" ] || [ -z "$RDS_PASSWORD" ] || [ -z "$RDS_ENDPOINT" ]; then
+        # Pour l'action cleanup, nous n'avons pas besoin de vérifier les variables de base de données
+        if [ "$ACTION" != "cleanup" ] && ([ -z "$RDS_USERNAME" ] || [ -z "$RDS_PASSWORD" ] || [ -z "$RDS_ENDPOINT" ]); then
             log_error "Les informations de connexion à la base de données ne sont pas complètes. Veuillez définir les variables RDS_USERNAME (DB_USERNAME), RDS_PASSWORD (DB_PASSWORD) et RDS_ENDPOINT (TF_RDS_ENDPOINT)."
         fi
-
-
     fi
 }
 

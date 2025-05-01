@@ -581,17 +581,34 @@ jobs:
             echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
             echo "Clé SSH privée configurée."
+          else
+            echo "Clé SSH privée non configurée. Impossible de se connecter aux instances EC2."
+            echo "::endgroup::"
+            exit 0
           fi
 
-          # Exécuter le script de nettoyage des conteneurs
-          if [ ! -z "$EC2_PUBLIC_IP" ] && [ ! -z "$MONITORING_EC2_PUBLIC_IP" ]; then
-            echo "Nettoyage des conteneurs Docker sur les instances EC2..."
-            chmod +x ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh
-            ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh cleanup all --type=all
-            echo "Nettoyage des conteneurs Docker terminé."
-          else
+          # Vérifier si les adresses IP des instances EC2 sont disponibles
+          if [ -z "$EC2_PUBLIC_IP" ] || [ -z "$MONITORING_EC2_PUBLIC_IP" ]; then
             echo "Adresses IP des instances EC2 non disponibles. Impossible de nettoyer les conteneurs Docker."
+            echo "::endgroup::"
+            exit 0
           fi
+
+          # Exporter les variables d'environnement nécessaires
+          export EC2_APP_IP="$EC2_PUBLIC_IP"
+          export EC2_MONITORING_IP="$MONITORING_EC2_PUBLIC_IP"
+          export EC2_SSH_PRIVATE_KEY="${{ secrets.EC2_SSH_PRIVATE_KEY }}"
+          export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
+          export DOCKERHUB_TOKEN="${{ secrets.DOCKERHUB_TOKEN }}"
+          export DOCKERHUB_REPO="${{ secrets.DOCKERHUB_REPO }}"
+          export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+          export DOCKER_REPO="${{ secrets.DOCKER_REPO }}"
+
+          # Exécuter le script de nettoyage des conteneurs
+          echo "Nettoyage des conteneurs Docker sur les instances EC2..."
+          chmod +x ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh
+          ${GITHUB_WORKSPACE}/scripts/utils/docker-manager.sh cleanup all --type=all
+          echo "Nettoyage des conteneurs Docker terminé."
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si le nettoyage échoue
 
