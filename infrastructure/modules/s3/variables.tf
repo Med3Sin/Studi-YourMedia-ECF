@@ -25,6 +25,12 @@ variable "monitoring_scripts_path" {
   default     = ""
 }
 
+variable "scripts_base_path" {
+  description = "Chemin de base vers les scripts. Utilisé pour résoudre les chemins relatifs."
+  type        = string
+  default     = "../.."
+}
+
 variable "rds_username" {
   description = "Nom d'utilisateur pour la base de données RDS"
   type        = string
