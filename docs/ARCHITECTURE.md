@@ -192,7 +192,7 @@ Les workflows GitHub Actions automatisent l'intégration et le déploiement cont
 - **3.1-canary-deployment.yml** : Déploiement canary pour réduire les risques
 
 - **5-docker-cleanup.yml** : Nettoyage des images Docker
-- **security-scan.yml** : Analyse de sécurité
+- **4-analyse-de-securite.yml** : Analyse de sécurité
 
 **Actions personnalisées :**
 - **update-github-secret** : Action personnalisée pour mettre à jour les secrets GitHub de manière sécurisée, en utilisant les fichiers d'environnement au lieu de la commande `set-output` dépréciée.

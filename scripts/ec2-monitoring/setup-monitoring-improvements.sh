@@ -73,19 +73,19 @@ chmod +x /opt/monitoring/container-tests.sh
 
 # Mettre à jour la configuration de Prometheus pour inclure les règles d'alerte
 log "Mise à jour de la configuration de Prometheus..."
-if [ -f "/opt/monitoring/prometheus.yml" ]; then
+if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
     # Vérifier si les règles sont déjà configurées
-    if ! grep -q "rule_files:" /opt/monitoring/prometheus.yml; then
+    if ! grep -q "rule_files:" /opt/monitoring/config/prometheus/prometheus.yml; then
         # Ajouter la section rule_files
-        sed -i '/scrape_configs:/i\rule_files:\n  - /etc/prometheus/rules/*.yml\n' /opt/monitoring/prometheus.yml
-    elif ! grep -q "/etc/prometheus/rules/\*.yml" /opt/monitoring/prometheus.yml; then
+        sed -i '/scrape_configs:/i\rule_files:\n  - /etc/prometheus/rules/*.yml\n' /opt/monitoring/config/prometheus/prometheus.yml
+    elif ! grep -q "/etc/prometheus/rules/\*.yml" /opt/monitoring/config/prometheus/prometheus.yml; then
         # Ajouter le fichier de règles
-        sed -i '/rule_files:/a\  - /etc/prometheus/rules/*.yml' /opt/monitoring/prometheus.yml
+        sed -i '/rule_files:/a\  - /etc/prometheus/rules/*.yml' /opt/monitoring/config/prometheus/prometheus.yml
     fi
 
-    # Ajouter un volume pour les règles dans docker-compose.yml
+    # Ajouter un volume pour les règles dans docker-compose.yml si nécessaire
     if ! grep -q "/opt/monitoring/prometheus-rules:/etc/prometheus/rules" /opt/monitoring/docker-compose.yml; then
-        sed -i '/\/opt\/monitoring\/prometheus.yml:\/etc\/prometheus\/prometheus.yml/a\      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules' /opt/monitoring/docker-compose.yml
+        sed -i '/\/opt\/monitoring\/config\/prometheus\/prometheus.yml:\/etc\/prometheus\/prometheus.yml/a\      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules' /opt/monitoring/docker-compose.yml
     fi
 fi
 

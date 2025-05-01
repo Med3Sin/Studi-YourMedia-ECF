@@ -22,8 +22,9 @@
 #   - RDS_PASSWORD
 #   - EC2_SSH_PRIVATE_KEY
 #   - EC2_SSH_PUBLIC_KEY
-#   - DOCKER_USERNAME
-#   - DOCKERHUB_TOKEN
+#   - DOCKERHUB_USERNAME (standard)
+#   - DOCKERHUB_TOKEN (standard)
+#   - DOCKERHUB_REPO (standard)
 #   - TF_EC2_PUBLIC_IP
 #   - TF_S3_BUCKET_NAME
 #   - TF_MONITORING_EC2_PUBLIC_IP
@@ -206,27 +207,39 @@ if [ ! -z "$EC2_KEY_PAIR_NAME" ]; then
 fi
 
 # Synchroniser les secrets Docker
-if [ ! -z "$DOCKER_USERNAME" ]; then
-    create_or_update_tf_variable "DOCKER_USERNAME" "$DOCKER_USERNAME" "env" "true" "Docker Username"
-    create_or_update_tf_variable "dockerhub_username" "$DOCKER_USERNAME" "terraform" "true" "Docker Username"
-fi
-
 if [ ! -z "$DOCKERHUB_USERNAME" ]; then
     create_or_update_tf_variable "DOCKERHUB_USERNAME" "$DOCKERHUB_USERNAME" "env" "true" "Docker Hub Username"
+    create_or_update_tf_variable "dockerhub_username" "$DOCKERHUB_USERNAME" "terraform" "true" "Docker Hub Username"
+
+    # Pour la compatibilité avec les anciens scripts
+    create_or_update_tf_variable "DOCKER_USERNAME" "$DOCKERHUB_USERNAME" "env" "true" "Docker Username"
 fi
 
 if [ ! -z "$DOCKERHUB_TOKEN" ]; then
     create_or_update_tf_variable "DOCKERHUB_TOKEN" "$DOCKERHUB_TOKEN" "env" "true" "Docker Hub Token"
     create_or_update_tf_variable "dockerhub_token" "$DOCKERHUB_TOKEN" "terraform" "true" "Docker Hub Token"
-fi
 
-if [ ! -z "$DOCKER_REPO" ]; then
-    create_or_update_tf_variable "DOCKER_REPO" "$DOCKER_REPO" "env" "false" "Docker Repository"
-    create_or_update_tf_variable "dockerhub_repo" "$DOCKER_REPO" "terraform" "false" "Docker Repository"
+    # Pour la compatibilité avec les anciens scripts
+    create_or_update_tf_variable "DOCKER_PASSWORD" "$DOCKERHUB_TOKEN" "env" "true" "Docker Password"
 fi
 
 if [ ! -z "$DOCKERHUB_REPO" ]; then
     create_or_update_tf_variable "DOCKERHUB_REPO" "$DOCKERHUB_REPO" "env" "false" "Docker Hub Repository"
+    create_or_update_tf_variable "dockerhub_repo" "$DOCKERHUB_REPO" "terraform" "false" "Docker Hub Repository"
+
+    # Pour la compatibilité avec les anciens scripts
+    create_or_update_tf_variable "DOCKER_REPO" "$DOCKERHUB_REPO" "env" "false" "Docker Repository"
+fi
+
+# Compatibilité avec les anciens noms de variables
+if [ ! -z "$DOCKER_USERNAME" ] && [ -z "$DOCKERHUB_USERNAME" ]; then
+    create_or_update_tf_variable "DOCKERHUB_USERNAME" "$DOCKER_USERNAME" "env" "true" "Docker Hub Username"
+    create_or_update_tf_variable "dockerhub_username" "$DOCKER_USERNAME" "terraform" "true" "Docker Hub Username"
+fi
+
+if [ ! -z "$DOCKER_REPO" ] && [ -z "$DOCKERHUB_REPO" ]; then
+    create_or_update_tf_variable "DOCKERHUB_REPO" "$DOCKER_REPO" "env" "false" "Docker Hub Repository"
+    create_or_update_tf_variable "dockerhub_repo" "$DOCKER_REPO" "terraform" "false" "Docker Hub Repository"
 fi
 
 # Synchroniser les secrets Grafana

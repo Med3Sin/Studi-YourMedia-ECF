@@ -101,7 +101,7 @@ Trivy offre plusieurs options pour optimiser les scans de sécurité :
    ```bash
    # Format HTML
    trivy image --format template --template "@/usr/local/share/trivy/templates/html.tpl" -o rapport.html <image>
-   
+
    # Format JSON
    trivy image --format json -o rapport.json <image>
    ```
@@ -109,7 +109,7 @@ Trivy offre plusieurs options pour optimiser les scans de sécurité :
 
 ### Workflow GitHub Actions
 
-Le workflow GitHub Actions `security-scan.yml` a été mis à jour pour utiliser ces options optimisées :
+Le workflow GitHub Actions `4-analyse-de-securite.yml` utilise ces options optimisées :
 
 - Utilisation de `--scanners vuln` pour désactiver le scan des secrets
 - Utilisation de `--severity HIGH,CRITICAL` pour se concentrer sur les vulnérabilités importantes

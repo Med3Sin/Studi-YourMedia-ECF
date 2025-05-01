@@ -1,6 +1,6 @@
 #!/bin/bash
 #==============================================================================
-# Nom du script : init-monitoring-unified.sh
+# Nom du script : init-monitoring.sh
 # Description   : Script unifié d'initialisation pour l'instance EC2 de monitoring.
 #                 Ce script configure l'environnement de l'instance, télécharge les scripts
 #                 nécessaires depuis S3, récupère les variables d'environnement et initialise
@@ -8,7 +8,7 @@
 # Version       : 2.0
 # Date          : 2025-05-01
 #==============================================================================
-# Utilisation   : sudo ./init-monitoring-unified.sh
+# Utilisation   : sudo ./init-monitoring.sh
 #==============================================================================
 # Dépendances   :
 #   - aws-cli   : Pour télécharger les scripts depuis S3
@@ -183,6 +183,14 @@ fi
 log "Téléchargement des fichiers de configuration supplémentaires"
 aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/ec2-monitoring/ /opt/monitoring/
 aws s3 cp --recursive s3://$S3_BUCKET_NAME/scripts/config/ /opt/monitoring/config/
+
+# Créer des liens symboliques pour la compatibilité avec les anciens scripts
+log "Création de liens symboliques pour la compatibilité"
+ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+ln -sf /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config.yml
+ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
 
 # Rendre les scripts exécutables
 log "Rendre les scripts exécutables"

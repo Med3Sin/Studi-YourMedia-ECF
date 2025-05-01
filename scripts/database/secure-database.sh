@@ -9,18 +9,23 @@
 # Version       : 1.0
 # Date          : 2025-04-27
 #==============================================================================
-# Utilisation   : ./secure-database.sh [host] [port] [root_user] [root_password] [new_user] [new_password]
+# Utilisation   : ./secure-database.sh [options]
 #
-# Arguments     :
-#   host        : Hôte de la base de données (par défaut: localhost)
-#   port        : Port de la base de données (par défaut: 3306)
-#   root_user   : Utilisateur root de la base de données (par défaut: root)
-#   root_password : Mot de passe root de la base de données (par défaut: password)
-#   new_user    : Nouvel utilisateur à créer (par défaut: yourmedia_user)
-#   new_password : Mot de passe du nouvel utilisateur (par défaut: généré aléatoirement)
+# Options       :
+#   --host=HOST           : Hôte de la base de données (par défaut: localhost)
+#   --port=PORT           : Port de la base de données (par défaut: 3306)
+#   --root-user=USER      : Utilisateur root de la base de données (par défaut: root)
+#   --root-password=PASS  : Mot de passe root de la base de données (par défaut: password)
+#   --new-user=USER       : Nouvel utilisateur à créer (par défaut: yourmedia_user)
+#   --new-password=PASS   : Mot de passe du nouvel utilisateur (par défaut: généré aléatoirement)
+#   --output-file=FILE    : Fichier où enregistrer les informations d'identification (optionnel)
 #
 # Exemples      :
 #   ./secure-database.sh
+#   ./secure-database.sh --host=localhost --port=3306 --root-user=root --root-password=password --new-user=yourmedia_user
+#   ./secure-database.sh --output-file=/tmp/db-credentials.txt
+#
+# Compatibilité : L'ancienne syntaxe positionnelle est toujours supportée :
 #   ./secure-database.sh localhost 3306 root password yourmedia_user my_secure_password
 #==============================================================================
 # Dépendances   :
@@ -35,13 +40,65 @@
 #   - TF_WORKSPACE_ID : ID de l'espace de travail Terraform Cloud (optionnel)
 #==============================================================================
 
-# Variables (à définir avant l'exécution ou à passer en paramètres)
-DB_HOST=${1:-localhost}
-DB_PORT=${2:-3306}
-DB_ROOT_USER=${3:-root}
-DB_ROOT_PASSWORD=${4:-password}
-NEW_DB_USER=${5:-yourmedia_user}
-NEW_DB_PASSWORD=${6:-$(openssl rand -base64 12)}
+# Traitement des options
+OUTPUT_FILE=""
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --output-file=*)
+            OUTPUT_FILE="${1#*=}"
+            shift
+            ;;
+        --host=*)
+            DB_HOST="${1#*=}"
+            shift
+            ;;
+        --port=*)
+            DB_PORT="${1#*=}"
+            shift
+            ;;
+        --root-user=*)
+            DB_ROOT_USER="${1#*=}"
+            shift
+            ;;
+        --root-password=*)
+            DB_ROOT_PASSWORD="${1#*=}"
+            shift
+            ;;
+        --new-user=*)
+            NEW_DB_USER="${1#*=}"
+            shift
+            ;;
+        --new-password=*)
+            NEW_DB_PASSWORD="${1#*=}"
+            shift
+            ;;
+        *)
+            # Compatibilité avec l'ancienne syntaxe positionnelle
+            if [ -z "$DB_HOST" ]; then
+                DB_HOST="$1"
+            elif [ -z "$DB_PORT" ]; then
+                DB_PORT="$1"
+            elif [ -z "$DB_ROOT_USER" ]; then
+                DB_ROOT_USER="$1"
+            elif [ -z "$DB_ROOT_PASSWORD" ]; then
+                DB_ROOT_PASSWORD="$1"
+            elif [ -z "$NEW_DB_USER" ]; then
+                NEW_DB_USER="$1"
+            elif [ -z "$NEW_DB_PASSWORD" ]; then
+                NEW_DB_PASSWORD="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Valeurs par défaut si non spécifiées
+DB_HOST=${DB_HOST:-localhost}
+DB_PORT=${DB_PORT:-3306}
+DB_ROOT_USER=${DB_ROOT_USER:-root}
+DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-password}
+NEW_DB_USER=${NEW_DB_USER:-yourmedia_user}
+NEW_DB_PASSWORD=${NEW_DB_PASSWORD:-$(openssl rand -base64 12)}
 
 # Fonction pour afficher les messages
 log() {
@@ -141,8 +198,17 @@ fi
 
 log "Base de données sécurisée avec succès."
 log "Nouvel utilisateur: $NEW_DB_USER"
-log "Nouveau mot de passe: $NEW_DB_PASSWORD"
+log "IMPORTANT: Le nouveau mot de passe a été généré et appliqué."
 log "IMPORTANT: Notez ce mot de passe dans un gestionnaire de mots de passe sécurisé."
 log "IMPORTANT: Mettez à jour les variables d'environnement de votre application avec ces nouvelles informations."
+
+# Écrire le mot de passe dans un fichier temporaire sécurisé si l'option --output-file est spécifiée
+if [ ! -z "$OUTPUT_FILE" ]; then
+    echo "Utilisateur: $NEW_DB_USER" > "$OUTPUT_FILE"
+    echo "Mot de passe: $NEW_DB_PASSWORD" >> "$OUTPUT_FILE"
+    chmod 600 "$OUTPUT_FILE"
+    log "Les informations d'identification ont été enregistrées dans $OUTPUT_FILE"
+    log "IMPORTANT: Supprimez ce fichier après avoir enregistré les informations dans un endroit sécurisé."
+fi
 
 exit 0

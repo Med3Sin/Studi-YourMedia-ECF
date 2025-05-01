@@ -44,9 +44,11 @@
 #   - ssh       : Pour se connecter aux instances EC2
 #==============================================================================
 # Variables d'environnement :
-#   - DOCKER_USERNAME / DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub
-#   - DOCKER_REPO / DOCKERHUB_REPO : Nom du dépôt Docker Hub
-#   - DOCKERHUB_TOKEN : Token d'authentification Docker Hub
+#   - DOCKERHUB_USERNAME : Nom d'utilisateur Docker Hub (standard)
+#   - DOCKERHUB_REPO : Nom du dépôt Docker Hub (standard)
+#   - DOCKERHUB_TOKEN : Token d'authentification Docker Hub (standard)
+#   - DOCKER_USERNAME : Alias pour DOCKERHUB_USERNAME (compatibilité)
+#   - DOCKER_REPO : Alias pour DOCKERHUB_REPO (compatibilité)
 #   - EC2_MONITORING_IP / TF_MONITORING_EC2_PUBLIC_IP : IP publique de l'instance EC2 de monitoring
 #   - EC2_APP_IP / TF_EC2_PUBLIC_IP : IP publique de l'instance EC2 de l'application
 #   - EC2_SSH_KEY / EC2_SSH_PRIVATE_KEY : Clé SSH privée pour se connecter aux instances EC2
@@ -88,12 +90,12 @@ log_success() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - [SUCCESS] $1"
 }
 
-# Variables avec noms standardisés
-# Variables Docker
-export DOCKER_USERNAME=${DOCKERHUB_USERNAME:-medsin}
-export DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-$DOCKER_USERNAME}
-export DOCKER_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
-export DOCKERHUB_REPO=${DOCKERHUB_REPO:-$DOCKER_REPO}
+# Variables Docker standardisées
+export DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME:-medsin}
+export DOCKERHUB_REPO=${DOCKERHUB_REPO:-yourmedia-ecf}
+# Variables de compatibilité (pour les scripts existants)
+export DOCKER_USERNAME=${DOCKER_USERNAME:-$DOCKERHUB_USERNAME}
+export DOCKER_REPO=${DOCKER_REPO:-$DOCKERHUB_REPO}
 export DOCKER_VERSION=$(date +%Y%m%d%H%M%S)
 
 # Variables d'action
@@ -336,7 +338,7 @@ check_deploy_vars() {
 # Connexion à Docker Hub
 docker_login() {
     log_info "Connexion à Docker Hub..."
-    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin || log_error "Échec de la connexion à Docker Hub"
+    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin || log_error "Échec de la connexion à Docker Hub"
 }
 
 # Fonction pour construire et pousser l'image mobile
@@ -351,11 +353,11 @@ build_push_mobile() {
     fi
 
     # Construire l'image depuis le répertoire de l'application
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest "$APP_REACT_DIR" || log_error "Échec de la construction de l'image mobile"
+    docker build -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:mobile-$DOCKER_VERSION -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:mobile-latest "$APP_REACT_DIR" || log_error "Échec de la construction de l'image mobile"
 
     log_info "Publication de l'image mobile sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-$DOCKER_VERSION || log_error "Échec de la publication de l'image mobile (version)"
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest || log_error "Échec de la publication de l'image mobile (latest)"
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:mobile-$DOCKER_VERSION || log_error "Échec de la publication de l'image mobile (version)"
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:mobile-latest || log_error "Échec de la publication de l'image mobile (latest)"
 
     log_success "Image mobile publiée avec succès!"
 }
@@ -363,8 +365,8 @@ build_push_mobile() {
 # Fonction pour construire et pousser les images de monitoring
 build_push_monitoring() {
     # Définir les chemins absolus pour les répertoires Docker
-    GRAFANA_DIR="${PROJECT_ROOT}/scripts/docker/grafana"
-    PROMETHEUS_DIR="${PROJECT_ROOT}/scripts/docker/prometheus"
+    GRAFANA_DIR="${PROJECT_ROOT}/scripts/config/grafana"
+    PROMETHEUS_DIR="${PROJECT_ROOT}/scripts/config/prometheus"
 
     # Vérifier que les répertoires existent
     for DIR in "$GRAFANA_DIR" "$PROMETHEUS_DIR"; do
@@ -374,26 +376,35 @@ build_push_monitoring() {
     done
 
     log_info "Construction de l'image Docker pour Grafana..."
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest "$GRAFANA_DIR" || log_error "Échec de la construction de l'image Grafana"
+    docker build -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-$DOCKER_VERSION -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-latest "$GRAFANA_DIR" || log_error "Échec de la construction de l'image Grafana"
 
     log_info "Publication de l'image Grafana sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-$DOCKER_VERSION || log_error "Échec de la publication de l'image Grafana (version)"
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest || log_error "Échec de la publication de l'image Grafana (latest)"
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-$DOCKER_VERSION || log_error "Échec de la publication de l'image Grafana (version)"
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-latest || log_error "Échec de la publication de l'image Grafana (latest)"
 
     log_info "Construction de l'image Docker pour Prometheus..."
-    docker build -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION -t $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest "$PROMETHEUS_DIR" || log_error "Échec de la construction de l'image Prometheus"
+    docker build -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-$DOCKER_VERSION -t $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-latest "$PROMETHEUS_DIR" || log_error "Échec de la construction de l'image Prometheus"
 
     log_info "Publication de l'image Prometheus sur Docker Hub..."
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-$DOCKER_VERSION || log_error "Échec de la publication de l'image Prometheus (version)"
-    docker push $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest || log_error "Échec de la publication de l'image Prometheus (latest)"
-
-
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-$DOCKER_VERSION || log_error "Échec de la publication de l'image Prometheus (version)"
+    docker push $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-latest || log_error "Échec de la publication de l'image Prometheus (latest)"
 
     log_success "Images de monitoring publiées avec succès!"
 }
 
 # Fonction pour déployer les conteneurs de monitoring
 deploy_monitoring() {
+    # Vérifier que les variables requises sont définies
+    if [ -z "$EC2_MONITORING_IP" ]; then
+        log_error "La variable EC2_MONITORING_IP n'est pas définie"
+        return 1
+    fi
+
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        return 1
+    fi
+
     log_info "Déploiement des conteneurs de monitoring sur $EC2_MONITORING_IP..."
 
     # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
@@ -408,7 +419,7 @@ deploy_monitoring() {
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
         # Créer les répertoires nécessaires
         sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/cloudwatch-config /opt/monitoring/prometheus-rules
@@ -427,7 +438,7 @@ version: '3'
 services:
   # Prometheus pour la surveillance
   prometheus:
-    image: $DOCKER_USERNAME/$DOCKER_REPO:prometheus-latest
+    image: $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-latest
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -444,7 +455,7 @@ services:
 
   # Grafana pour la visualisation
   grafana:
-    image: $DOCKER_USERNAME/$DOCKER_REPO:grafana-latest
+    image: $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-latest
     container_name: grafana
     ports:
       - "3000:3000"
@@ -473,7 +484,7 @@ services:
     ports:
       - "9106:9106"
     volumes:
-      - /opt/monitoring/cloudwatch-config.yml:/config/cloudwatch-config.yml
+      - /opt/monitoring/config/cloudwatch-config.yml:/config/cloudwatch-config.yml
     command: "--config.file=/config/cloudwatch-config.yml"
     restart: always
     logging:
@@ -557,6 +568,17 @@ EOF
 
 # Fonction pour déployer l'application mobile
 deploy_mobile() {
+    # Vérifier que les variables requises sont définies
+    if [ -z "$EC2_APP_IP" ]; then
+        log_error "La variable EC2_APP_IP n'est pas définie"
+        return 1
+    fi
+
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        return 1
+    fi
+
     log_info "Déploiement de l'application mobile sur $EC2_APP_IP..."
 
     # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
@@ -627,6 +649,28 @@ backup_containers() {
     local ip=$1
     local instance_type=$2
     local s3_bucket=$3
+
+    # Vérifier que les paramètres requis sont définis
+    if [ -z "$ip" ]; then
+        log_error "L'adresse IP n'est pas définie"
+        return 1
+    fi
+
+    if [ -z "$instance_type" ]; then
+        log_error "Le type d'instance n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$s3_bucket" ]; then
+        log_error "Le nom du bucket S3 n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        return 1
+    fi
+
     local timestamp=$(date +%Y%m%d%H%M%S)
     local backup_dir="yourmedia-backup-${instance_type}-${timestamp}"
 
@@ -729,6 +773,27 @@ restore_containers() {
     local ip=$1
     local instance_type=$2
     local s3_bucket=$3
+
+    # Vérifier que les paramètres requis sont définis
+    if [ -z "$ip" ]; then
+        log_error "L'adresse IP n'est pas définie"
+        return 1
+    fi
+
+    if [ -z "$instance_type" ]; then
+        log_error "Le type d'instance n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$s3_bucket" ]; then
+        log_error "Le nom du bucket S3 n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        return 1
+    fi
 
     log_info "Restauration des données des conteneurs sur l'instance $instance_type ($ip)..."
 
@@ -841,6 +906,27 @@ cleanup_containers() {
     local ip=$1
     local instance_type=$2
     local cleanup_type=$3
+
+    # Vérifier que les paramètres requis sont définis
+    if [ -z "$ip" ]; then
+        log_error "L'adresse IP n'est pas définie"
+        return 1
+    fi
+
+    if [ -z "$instance_type" ]; then
+        log_error "Le type d'instance n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$cleanup_type" ]; then
+        log_error "Le type de nettoyage n'est pas défini"
+        return 1
+    fi
+
+    if [ -z "$EC2_SSH_KEY" ]; then
+        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        return 1
+    fi
 
     log_info "Nettoyage des conteneurs Docker sur l'instance $instance_type ($ip)..."
     log_info "Type de nettoyage: $cleanup_type"
