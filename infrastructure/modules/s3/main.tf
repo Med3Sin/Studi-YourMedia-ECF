@@ -108,6 +108,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
 
 # Scripts de monitoring
 resource "aws_s3_object" "monitoring_setup_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-monitoring/setup-monitoring.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/setup-monitoring.sh"
@@ -115,6 +116,7 @@ resource "aws_s3_object" "monitoring_setup_script" {
 }
 
 resource "aws_s3_object" "monitoring_init_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-monitoring/init-monitoring.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/init-monitoring.sh"
@@ -122,6 +124,7 @@ resource "aws_s3_object" "monitoring_init_script" {
 }
 
 resource "aws_s3_object" "monitoring_docker_compose" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-monitoring/docker-compose.yml"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-monitoring/docker-compose.yml"
@@ -130,6 +133,7 @@ resource "aws_s3_object" "monitoring_docker_compose" {
 
 # Scripts Java/Tomcat
 resource "aws_s3_object" "java_tomcat_setup_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-java-tomcat/setup-java-tomcat.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/setup-java-tomcat.sh"
@@ -137,6 +141,7 @@ resource "aws_s3_object" "java_tomcat_setup_script" {
 }
 
 resource "aws_s3_object" "java_tomcat_init_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-java-tomcat/init-java-tomcat.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/init-java-tomcat.sh"
@@ -144,6 +149,7 @@ resource "aws_s3_object" "java_tomcat_init_script" {
 }
 
 resource "aws_s3_object" "deploy_war_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/ec2-java-tomcat/deploy-war.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/ec2-java-tomcat/deploy-war.sh"
@@ -152,6 +158,7 @@ resource "aws_s3_object" "deploy_war_script" {
 
 # Scripts Docker
 resource "aws_s3_object" "docker_manager_script" {
+  count  = var.create_s3_objects ? 1 : 0
   bucket = aws_s3_bucket.media_storage.id
   key    = "scripts/utils/docker-manager.sh"
   source = "${path.module}/${var.scripts_base_path}/scripts/utils/docker-manager.sh"

@@ -31,6 +31,12 @@ variable "scripts_base_path" {
   default     = "../.."
 }
 
+variable "create_s3_objects" {
+  description = "Si true, crée les objets S3 pour les scripts. Mettre à false lors de l'exécution dans Terraform Cloud."
+  type        = bool
+  default     = false
+}
+
 variable "rds_username" {
   description = "Nom d'utilisateur pour la base de données RDS"
   type        = string
