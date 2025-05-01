@@ -458,9 +458,11 @@ Plusieurs optimisations ont été mises en place pour rester dans les limites du
 
 Les scripts d'initialisation des instances EC2 ont été optimisés pour rester sous la limite de 16 Ko imposée par AWS :
 
-- **Approche bootstrap** : Un script minimal est utilisé dans le user_data qui télécharge et exécute un script plus complet depuis S3
-- **Stockage des fichiers de configuration dans S3** : Les fichiers de configuration volumineux sont stockés dans S3 et téléchargés lors de l'initialisation
-- **Substitution de variables** : Les variables sont substituées dans les scripts après leur téléchargement depuis S3
+- **Approche bootstrap** : Un script minimal est utilisé dans le user_data qui télécharge et exécute un script plus complet depuis GitHub
+- **Téléchargement direct depuis GitHub** : Les fichiers de configuration sont téléchargés directement depuis GitHub lors de l'initialisation
+- **Substitution de variables** : Les variables sont substituées dans les scripts après leur téléchargement depuis GitHub
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 #### 2. Configuration du cycle de vie S3
 

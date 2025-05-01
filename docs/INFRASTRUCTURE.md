@@ -165,16 +165,18 @@ L'instance est configurée via une approche bootstrap optimisée pour rester sou
 1. **Script minimal `user_data`** :
    * Met à jour le système et installe l'AWS CLI
    * Configure les clés SSH
-   * Télécharge le script principal depuis S3
+   * Télécharge le script principal directement depuis GitHub
    * Remplace les variables dans le script principal (placeholders)
    * Exécute le script principal
 
-2. **Script principal `setup.sh`** (stocké dans S3) :
+2. **Script principal `init-monitoring.sh`** (téléchargé depuis GitHub) :
    * Installe Docker et Docker Compose
    * Crée les répertoires pour les données Prometheus et Grafana
-   * Télécharge les fichiers de configuration depuis le bucket S3
+   * Télécharge les fichiers de configuration depuis GitHub
    * Remplace les variables dans les fichiers de configuration
    * Démarre les conteneurs Docker pour Prometheus et Grafana
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 3. **Gestion des variables entre modules** :
    * Utilisation de placeholders (ex: `PLACEHOLDER_IP`) dans les templates
@@ -226,7 +228,8 @@ L'instance dispose d'un rôle IAM avec les permissions suivantes :
 
 * **Stockage des médias** : Fichiers uploadés par les utilisateurs
 * **Stockage des builds** : Artefacts de build temporaires (WAR, fichiers statiques)
-* **Stockage des configurations** : Fichiers de configuration pour le monitoring
+
+> **Note** : Depuis la version 2.0 du projet, les fichiers de configuration et les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans le bucket S3.
 
 ### Accès
 

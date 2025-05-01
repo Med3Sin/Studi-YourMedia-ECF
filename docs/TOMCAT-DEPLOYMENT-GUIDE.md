@@ -26,7 +26,7 @@ Pour résoudre le problème des permissions lors du déploiement d'applications 
 
 ### Script de déploiement WAR
 
-Le script `/usr/local/bin/deploy-war.sh` est automatiquement créé lors de l'initialisation de l'instance EC2 via le script `install_java_tomcat.sh`. Ce script :
+Le script `/usr/local/bin/deploy-war.sh` est automatiquement téléchargé depuis GitHub lors de l'initialisation de l'instance EC2 via le script `init-java-tomcat.sh`. Ce script :
 
 1. Copie le fichier WAR dans le répertoire `/opt/tomcat/webapps/`
 2. Change le propriétaire du fichier WAR pour `tomcat:tomcat`
@@ -86,8 +86,9 @@ Le workflow GitHub Actions `2-backend-deploy.yml` utilise cette solution pour d�
 2. Le WAR est téléchargé sur S3
 3. Le workflow se connecte à l'instance EC2 via SSH
 4. Le WAR est téléchargé depuis S3 vers un emplacement temporaire sur l'instance EC2
-5. Le script `deploy-war.sh` est exécuté avec `sudo` pour déployer le WAR dans Tomcat
-6. Le fichier temporaire est supprimé
+5. Le script `deploy-war.sh` est vérifié et téléchargé depuis GitHub si nécessaire
+6. Le script est exécuté avec `sudo` pour déployer le WAR dans Tomcat
+7. Le fichier temporaire est supprimé
 
 ```yaml
 # Extrait du workflow
@@ -95,13 +96,27 @@ ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << EOF
   # Télécharger le WAR depuis S3
   aws s3 cp s3://$BUCKET_NAME/builds/backend/$DEPLOY_WAR_NAME /tmp/$DEPLOY_WAR_NAME
 
-  # Utiliser le script de déploiement WAR
-  sudo /usr/local/bin/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
+  # Vérifier si le script deploy-war.sh existe
+  if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+    # Utiliser le script dans /opt/yourmedia
+    sudo /opt/yourmedia/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
+  elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
+    # Utiliser le script dans /usr/local/bin
+    sudo /usr/local/bin/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
+  else
+    # Télécharger le script depuis GitHub
+    sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+    sudo chmod +x /tmp/deploy-war.sh
+    sudo /tmp/deploy-war.sh /tmp/$DEPLOY_WAR_NAME
+    sudo rm /tmp/deploy-war.sh
+  fi
 
   # Supprimer le fichier temporaire
   rm /tmp/$DEPLOY_WAR_NAME
 EOF
 ```
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 ## Avantages de cette approche
 

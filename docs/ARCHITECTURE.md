@@ -134,10 +134,11 @@ Les scripts sont centralisés dans un dossier unique et organisés par module ou
 - `setup.sh` : Configuration des services de monitoring
 
 **Ordre d'exécution des scripts :**
-1. Les scripts sont téléchargés dans S3 par le workflow GitHub Actions avant le déploiement de l'infrastructure
-2. Les instances EC2 téléchargent les scripts depuis S3 lors de leur initialisation
-3. Les scripts vérifient les dépendances nécessaires avant leur exécution
-4. Les scripts de configuration sont exécutés dans un ordre précis pour garantir le bon fonctionnement de l'infrastructure
+1. Les instances EC2 téléchargent les scripts directement depuis GitHub lors de leur initialisation
+2. Les scripts vérifient les dépendances nécessaires avant leur exécution
+3. Les scripts de configuration sont exécutés dans un ordre précis pour garantir le bon fonctionnement de l'infrastructure
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 ## Sécurité
 

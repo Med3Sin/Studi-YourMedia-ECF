@@ -12,10 +12,11 @@ Ce guide vous aidera à configurer Grafana, Prometheus et les exportateurs sur v
 
 L'instance EC2 de monitoring est configurée automatiquement lors de son déploiement via Terraform. Les scripts suivants sont exécutés dans l'ordre :
 
-1. **init-instance-env.sh** : Initialise l'environnement et télécharge les scripts depuis S3
-2. **install-docker.sh** : Installe Docker et Docker Compose
-3. **setup.sh** : Configure les services de monitoring (Prometheus, Grafana, etc.)
-4. **check-containers.sh** : Vérifie l'état des conteneurs et corrige automatiquement les problèmes courants
+1. **init-monitoring.sh** : Initialise l'environnement et télécharge les scripts depuis GitHub
+2. **setup-monitoring.sh** : Configure les services de monitoring (Prometheus, Grafana, etc.)
+3. **container-health-check.sh** : Vérifie l'état des conteneurs et corrige automatiquement les problèmes courants
+
+> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 ### Vérification de l'installation automatisée
 
@@ -110,28 +111,28 @@ echo "ec2-user hard nproc 4096" | sudo tee -a /etc/security/limits.conf
 
 #### 4.1. Créer le fichier docker-compose.yml
 
-Vous pouvez utiliser le fichier docker-compose.yml préconfiguré dans le répertoire `scripts/ec2-monitoring/` :
+Vous pouvez télécharger le fichier docker-compose.yml préconfiguré directement depuis GitHub :
 
 ```bash
-# Copier le fichier docker-compose.yml depuis le bucket S3 ou le dépôt Git
-aws s3 cp s3://<NOM_DU_BUCKET>/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
+# Télécharger le fichier docker-compose.yml depuis GitHub
+curl -s -o /opt/monitoring/docker-compose.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/docker-compose.yml"
 
 # Ou si vous avez cloné le dépôt Git
 cp /chemin/vers/scripts/ec2-monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml
 ```
 
-Le fichier docker-compose.yml contient la configuration pour Prometheus, Grafana, et d'autres exportateurs :
+Le fichier docker-compose.yml contient la configuration pour Prometheus, Grafana, et d'autres exportateurs.
 
 #### 4.2. Créer le fichier prometheus.yml
 
-Vous pouvez utiliser le fichier prometheus.yml préconfiguré dans le répertoire `scripts/ec2-monitoring/` :
+Vous pouvez télécharger le fichier prometheus.yml préconfiguré directement depuis GitHub :
 
 ```bash
-# Copier le fichier prometheus.yml depuis le bucket S3 ou le dépôt Git
-aws s3 cp s3://<NOM_DU_BUCKET>/scripts/ec2-monitoring/prometheus.yml /opt/monitoring/prometheus.yml
+# Télécharger le fichier prometheus.yml depuis GitHub
+curl -s -o /opt/monitoring/prometheus.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/config/prometheus/prometheus.yml"
 
 # Ou si vous avez cloné le dépôt Git
-cp /chemin/vers/scripts/ec2-monitoring/prometheus.yml /opt/monitoring/prometheus.yml
+cp /chemin/vers/scripts/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
 ```
 
 Le fichier prometheus.yml contient la configuration pour collecter les métriques de différentes sources, notamment :

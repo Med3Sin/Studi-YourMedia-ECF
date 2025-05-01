@@ -108,9 +108,9 @@ La configuration SSH a été simplifiée pour utiliser une approche plus directe
     echo "Configuration SSH terminée."
 ```
 
-### 2. Simplification du déploiement du WAR
+### 2. Amélioration du déploiement du WAR
 
-Le déploiement du WAR a été simplifié pour utiliser une approche plus directe et plus fiable :
+Le déploiement du WAR a été amélioré pour être plus robuste et flexible, avec une vérification de l'existence du script de déploiement et une option pour le télécharger depuis GitHub si nécessaire :
 
 ```yaml
 # Étape 8: Déploiement du WAR sur l'instance EC2
@@ -130,8 +130,20 @@ Le déploiement du WAR a été simplifié pour utiliser une approche plus direct
       # Télécharger le WAR depuis S3
       sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
 
-      # Déployer le WAR avec le script deploy-war.sh
-      sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+      # Vérifier si le script deploy-war.sh existe
+      if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+          # Utiliser le script dans /opt/yourmedia
+          sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+      elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
+          # Utiliser le script dans /usr/local/bin
+          sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+      else
+          # Télécharger le script depuis GitHub
+          sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+          sudo chmod +x /tmp/deploy-war.sh
+          sudo /tmp/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+          sudo rm /tmp/deploy-war.sh
+      fi
 
       # Nettoyer les informations d'identification AWS
       rm -rf ~/.aws
@@ -161,7 +173,29 @@ Les versions des actions GitHub ont été mises à jour pour utiliser les derni�
   uses: docker/login-action@v3
 ```
 
-### 2. Amélioration des tests de santé pour tous les conteneurs
+### 2. Standardisation des noms de variables Docker
+
+Les noms de variables Docker ont été standardisés pour utiliser `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` et `DOCKERHUB_REPO` partout dans le workflow, ce qui améliore la cohérence et facilite la maintenance.
+
+### 3. Téléchargement des scripts depuis GitHub
+
+Le workflow a été amélioré pour vérifier l'existence du script `docker-manager.sh` et le télécharger depuis GitHub si nécessaire :
+
+```yaml
+# Vérifier si le script docker-manager.sh existe
+if [ -f "./scripts/utils/docker-manager.sh" ]; then
+  chmod +x ./scripts/utils/docker-manager.sh
+  ./scripts/utils/docker-manager.sh deploy monitoring
+else
+  # Télécharger le script depuis GitHub
+  echo "Script docker-manager.sh non trouvé, téléchargement depuis GitHub..."
+  curl -s -o ./docker-manager.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/docker-manager.sh"
+  chmod +x ./docker-manager.sh
+  ./docker-manager.sh deploy monitoring
+fi
+```
+
+### 4. Amélioration des tests de santé pour tous les conteneurs
 
 Les tests de santé ont été améliorés pour tester tous les conteneurs Docker, pas seulement l'application mobile :
 
@@ -205,7 +239,7 @@ Ce workflow était redondant car le workflow principal `1-infra-deploy-destroy.y
 
 ### 2. `upload-scripts-to-s3.yml`
 
-Ce workflow était redondant car le workflow principal `1-infra-deploy-destroy.yml` inclut déjà une étape pour télécharger les scripts dans S3.
+Ce workflow a été supprimé car, depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
 
 ### 3. `view-secret-securely.yml`
 
