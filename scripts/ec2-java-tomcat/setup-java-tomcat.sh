@@ -101,8 +101,21 @@ install_tomcat() {
 
 # Fonction pour configurer le service Tomcat
 configure_tomcat_service() {
-    log "Création du service Tomcat"
-    sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
+    log "Téléchargement et installation du service Tomcat"
+
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    SERVICE_CONFIG_URL="$GITHUB_RAW_URL/scripts/ec2-java-tomcat/config/tomcat.service"
+
+    # Télécharger le fichier de configuration avec wget
+    sudo wget -q -O /etc/systemd/system/tomcat.service "$SERVICE_CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /etc/systemd/system/tomcat.service ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Utilisation de la version locale..."
+
+        # Créer le fichier manuellement en cas d'échec du téléchargement
+        sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
 [Unit]
 Description=Apache Tomcat Web Application Container
 After=network.target
@@ -129,7 +142,9 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF'
-    if [ $? -ne 0 ]; then
+    fi
+
+    if [ ! -s /etc/systemd/system/tomcat.service ]; then
         error_exit "La création du service Tomcat a échoué"
     fi
 
@@ -160,16 +175,44 @@ start_tomcat() {
 
 # Fonction pour créer le script de déploiement WAR
 create_deploy_war_script() {
-    log "Création du script de déploiement WAR"
+    log "Téléchargement et installation du script de déploiement WAR"
 
     # Créer le répertoire s'il n'existe pas
     sudo mkdir -p /opt/yourmedia
 
-    # Créer le script
-    sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << EOF
+    # URL du fichier de script sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    DEPLOY_SCRIPT_URL="$GITHUB_RAW_URL/scripts/ec2-java-tomcat/config/deploy-war.sh"
+
+    # Télécharger le script avec wget
+    sudo wget -q -O /opt/yourmedia/deploy-war.sh "$DEPLOY_SCRIPT_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/yourmedia/deploy-war.sh ]; then
+        log "ERREUR: Le téléchargement du script de déploiement a échoué. Création manuelle..."
+
+        # Créer le script manuellement en cas d'échec du téléchargement
+        sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << EOF
 #!/bin/bash
-# Script pour déployer un fichier WAR dans Tomcat
-# Ce script doit être exécuté avec sudo
+#==============================================================================
+# Nom du script : deploy-war.sh
+# Description   : Script pour déployer un fichier WAR dans Tomcat.
+#                 Ce script copie le fichier WAR spécifié dans le répertoire webapps de Tomcat,
+#                 change le propriétaire et redémarre Tomcat.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-05-02
+#==============================================================================
+# Utilisation   : sudo ./deploy-war.sh <chemin_vers_war>
+#
+# Exemples      :
+#   sudo ./deploy-war.sh /tmp/yourmedia-backend.war
+#==============================================================================
+# Dépendances   :
+#   - Tomcat    : Le serveur d'\''applications Tomcat doit être installé
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
 
 # Vérifier si un argument a été fourni
 if [ \$# -ne 1 ]; then
@@ -219,6 +262,7 @@ fi
 echo "Déploiement terminé avec succès"
 exit 0
 EOF'
+    fi
 
     # Rendre le script exécutable
     sudo chmod +x /opt/yourmedia/deploy-war.sh
