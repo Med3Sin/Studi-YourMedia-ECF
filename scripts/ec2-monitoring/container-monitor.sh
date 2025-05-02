@@ -103,7 +103,7 @@ for arg in "$@"; do
 done
 
 # Créer le répertoire de rapport si nécessaire
-mkdir -p "$REPORT_DIR"
+sudo mkdir -p "$REPORT_DIR"
 
 # Fichier de rapport
 REPORT_FILE="$REPORT_DIR/container-monitor-$(date +%Y%m%d-%H%M%S).json"
@@ -125,10 +125,10 @@ PORTS["promtail"]=9080
 # Fonction pour vérifier l'état d'un conteneur
 check_container() {
     local container=$1
-    local status=$(docker inspect --format='{{.State.Status}}' $container 2>/dev/null)
-    local exit_code=$(docker inspect --format='{{.State.ExitCode}}' $container 2>/dev/null)
-    local health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' $container 2>/dev/null)
-    local restart_count=$(docker inspect --format='{{.RestartCount}}' $container 2>/dev/null)
+    local status=$(sudo docker inspect --format='{{.State.Status}}' $container 2>/dev/null)
+    local exit_code=$(sudo docker inspect --format='{{.State.ExitCode}}' $container 2>/dev/null)
+    local health=$(sudo docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' $container 2>/dev/null)
+    local restart_count=$(sudo docker inspect --format='{{.RestartCount}}' $container 2>/dev/null)
 
     if [ "$status" == "running" ]; then
         if [ "$health" == "healthy" ] || [ "$health" == "N/A" ]; then
@@ -149,14 +149,14 @@ get_recent_logs() {
     local container=$1
     local lines=${2:-10}
     log "Derniers logs de $container:"
-    docker logs --tail $lines $container 2>&1 | sed 's/^/    /'
+    sudo docker logs --tail $lines $container 2>&1 | sed 's/^/    /'
 }
 
 # Fonction pour redémarrer un conteneur
 restart_container() {
     local container=$1
     log "Redémarrage du conteneur $container..."
-    docker restart $container
+    sudo docker restart $container
     sleep 5
     check_container $container
 }
@@ -165,7 +165,7 @@ restart_container() {
 check_resources() {
     local container=$1
     log "Utilisation des ressources pour $container:"
-    docker stats --no-stream $container | sed 's/^/    /'
+    sudo docker stats --no-stream $container | sed 's/^/    /'
 }
 
 # Vérifier tous les conteneurs
@@ -271,7 +271,7 @@ run_health_check() {
 # Fonction pour tester si un conteneur est en cours d'exécution
 test_container_running() {
     local container=$1
-    local status=$(docker inspect --format='{{.State.Status}}' $container 2>/dev/null)
+    local status=$(sudo docker inspect --format='{{.State.Status}}' $container 2>/dev/null)
 
     if [ "$status" == "running" ]; then
         return 0
@@ -289,7 +289,7 @@ test_port_accessible() {
         return 0  # Pas de port à tester
     fi
 
-    if nc -z localhost $port; then
+    if sudo nc -z localhost $port; then
         return 0
     else
         return 1
@@ -299,7 +299,7 @@ test_port_accessible() {
 # Fonction pour tester la santé d'un conteneur
 test_container_health() {
     local container=$1
-    local health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' $container 2>/dev/null)
+    local health=$(sudo docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}N/A{{end}}' $container 2>/dev/null)
 
     if [ "$health" == "healthy" ] || [ "$health" == "N/A" ]; then
         return 0
@@ -318,7 +318,7 @@ test_prometheus_metrics() {
     fi
 
     # Vérifier si le conteneur expose des métriques Prometheus
-    if curl -s "http://localhost:$port/metrics" | grep -q "go_"; then
+    if sudo curl -s "http://localhost:$port/metrics" | grep -q "go_"; then
         return 0
     else
         return 1
@@ -382,10 +382,10 @@ run_all_tests() {
     log "Démarrage des tests des conteneurs..."
 
     # Début du rapport JSON
-    echo "{" > $REPORT_FILE
-    echo "  \"test_suite\": \"Container Tests\"," >> $REPORT_FILE
-    echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> $REPORT_FILE
-    echo "  \"results\": {" >> $REPORT_FILE
+    sudo echo "{" > $REPORT_FILE
+    sudo echo "  \"test_suite\": \"Container Tests\"," >> $REPORT_FILE
+    sudo echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> $REPORT_FILE
+    sudo echo "  \"results\": {" >> $REPORT_FILE
 
     # Exécuter les tests pour chaque conteneur
     for container in "${CONTAINERS[@]}"; do
@@ -406,20 +406,20 @@ run_all_tests() {
     done
 
     # Fin du rapport JSON
-    echo "  }," >> $REPORT_FILE
-    echo "  \"summary\": {" >> $REPORT_FILE
-    echo "    \"total\": $total_tests," >> $REPORT_FILE
-    echo "    \"passed\": $passed_tests," >> $REPORT_FILE
-    echo "    \"failed\": $failed_tests," >> $REPORT_FILE
-    echo "    \"status\": $([ $failed_tests -eq 0 ] && echo "\"pass\"" || echo "\"fail\"")" >> $REPORT_FILE
-    echo "  }" >> $REPORT_FILE
-    echo "}" >> $REPORT_FILE
+    sudo echo "  }," >> $REPORT_FILE
+    sudo echo "  \"summary\": {" >> $REPORT_FILE
+    sudo echo "    \"total\": $total_tests," >> $REPORT_FILE
+    sudo echo "    \"passed\": $passed_tests," >> $REPORT_FILE
+    sudo echo "    \"failed\": $failed_tests," >> $REPORT_FILE
+    sudo echo "    \"status\": $([ $failed_tests -eq 0 ] && echo "\"pass\"" || echo "\"fail\"")" >> $REPORT_FILE
+    sudo echo "  }" >> $REPORT_FILE
+    sudo echo "}" >> $REPORT_FILE
 
     log "Tests terminés. Rapport généré: $REPORT_FILE"
     log "Résumé: $passed_tests/$total_tests tests réussis, $failed_tests échecs."
 
     # Afficher le rapport
-    cat $REPORT_FILE
+    sudo cat $REPORT_FILE
 
     return $failed_tests
 }

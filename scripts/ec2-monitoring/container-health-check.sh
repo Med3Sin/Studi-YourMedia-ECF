@@ -24,4 +24,4 @@
 #==============================================================================
 
 # Exécuter container-monitor.sh en mode health
-$(dirname "$0")/container-monitor.sh --mode=health "$@"
+sudo $(dirname "$0")/container-monitor.sh --mode=health "$@"

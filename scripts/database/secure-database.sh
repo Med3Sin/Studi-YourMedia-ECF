@@ -131,18 +131,18 @@ cat scripts/database/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$N
 
 # Exécuter le script SQL
 log "Exécution du script SQL pour sécuriser la base de données..."
-mysql -h $DB_HOST -P $DB_PORT -u $DB_ROOT_USER -p$DB_ROOT_PASSWORD < $TMP_SQL_FILE
+sudo mysql -h $DB_HOST -P $DB_PORT -u $DB_ROOT_USER -p$DB_ROOT_PASSWORD < $TMP_SQL_FILE
 if [ $? -ne 0 ]; then
-    rm $TMP_SQL_FILE
+    sudo rm $TMP_SQL_FILE
     error_exit "Impossible d'exécuter le script SQL. Vérifiez les informations de connexion."
 fi
 
 # Supprimer le fichier SQL temporaire
-rm $TMP_SQL_FILE
+sudo rm $TMP_SQL_FILE
 
 # Vérifier que l'utilisateur a été créé
 log "Vérification de la création de l'utilisateur..."
-USER_EXISTS=$(mysql -h $DB_HOST -P $DB_PORT -u $DB_ROOT_USER -p$DB_ROOT_PASSWORD -e "SELECT user FROM mysql.user WHERE user='$NEW_DB_USER'" | grep -c $NEW_DB_USER)
+USER_EXISTS=$(sudo mysql -h $DB_HOST -P $DB_PORT -u $DB_ROOT_USER -p$DB_ROOT_PASSWORD -e "SELECT user FROM mysql.user WHERE user='$NEW_DB_USER'" | grep -c $NEW_DB_USER)
 if [ $USER_EXISTS -eq 0 ]; then
     error_exit "L'utilisateur $NEW_DB_USER n'a pas été créé. Vérifiez les logs MySQL."
 fi
@@ -204,9 +204,9 @@ log "IMPORTANT: Mettez à jour les variables d'environnement de votre applicatio
 
 # Écrire le mot de passe dans un fichier temporaire sécurisé si l'option --output-file est spécifiée
 if [ ! -z "$OUTPUT_FILE" ]; then
-    echo "Utilisateur: $NEW_DB_USER" > "$OUTPUT_FILE"
-    echo "Mot de passe: $NEW_DB_PASSWORD" >> "$OUTPUT_FILE"
-    chmod 600 "$OUTPUT_FILE"
+    sudo echo "Utilisateur: $NEW_DB_USER" > "$OUTPUT_FILE"
+    sudo echo "Mot de passe: $NEW_DB_PASSWORD" >> "$OUTPUT_FILE"
+    sudo chmod 600 "$OUTPUT_FILE"
     log "Les informations d'identification ont été enregistrées dans $OUTPUT_FILE"
     log "IMPORTANT: Supprimez ce fichier après avoir enregistré les informations dans un endroit sécurisé."
 fi

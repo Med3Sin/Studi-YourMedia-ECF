@@ -25,4 +25,4 @@
 #==============================================================================
 
 # Exécuter container-monitor.sh en mode test
-$(dirname "$0")/container-monitor.sh --mode=test "$@"
+sudo $(dirname "$0")/container-monitor.sh --mode=test "$@"
