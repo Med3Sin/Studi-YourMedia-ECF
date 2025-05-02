@@ -121,13 +121,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     }
   }
 
-  # Règle par défaut pour tous les autres objets
+  # Règle pour gérer les téléchargements multipartites incomplets pour la racine du bucket
   rule {
-    id     = "default-rule"
+    id     = "abort-multipart-uploads"
     status = "Enabled"
 
-    # Filtre vide pour cibler tous les objets
-    filter {}
+    # Filtre avec préfixe vide pour cibler la racine du bucket
+    filter {
+      prefix = ""
+    }
 
     # Configuration pour les téléchargements multipartites incomplets
     abort_incomplete_multipart_upload {
