@@ -5,8 +5,8 @@
 #                 Ce script gère le déploiement, la vérification et le redémarrage
 #                 de Tomcat pour assurer que l'application est correctement déployée.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 2.0
-# Date          : 2025-04-27
+# Version       : 2.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./deploy-war.sh <chemin_vers_war> [options]
 #
@@ -22,7 +22,7 @@
 #==============================================================================
 # Dépendances   :
 #   - systemctl   : Pour gérer le service Tomcat
-#   - curl        : Pour récupérer l'adresse IP publique
+#   - wget        : Pour récupérer l'adresse IP publique
 #==============================================================================
 # Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
 #==============================================================================
@@ -105,35 +105,35 @@ check_tomcat_installation() {
   # Vérifier si Tomcat est installé
   if [ ! -d "/opt/tomcat" ]; then
     log "Le répertoire /opt/tomcat n'existe pas, création..."
-    mkdir -p /opt/tomcat
-    chown -R tomcat:tomcat /opt/tomcat
+    sudo mkdir -p /opt/tomcat
+    sudo chown -R tomcat:tomcat /opt/tomcat
   fi
 
   # Vérifier si le répertoire webapps existe
   if [ ! -d "/opt/tomcat/webapps" ]; then
     log "Le répertoire /opt/tomcat/webapps n'existe pas, création..."
-    mkdir -p /opt/tomcat/webapps
-    chown tomcat:tomcat /opt/tomcat/webapps
+    sudo mkdir -p /opt/tomcat/webapps
+    sudo chown tomcat:tomcat /opt/tomcat/webapps
   fi
 
   # Vérifier si le service Tomcat existe
-  if ! systemctl list-unit-files | grep -q tomcat.service; then
+  if ! sudo systemctl list-unit-files | grep -q tomcat.service; then
     log "Le service Tomcat n'est pas installé, vérification de l'installation..."
 
     # Vérifier si le script d'installation existe
     if [ -f "/opt/yourmedia/setup-java-tomcat.sh" ]; then
       log "Exécution du script d'installation de Java et Tomcat..."
-      chmod +x /opt/yourmedia/setup-java-tomcat.sh
-      /opt/yourmedia/setup-java-tomcat.sh
+      sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
+      sudo /opt/yourmedia/setup-java-tomcat.sh
     else
       error_exit "Le service Tomcat n'est pas installé et le script d'installation n'existe pas"
     fi
   fi
 
   # Vérifier si le service Tomcat est actif
-  if ! systemctl is-active --quiet tomcat; then
+  if ! sudo systemctl is-active --quiet tomcat; then
     log "Le service Tomcat n'est pas actif, démarrage..."
-    systemctl start tomcat || error_exit "Échec du démarrage de Tomcat"
+    sudo systemctl start tomcat || error_exit "Échec du démarrage de Tomcat"
     sleep 5
   fi
 
@@ -152,7 +152,7 @@ deploy_war() {
   # Arrêter Tomcat avant le déploiement si nécessaire
   if [ "$restart" = true ]; then
     log "Arrêt de Tomcat..."
-    systemctl stop tomcat || log "AVERTISSEMENT: Échec de l'arrêt de Tomcat, poursuite du déploiement..."
+    sudo systemctl stop tomcat || log "AVERTISSEMENT: Échec de l'arrêt de Tomcat, poursuite du déploiement..."
 
     # Attendre que Tomcat s'arrête complètement
     sleep 5
@@ -161,27 +161,27 @@ deploy_war() {
   # Supprimer l'ancienne application déployée si elle existe
   if [ -d "/opt/tomcat/webapps/$context_name" ]; then
     log "Suppression de l'ancienne application déployée..."
-    rm -rf "/opt/tomcat/webapps/$context_name"
+    sudo rm -rf "/opt/tomcat/webapps/$context_name"
   fi
 
   # Supprimer l'ancien fichier WAR s'il existe
   if [ -f "/opt/tomcat/webapps/$target_name" ]; then
     log "Suppression de l'ancien fichier WAR..."
-    rm -f "/opt/tomcat/webapps/$target_name"
+    sudo rm -f "/opt/tomcat/webapps/$target_name"
   fi
 
   # Copier le fichier WAR dans webapps
   log "Copie du fichier WAR dans /opt/tomcat/webapps/$target_name"
-  cp "$war_path" "/opt/tomcat/webapps/$target_name" || error_exit "Échec de la copie du fichier WAR"
+  sudo cp "$war_path" "/opt/tomcat/webapps/$target_name" || error_exit "Échec de la copie du fichier WAR"
 
   # Changer le propriétaire
   log "Changement du propriétaire du fichier WAR"
-  chown tomcat:tomcat "/opt/tomcat/webapps/$target_name" || error_exit "Échec du changement de propriétaire"
+  sudo chown tomcat:tomcat "/opt/tomcat/webapps/$target_name" || error_exit "Échec du changement de propriétaire"
 
   # Démarrer Tomcat si nécessaire
   if [ "$restart" = true ]; then
     log "Démarrage de Tomcat"
-    systemctl start tomcat || error_exit "Échec du démarrage de Tomcat"
+    sudo systemctl start tomcat || error_exit "Échec du démarrage de Tomcat"
   fi
 
   log "Déploiement du fichier WAR terminé"
@@ -201,7 +201,7 @@ check_deployment() {
   log "Vérification du déploiement de l'application..."
 
   # Vérifier que Tomcat est bien démarré
-  if ! systemctl is-active --quiet tomcat; then
+  if ! sudo systemctl is-active --quiet tomcat; then
     if [ "$RESTART_TOMCAT" = true ]; then
       error_exit "Le service Tomcat n'a pas démarré correctement. Vérifiez les logs avec 'journalctl -u tomcat'"
     else
@@ -241,7 +241,7 @@ show_access_info() {
 
   # Récupérer les adresses IP
   local server_ip=$(hostname -I | awk '{print $1}')
-  local public_ip=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "")
+  local public_ip=$(sudo wget -q -O - --timeout=5 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "")
 
   log "Déploiement terminé avec succès"
 

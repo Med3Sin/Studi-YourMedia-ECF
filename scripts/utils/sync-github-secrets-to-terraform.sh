@@ -3,8 +3,8 @@
 # Nom du script : sync-github-secrets-to-terraform.sh
 # Description   : Synchronise les secrets GitHub vers Terraform Cloud
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-28
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./sync-github-secrets-to-terraform.sh
 #
@@ -92,21 +92,19 @@ create_or_update_tf_variable() {
     local escaped_value=$(escape_json_value "$value")
 
     # Vérifier si la variable existe déjà
-    local variable_id=$(curl -s \
-        --header "Authorization: Bearer $TF_API_TOKEN" \
-        --header "Content-Type: application/vnd.api+json" \
+    local variable_id=$(wget -q -O - \
+        --header="Authorization: Bearer $TF_API_TOKEN" \
+        --header="Content-Type: application/vnd.api+json" \
         "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" | \
         jq -r --arg key "$key" --arg category "$category" '.data[] | select(.attributes.key == $key and .attributes.category == $category) | .id')
 
     if [ -z "$variable_id" ] || [ "$variable_id" == "null" ]; then
         # Créer une nouvelle variable
         log "Création de la variable $key dans Terraform Cloud"
-        curl -s \
-            --header "Authorization: Bearer $TF_API_TOKEN" \
-            --header "Content-Type: application/vnd.api+json" \
-            --request POST \
-            --data @- \
-            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" << EOF
+
+        # Créer un fichier temporaire pour les données JSON
+        local tmp_json_file=$(mktemp)
+        cat > "$tmp_json_file" << EOF
 {
   "data": {
     "type": "vars",
@@ -122,15 +120,23 @@ create_or_update_tf_variable() {
   }
 }
 EOF
+
+        # Utiliser wget pour envoyer la requête POST
+        wget -q -O - \
+            --header="Authorization: Bearer $TF_API_TOKEN" \
+            --header="Content-Type: application/vnd.api+json" \
+            --post-file="$tmp_json_file" \
+            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars"
+
+        # Supprimer le fichier temporaire
+        rm -f "$tmp_json_file"
     else
         # Mettre à jour la variable existante
         log "Mise à jour de la variable $key dans Terraform Cloud"
-        curl -s \
-            --header "Authorization: Bearer $TF_API_TOKEN" \
-            --header "Content-Type: application/vnd.api+json" \
-            --request PATCH \
-            --data @- \
-            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars/$variable_id" << EOF
+
+        # Créer un fichier temporaire pour les données JSON
+        local tmp_json_file=$(mktemp)
+        cat > "$tmp_json_file" << EOF
 {
   "data": {
     "id": "$variable_id",
@@ -147,6 +153,17 @@ EOF
   }
 }
 EOF
+
+        # Utiliser wget pour envoyer la requête PATCH
+        wget -q -O - \
+            --header="Authorization: Bearer $TF_API_TOKEN" \
+            --header="Content-Type: application/vnd.api+json" \
+            --method=PATCH \
+            --body-file="$tmp_json_file" \
+            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars/$variable_id"
+
+        # Supprimer le fichier temporaire
+        rm -f "$tmp_json_file"
     fi
 }
 

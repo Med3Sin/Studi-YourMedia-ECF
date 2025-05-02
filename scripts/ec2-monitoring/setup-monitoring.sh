@@ -5,8 +5,8 @@
 #                 Ce script combine les fonctionnalités d'installation, configuration,
 #                 vérification et correction des problèmes pour les services de monitoring.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 2.0
-# Date          : 2025-04-27
+# Version       : 2.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./setup-monitoring.sh [options]
 #
@@ -23,7 +23,7 @@
 #   sudo ./setup-monitoring.sh --force
 #==============================================================================
 # Dépendances   :
-#   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
+#   - wget      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
 #   - jq        : Pour le traitement JSON
 #   - aws-cli   : Pour interagir avec les services AWS
 #   - docker    : Sera installé par le script
@@ -98,12 +98,12 @@ install_docker() {
 install_docker_compose() {
     log "Installation de Docker Compose"
     if ! command -v docker-compose &> /dev/null; then
-        curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
+        sudo wget -q -O /usr/local/bin/docker-compose "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)"
+        sudo chmod +x /usr/local/bin/docker-compose
 
         # Créer un lien symbolique
         if [ ! -f "/usr/bin/docker-compose" ] && [ ! -L "/usr/bin/docker-compose" ]; then
-            ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+            sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
         fi
     else
         log "Docker Compose est déjà installé"
@@ -165,10 +165,21 @@ create_cloudwatch_config() {
 
     # Vérifier si le téléchargement a réussi
     if [ ! -s /opt/monitoring/config/cloudwatch-config.yml ]; then
-        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création manuelle..."
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Nouvelle tentative avec une URL alternative..."
 
-        # Créer le fichier manuellement en cas d'échec du téléchargement
-        cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
+        # Essayer une URL alternative
+        GITHUB_RAW_URL_ALT="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
+        CONFIG_URL_ALT="$GITHUB_RAW_URL_ALT/scripts/config/monitoring/cloudwatch-config.yml"
+
+        log "Téléchargement du fichier de configuration depuis $CONFIG_URL_ALT"
+        sudo wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$CONFIG_URL_ALT"
+
+        # Si le téléchargement échoue toujours, créer un fichier de base
+        if [ ! -s /opt/monitoring/config/cloudwatch-config.yml ]; then
+            log "ERREUR: Le téléchargement du fichier de configuration a échoué à nouveau. Création d'un fichier de base..."
+
+            # Créer un fichier temporaire avec le contenu de base
+            sudo bash -c "cat > /tmp/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -176,14 +187,14 @@ metrics:
     aws_metric_name: BucketSizeBytes
     aws_dimensions: [BucketName, StorageType]
     aws_dimension_select:
-      BucketName: ["${S3_BUCKET_NAME}"]
+      BucketName: [\"${S3_BUCKET_NAME}\"]
     aws_statistics: [Average]
 
   - aws_namespace: AWS/S3
     aws_metric_name: NumberOfObjects
     aws_dimensions: [BucketName, StorageType]
     aws_dimension_select:
-      BucketName: ["${S3_BUCKET_NAME}"]
+      BucketName: [\"${S3_BUCKET_NAME}\"]
     aws_statistics: [Average]
 
   - aws_namespace: AWS/RDS
@@ -200,7 +211,12 @@ metrics:
     aws_metric_name: FreeStorageSpace
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
-EOF
+EOF"
+            # Copier le fichier temporaire vers l'emplacement final
+            sudo cp /tmp/cloudwatch-config.yml /opt/monitoring/config/cloudwatch-config.yml
+            sudo rm /tmp/cloudwatch-config.yml
+        fi
+    fi
     fi
 
     # Remplacer les variables dans le fichier téléchargé
@@ -218,7 +234,7 @@ EOF
 # Fonction pour créer le fichier prometheus.yml
 create_prometheus_config() {
     log "Création du fichier prometheus.yml"
-    mkdir -p /opt/monitoring/config/prometheus
+    sudo mkdir -p /opt/monitoring/config/prometheus
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
@@ -226,31 +242,48 @@ create_prometheus_config() {
         return 0
     fi
 
-    cat > /opt/monitoring/config/prometheus/prometheus.yml << "EOF"
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+
+    # Télécharger le fichier de configuration avec wget
+    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
+    sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/monitoring/config/prometheus/prometheus.yml ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
+
+        # Créer un fichier temporaire avec le contenu de base
+        sudo bash -c 'cat > /tmp/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: '\''prometheus'\''
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['\''localhost:9090'\'']
 
-  - job_name: 'node-exporter'
+  - job_name: '\''node-exporter'\''
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['\''node-exporter:9100'\'']
 
-  - job_name: 'mysql-exporter'
+  - job_name: '\''mysql-exporter'\''
     static_configs:
-      - targets: ['mysql-exporter:9104']
+      - targets: ['\''mysql-exporter:9104'\'']
 
-  - job_name: 'cloudwatch-exporter'
+  - job_name: '\''cloudwatch-exporter'\''
     static_configs:
-      - targets: ['cloudwatch-exporter:9106']
-EOF
+      - targets: ['\''cloudwatch-exporter:9106'\'']
+EOF'
+        # Copier le fichier temporaire vers l'emplacement final
+        sudo cp /tmp/prometheus.yml /opt/monitoring/config/prometheus/prometheus.yml
+        sudo rm /tmp/prometheus.yml
+    fi
 
     # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+    sudo ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
 
     log "Fichier prometheus.yml créé avec succès"
     return 0
@@ -259,7 +292,7 @@ EOF
 # Fonction pour créer le fichier loki-config.yml
 create_loki_config() {
     log "Création du fichier loki-config.yml"
-    mkdir -p /opt/monitoring/config
+    sudo mkdir -p /opt/monitoring/config
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/loki-config.yml" ]; then
@@ -267,7 +300,20 @@ create_loki_config() {
         return 0
     fi
 
-    cat > /opt/monitoring/config/loki-config.yml << "EOF"
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+
+    # Télécharger le fichier de configuration avec wget
+    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
+    sudo wget -q -O /opt/monitoring/config/loki-config.yml "$CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/monitoring/config/loki-config.yml ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
+
+        # Créer un fichier temporaire avec le contenu de base
+        sudo bash -c 'cat > /tmp/loki-config.yml << "EOF"
 auth_enabled: false
 
 server:
@@ -304,10 +350,14 @@ limits_config:
 
 analytics:
   reporting_enabled: false
-EOF
+EOF'
+        # Copier le fichier temporaire vers l'emplacement final
+        sudo cp /tmp/loki-config.yml /opt/monitoring/config/loki-config.yml
+        sudo rm /tmp/loki-config.yml
+    fi
 
     # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+    sudo ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
 
     log "Fichier loki-config.yml créé avec succès"
     return 0
@@ -316,7 +366,7 @@ EOF
 # Fonction pour créer le fichier promtail-config.yml
 create_promtail_config() {
     log "Création du fichier promtail-config.yml"
-    mkdir -p /opt/monitoring/config
+    sudo mkdir -p /opt/monitoring/config
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/promtail-config.yml" ]; then
@@ -324,7 +374,20 @@ create_promtail_config() {
         return 0
     fi
 
-    cat > /opt/monitoring/config/promtail-config.yml << "EOF"
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+
+    # Télécharger le fichier de configuration avec wget
+    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
+    sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/monitoring/config/promtail-config.yml ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
+
+        # Créer un fichier temporaire avec le contenu de base
+        sudo bash -c 'cat > /tmp/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -368,7 +431,7 @@ scrape_configs:
           __path__: /var/log/syslog
     pipeline_stages:
       - regex:
-          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+          expression: '\''^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'\''
       - labels:
           host:
           app:
@@ -378,10 +441,14 @@ scrape_configs:
           format: Jan 2 15:04:05
       - output:
           source: message
-EOF
+EOF'
+        # Copier le fichier temporaire vers l'emplacement final
+        sudo cp /tmp/promtail-config.yml /opt/monitoring/config/promtail-config.yml
+        sudo rm /tmp/promtail-config.yml
+    fi
 
     # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+    sudo ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
 
     log "Fichier promtail-config.yml créé avec succès"
     return 0
@@ -390,18 +457,31 @@ EOF
 # Fonction pour créer le fichier container-alerts.yml
 create_container_alerts() {
     log "Création du fichier container-alerts.yml"
-    mkdir -p /opt/monitoring/prometheus-rules
-    mkdir -p /opt/monitoring/config/prometheus
+    sudo mkdir -p /opt/monitoring/prometheus-rules
+    sudo mkdir -p /opt/monitoring/config/prometheus
 
     # Vérifier si le fichier existe déjà dans le répertoire config
     if [ -f "/opt/monitoring/config/prometheus/container-alerts.yml" ]; then
         log "Le fichier d'alertes existe déjà"
         # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-        ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+        sudo ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
         return 0
-    }
+    fi
 
-    cat > /opt/monitoring/config/prometheus/container-alerts.yml << "EOF"
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+
+    # Télécharger le fichier de configuration avec wget
+    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
+    sudo wget -q -O /opt/monitoring/config/prometheus/container-alerts.yml "$CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/monitoring/config/prometheus/container-alerts.yml ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
+
+        # Créer un fichier temporaire avec le contenu de base
+        sudo bash -c 'cat > /tmp/container-alerts.yml << "EOF"
 groups:
   - name: containers
     rules:
@@ -439,10 +519,14 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} high restart count"
           description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
-EOF
+EOF'
+        # Copier le fichier temporaire vers l'emplacement final
+        sudo cp /tmp/container-alerts.yml /opt/monitoring/config/prometheus/container-alerts.yml
+        sudo rm /tmp/container-alerts.yml
+    fi
 
     # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+    sudo ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
 
     log "Fichier container-alerts.yml créé avec succès"
     return 0
@@ -1015,72 +1099,72 @@ log "Variables d'environnement configurées avec succès"
 
 # Création des répertoires nécessaires
 log "Création des répertoires nécessaires"
-mkdir -p /opt/monitoring/secure
-chmod 755 /opt/monitoring
-chmod 700 /opt/monitoring/secure
+sudo mkdir -p /opt/monitoring/secure
+sudo chmod 755 /opt/monitoring
+sudo chmod 700 /opt/monitoring/secure
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"
-cat > /opt/monitoring/env.sh << EOL
+sudo bash -c "cat > /opt/monitoring/env.sh << EOL
 #!/bin/bash
 # Variables d'environnement pour le monitoring
 # Généré automatiquement par setup-monitoring.sh
-# Date de génération: $(date)
+# Date de génération: \$(date)
 
 # Variables EC2
-export EC2_INSTANCE_PRIVATE_IP="$EC2_INSTANCE_PRIVATE_IP"
-export EC2_INSTANCE_PUBLIC_IP="$EC2_INSTANCE_PUBLIC_IP"
-export EC2_INSTANCE_ID="$EC2_INSTANCE_ID"
-export EC2_INSTANCE_REGION="$EC2_INSTANCE_REGION"
+export EC2_INSTANCE_PRIVATE_IP=\"$EC2_INSTANCE_PRIVATE_IP\"
+export EC2_INSTANCE_PUBLIC_IP=\"$EC2_INSTANCE_PUBLIC_IP\"
+export EC2_INSTANCE_ID=\"$EC2_INSTANCE_ID\"
+export EC2_INSTANCE_REGION=\"$EC2_INSTANCE_REGION\"
 
 # Variables S3
-export S3_BUCKET_NAME="$S3_BUCKET_NAME"
-export AWS_REGION="eu-west-3"
+export S3_BUCKET_NAME=\"$S3_BUCKET_NAME\"
+export AWS_REGION=\"eu-west-3\"
 
 # Variables Docker
-export DOCKER_USERNAME="${DOCKER_USERNAME:-medsin}"
-export DOCKER_REPO="${DOCKER_REPO:-yourmedia-ecf}"
-export DOCKER_PASSWORD="${DOCKERHUB_TOKEN:-$DOCKER_PASSWORD}"
+export DOCKER_USERNAME=\"${DOCKER_USERNAME:-medsin}\"
+export DOCKER_REPO=\"${DOCKER_REPO:-yourmedia-ecf}\"
+export DOCKER_PASSWORD=\"${DOCKERHUB_TOKEN:-$DOCKER_PASSWORD}\"
 # Variables de compatibilité (pour les scripts existants)
-export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
-export DOCKERHUB_REPO="$DOCKER_REPO"
+export DOCKERHUB_USERNAME=\"\$DOCKER_USERNAME\"
+export DOCKERHUB_REPO=\"\$DOCKER_REPO\"
 
 # Charger les variables sensibles
 source /opt/monitoring/secure/sensitive-env.sh 2>/dev/null || true
-EOL
+EOL"
 
 # Créer le fichier de variables sensibles
 log "Création du fichier de variables sensibles"
-cat > /opt/monitoring/secure/sensitive-env.sh << EOL
+sudo bash -c "cat > /opt/monitoring/secure/sensitive-env.sh << EOL
 #!/bin/bash
 # Variables sensibles pour le monitoring
 # Généré automatiquement par setup-monitoring.sh
-# Date de génération: $(date)
+# Date de génération: \$(date)
 
 # Variables Docker Hub
-export DOCKERHUB_TOKEN="${DOCKERHUB_TOKEN:-}"
+export DOCKERHUB_TOKEN=\"${DOCKERHUB_TOKEN:-}\"
 
 # Variables RDS
-export RDS_USERNAME="$RDS_USERNAME"
-export RDS_PASSWORD="$RDS_PASSWORD"
-export RDS_ENDPOINT="$RDS_ENDPOINT"
-export RDS_HOST="$RDS_HOST"
-export RDS_PORT="$RDS_PORT"
+export RDS_USERNAME=\"$RDS_USERNAME\"
+export RDS_PASSWORD=\"$RDS_PASSWORD\"
+export RDS_ENDPOINT=\"$RDS_ENDPOINT\"
+export RDS_HOST=\"$RDS_HOST\"
+export RDS_PORT=\"$RDS_PORT\"
 
 # Variables de compatibilité
-export DB_USERNAME="$RDS_USERNAME"
-export DB_PASSWORD="$RDS_PASSWORD"
-export DB_ENDPOINT="$RDS_ENDPOINT"
+export DB_USERNAME=\"$RDS_USERNAME\"
+export DB_PASSWORD=\"$RDS_PASSWORD\"
+export DB_ENDPOINT=\"$RDS_ENDPOINT\"
 
 # Variables Grafana
-export GRAFANA_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
-export GF_SECURITY_ADMIN_PASSWORD="$GRAFANA_ADMIN_PASSWORD"
-EOL
+export GRAFANA_ADMIN_PASSWORD=\"$GRAFANA_ADMIN_PASSWORD\"
+export GF_SECURITY_ADMIN_PASSWORD=\"$GRAFANA_ADMIN_PASSWORD\"
+EOL"
 
 # Définir les permissions
-chmod 755 /opt/monitoring/env.sh
-chmod 600 /opt/monitoring/secure/sensitive-env.sh
-chown -R ec2-user:ec2-user /opt/monitoring
+sudo chmod 755 /opt/monitoring/env.sh
+sudo chmod 600 /opt/monitoring/secure/sensitive-env.sh
+sudo chown -R ec2-user:ec2-user /opt/monitoring
 
 # Mise à jour du système
 log "Mise à jour du système"
@@ -1152,8 +1236,22 @@ fi
 
 # Création du fichier docker-compose.yml
 log "Création du fichier docker-compose.yml"
-cat > /opt/monitoring/docker-compose.yml << 'EOF'
-version: '3'
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier docker-compose.yml depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/docker-compose.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/docker-compose.yml ]; then
+    log "ERREUR: Le téléchargement du fichier docker-compose.yml a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c 'cat > /tmp/docker-compose.yml << '\''EOF'\''
+version: '\''3'\''
 
 services:
   prometheus:
@@ -1166,10 +1264,10 @@ services:
       - /opt/monitoring/prometheus-data:/prometheus
       - /opt/monitoring/config/prometheus:/etc/prometheus/rules
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--storage.tsdb.retention.size=1GB'
+      - '\''--config.file=/etc/prometheus/prometheus.yml'\''
+      - '\''--storage.tsdb.path=/prometheus'\''
+      - '\''--storage.tsdb.retention.time=15d'\''
+      - '\''--storage.tsdb.retention.size=1GB'\''
     restart: always
     logging:
       driver: "json-file"
@@ -1228,10 +1326,10 @@ services:
     environment:
       - DATA_SOURCE_NAME=${RDS_USERNAME}:${RDS_PASSWORD}@(${RDS_HOST}:${RDS_PORT})/
     command:
-      - '--collect.info_schema.tables'
-      - '--collect.info_schema.innodb_metrics'
-      - '--collect.global_status'
-      - '--collect.global_variables'
+      - '\''--collect.info_schema.tables'\''
+      - '\''--collect.info_schema.innodb_metrics'\''
+      - '\''--collect.global_status'\''
+      - '\''--collect.global_variables'\''
     restart: always
     logging:
       driver: "json-file"
@@ -1240,7 +1338,7 @@ services:
         max-file: "3"
     mem_limit: 256m
 
-  # Node Exporter pour surveiller l'instance EC2
+  # Node Exporter pour surveiller l'\''instance EC2
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
@@ -1251,10 +1349,10 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - '\''--path.procfs=/host/proc'\''
+      - '\''--path.sysfs=/host/sys'\''
+      - '\''--path.rootfs=/rootfs'\''
+      - '\''--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'\''
     restart: always
     logging:
       driver: "json-file"
@@ -1262,12 +1360,30 @@ services:
         max-size: "10m"
         max-file: "3"
     mem_limit: 256m
-EOF
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/docker-compose.yml /opt/monitoring/docker-compose.yml
+    sudo rm /tmp/docker-compose.yml
+fi
 
 # Création du fichier de configuration CloudWatch Exporter
 log "Création du fichier de configuration CloudWatch Exporter"
-mkdir -p /opt/monitoring/config
-cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
+sudo mkdir -p /opt/monitoring/config
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/config/monitoring/cloudwatch-config.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier de configuration CloudWatch depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/config/cloudwatch-config.yml ]; then
+    log "ERREUR: Le téléchargement du fichier de configuration CloudWatch a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c "cat > /tmp/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -1275,14 +1391,14 @@ metrics:
     aws_metric_name: BucketSizeBytes
     aws_dimensions: [BucketName, StorageType]
     aws_dimension_select:
-      BucketName: ["${S3_BUCKET_NAME}"]
+      BucketName: [\"${S3_BUCKET_NAME}\"]
     aws_statistics: [Average]
 
   - aws_namespace: AWS/S3
     aws_metric_name: NumberOfObjects
     aws_dimensions: [BucketName, StorageType]
     aws_dimension_select:
-      BucketName: ["${S3_BUCKET_NAME}"]
+      BucketName: [\"${S3_BUCKET_NAME}\"]
     aws_statistics: [Average]
 
   - aws_namespace: AWS/RDS
@@ -1299,16 +1415,34 @@ metrics:
     aws_metric_name: FreeStorageSpace
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
-EOF
+EOF"
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/cloudwatch-config.yml /opt/monitoring/config/cloudwatch-config.yml
+    sudo rm /tmp/cloudwatch-config.yml
+fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-mkdir -p /opt/monitoring/cloudwatch-config
-ln -sf /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
+sudo mkdir -p /opt/monitoring/cloudwatch-config
+sudo ln -sf /opt/monitoring/config/cloudwatch-config.yml /opt/monitoring/cloudwatch-config/cloudwatch-config.yml
 
 # Création du fichier prometheus.yml
 log "Création du fichier prometheus.yml"
-mkdir -p /opt/monitoring/config/prometheus
-cat > /opt/monitoring/config/prometheus/prometheus.yml << "EOF"
+sudo mkdir -p /opt/monitoring/config/prometheus
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier prometheus.yml depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/config/prometheus/prometheus.yml ]; then
+    log "ERREUR: Le téléchargement du fichier prometheus.yml a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c 'cat > /tmp/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -1317,30 +1451,48 @@ rule_files:
   - "/etc/prometheus/rules/*.yml"
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: '\''prometheus'\''
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ['\''localhost:9090'\'']
 
-  - job_name: 'node-exporter'
+  - job_name: '\''node-exporter'\''
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['\''node-exporter:9100'\'']
 
-  - job_name: 'mysql-exporter'
+  - job_name: '\''mysql-exporter'\''
     static_configs:
-      - targets: ['mysql-exporter:9104']
+      - targets: ['\''mysql-exporter:9104'\'']
 
-  - job_name: 'cloudwatch-exporter'
+  - job_name: '\''cloudwatch-exporter'\''
     static_configs:
-      - targets: ['cloudwatch-exporter:9106']
-EOF
+      - targets: ['\''cloudwatch-exporter:9106'\'']
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/prometheus.yml /opt/monitoring/config/prometheus/prometheus.yml
+    sudo rm /tmp/prometheus.yml
+fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+sudo ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
 
 # Création du fichier loki-config.yml
 log "Création du fichier loki-config.yml"
-mkdir -p /opt/monitoring/config
-cat > /opt/monitoring/config/loki-config.yml << "EOF"
+sudo mkdir -p /opt/monitoring/config
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier loki-config.yml depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/config/loki-config.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/config/loki-config.yml ]; then
+    log "ERREUR: Le téléchargement du fichier loki-config.yml a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c 'cat > /tmp/loki-config.yml << "EOF"
 auth_enabled: false
 
 server:
@@ -1377,15 +1529,33 @@ limits_config:
 
 analytics:
   reporting_enabled: false
-EOF
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/loki-config.yml /opt/monitoring/config/loki-config.yml
+    sudo rm /tmp/loki-config.yml
+fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+sudo ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
 
 # Création du fichier promtail-config.yml
 log "Création du fichier promtail-config.yml"
-mkdir -p /opt/monitoring/config
-cat > /opt/monitoring/config/promtail-config.yml << "EOF"
+sudo mkdir -p /opt/monitoring/config
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier promtail-config.yml depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/config/promtail-config.yml ]; then
+    log "ERREUR: Le téléchargement du fichier promtail-config.yml a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c 'cat > /tmp/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -1429,7 +1599,7 @@ scrape_configs:
           __path__: /var/log/syslog
     pipeline_stages:
       - regex:
-          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+          expression: '\''^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'\''
       - labels:
           host:
           app:
@@ -1439,15 +1609,33 @@ scrape_configs:
           format: Jan 2 15:04:05
       - output:
           source: message
-EOF
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/promtail-config.yml /opt/monitoring/config/promtail-config.yml
+    sudo rm /tmp/promtail-config.yml
+fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+sudo ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
 
 # Création du fichier container-alerts.yml
 log "Création du fichier container-alerts.yml"
-mkdir -p /opt/monitoring/config/prometheus
-cat > /opt/monitoring/config/prometheus/container-alerts.yml << "EOF"
+sudo mkdir -p /opt/monitoring/config/prometheus
+
+# URL du fichier de configuration sur GitHub
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+
+# Télécharger le fichier de configuration avec wget
+log "Téléchargement du fichier container-alerts.yml depuis $CONFIG_URL"
+sudo wget -q -O /opt/monitoring/config/prometheus/container-alerts.yml "$CONFIG_URL"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/config/prometheus/container-alerts.yml ]; then
+    log "ERREUR: Le téléchargement du fichier container-alerts.yml a échoué. Création d'un fichier de base..."
+
+    # Créer un fichier temporaire avec le contenu de base
+    sudo bash -c 'cat > /tmp/container-alerts.yml << "EOF"
 groups:
   - name: containers
     rules:
@@ -1485,29 +1673,46 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} high restart count"
           description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
-EOF
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/container-alerts.yml /opt/monitoring/config/prometheus/container-alerts.yml
+    sudo rm /tmp/container-alerts.yml
+fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-mkdir -p /opt/monitoring/prometheus-rules
-ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
+sudo mkdir -p /opt/monitoring/prometheus-rules
+sudo ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
 
 # Télécharger le script docker-manager.sh depuis S3 si disponible
 log "Téléchargement du script docker-manager.sh depuis S3"
 if [ ! -z "$S3_BUCKET_NAME" ]; then
-    aws s3 cp s3://$S3_BUCKET_NAME/scripts/docker/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
+    sudo aws s3 cp s3://$S3_BUCKET_NAME/scripts/utils/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
 fi
 
-# Si le téléchargement a échoué, créer une version simplifiée du script
+# Si le téléchargement depuis S3 a échoué, essayer de télécharger depuis GitHub
 if [ ! -f "/opt/monitoring/docker-manager.sh" ]; then
+    log "Téléchargement du script docker-manager.sh depuis GitHub"
+
+    # URL du script sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    SCRIPT_URL="$GITHUB_RAW_URL/scripts/config/monitoring/docker-manager.sh"
+
+    # Télécharger le script avec wget
+    log "Téléchargement du script depuis $SCRIPT_URL"
+    sudo wget -q -O /opt/monitoring/docker-manager.sh "$SCRIPT_URL"
+fi
+
+# Si les deux téléchargements ont échoué, créer une version simplifiée du script
+if [ ! -s "/opt/monitoring/docker-manager.sh" ]; then
     log "Création d'une version simplifiée du script docker-manager.sh"
-    cat > /opt/monitoring/docker-manager.sh << 'EOF'
+    sudo bash -c 'cat > /tmp/docker-manager.sh << '\''EOF'\''
 #!/bin/bash
 # Script simplifié de gestion des conteneurs Docker
 # Usage: docker-manager.sh [start|stop|restart|status|deploy] [service_name]
 
 # Fonction pour afficher les messages
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+    echo "$(date '\''+'\''+%Y-%m-%d %H:%M:%S'\'') - $1"
 }
 
 # Fonction pour afficher les erreurs et quitter
@@ -1521,7 +1726,7 @@ if [ "$(id -u)" -ne 0 ]; then
     error_exit "Ce script doit être exécuté avec sudo ou en tant que root"
 fi
 
-# Charger les variables d'environnement
+# Charger les variables d'\''environnement
 if [ -f "/opt/monitoring/env.sh" ]; then
     source /opt/monitoring/env.sh
 fi
@@ -1532,12 +1737,12 @@ fi
 
 # Vérifier si Docker est installé
 if ! command -v docker &> /dev/null; then
-    error_exit "Docker n'est pas installé"
+    error_exit "Docker n'\''est pas installé"
 fi
 
 # Vérifier si Docker Compose est installé
 if ! command -v docker-compose &> /dev/null; then
-    error_exit "Docker Compose n'est pas installé"
+    error_exit "Docker Compose n'\''est pas installé"
 fi
 
 # Vérifier les arguments
@@ -1569,7 +1774,7 @@ stop_containers() {
     if [ $? -eq 0 ]; then
         log "Conteneurs arrêtés avec succès"
     else
-        error_exit "Échec de l'arrêt des conteneurs"
+        error_exit "Échec de l'\''arrêt des conteneurs"
     fi
 }
 
@@ -1609,7 +1814,7 @@ deploy_containers() {
     fi
 }
 
-# Exécuter l'action demandée
+# Exécuter l'\''action demandée
 case $ACTION in
     start)
         start_containers
@@ -1634,16 +1839,19 @@ case $ACTION in
 esac
 
 exit 0
-EOF
+EOF'
+    # Copier le fichier temporaire vers l'emplacement final
+    sudo cp /tmp/docker-manager.sh /opt/monitoring/docker-manager.sh
+    sudo rm /tmp/docker-manager.sh
 fi
 
 # Rendre le script exécutable
-chmod +x /opt/monitoring/docker-manager.sh
+sudo chmod +x /opt/monitoring/docker-manager.sh
 
 # Créer un lien symbolique pour le script docker-manager.sh
 log "Création d'un lien symbolique pour le script docker-manager.sh"
-ln -sf /opt/monitoring/docker-manager.sh /usr/local/bin/docker-manager.sh
-chmod +x /usr/local/bin/docker-manager.sh
+sudo ln -sf /opt/monitoring/docker-manager.sh /usr/local/bin/docker-manager.sh
+sudo chmod +x /usr/local/bin/docker-manager.sh
 
 # Traitement des arguments de ligne de commande
 MODE="install"

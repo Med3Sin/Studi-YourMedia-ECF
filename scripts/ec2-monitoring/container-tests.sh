@@ -4,8 +4,8 @@
 # Description   : Script de tests des conteneurs Docker.
 #                 Ce script est un wrapper pour container-monitor.sh en mode test.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-05-02
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./container-tests.sh [options]
 #

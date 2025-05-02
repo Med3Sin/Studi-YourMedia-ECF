@@ -5,8 +5,8 @@
 #                 Ce script combine les fonctionnalités de installation, configuration,
 #                 vérification et correction des permissions pour Java et Tomcat.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 2.0
-# Date          : 2025-04-27
+# Version       : 2.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./setup-java-tomcat.sh [options]
 #
@@ -21,8 +21,7 @@
 #   sudo ./setup-java-tomcat.sh --fix
 #==============================================================================
 # Dépendances   :
-#   - curl      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
-#   - wget      : Pour télécharger Tomcat
+#   - wget      : Pour télécharger des fichiers et récupérer les métadonnées de l'instance
 #   - jq        : Pour le traitement JSON
 #   - aws-cli   : Pour interagir avec les services AWS
 #   - java      : Java 17 (Amazon Corretto) sera installé par le script
@@ -114,8 +113,19 @@ configure_tomcat_service() {
     if [ ! -s /etc/systemd/system/tomcat.service ]; then
         log "ERREUR: Le téléchargement du fichier de configuration a échoué. Utilisation de la version locale..."
 
-        # Créer le fichier manuellement en cas d'échec du téléchargement
-        sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
+        # Essayer une URL alternative
+        log "Tentative avec une URL alternative..."
+        GITHUB_RAW_URL_ALT="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
+        SERVICE_CONFIG_URL_ALT="$GITHUB_RAW_URL_ALT/scripts/config/tomcat/tomcat.service"
+
+        # Télécharger le fichier de configuration avec wget
+        sudo wget -q -O /etc/systemd/system/tomcat.service "$SERVICE_CONFIG_URL_ALT"
+
+        # Si le téléchargement échoue toujours, créer le fichier manuellement
+        if [ ! -s /etc/systemd/system/tomcat.service ]; then
+            log "ERREUR: Le téléchargement a échoué à nouveau. Création manuelle du fichier..."
+
+            sudo bash -c 'cat > /etc/systemd/system/tomcat.service << EOF
 [Unit]
 Description=Apache Tomcat Web Application Container
 After=network.target
@@ -142,6 +152,7 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF'
+        fi
     fi
 
     if [ ! -s /etc/systemd/system/tomcat.service ]; then
@@ -233,7 +244,7 @@ if [ ! -f "\$WAR_PATH" ]; then
 fi
 
 # Copier le fichier WAR dans webapps
-cp \$WAR_PATH /opt/tomcat/webapps/\$TARGET_NAME
+sudo cp \$WAR_PATH /opt/tomcat/webapps/\$TARGET_NAME
 
 # Vérifier si la copie a réussi
 if [ \$? -ne 0 ]; then
@@ -242,7 +253,7 @@ if [ \$? -ne 0 ]; then
 fi
 
 # Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/\$TARGET_NAME
+sudo chown tomcat:tomcat /opt/tomcat/webapps/\$TARGET_NAME
 
 # Vérifier si le changement de propriétaire a réussi
 if [ \$? -ne 0 ]; then
@@ -251,7 +262,7 @@ if [ \$? -ne 0 ]; then
 fi
 
 # Redémarrer Tomcat
-systemctl restart tomcat
+sudo systemctl restart tomcat
 
 # Vérifier si le redémarrage a réussi
 if [ \$? -ne 0 ]; then
@@ -471,10 +482,10 @@ fi
 # Définir les variables d'environnement
 log "Configuration des variables d'environnement"
 # Variables EC2 - Standardisation sur EC2_*
-EC2_INSTANCE_PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-EC2_INSTANCE_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-EC2_INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-EC2_INSTANCE_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+EC2_INSTANCE_PRIVATE_IP=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/local-ipv4)
+EC2_INSTANCE_PUBLIC_IP=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/public-ipv4)
+EC2_INSTANCE_ID=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/instance-id)
+EC2_INSTANCE_REGION=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/placement/region)
 
 # Variables Tomcat - Standardisation sur TOMCAT_*
 if [ -z "$TOMCAT_VERSION" ]; then

@@ -5,8 +5,8 @@
 #                 Ce script combine les fonctionnalités de container-health-check.sh
 #                 et container-tests.sh.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-27
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./container-monitor.sh [options]
 #
@@ -25,7 +25,7 @@
 #==============================================================================
 # Dépendances   :
 #   - docker     : Pour gérer les conteneurs
-#   - curl       : Pour tester les API
+#   - wget       : Pour tester les API
 #   - nc         : Pour tester les ports
 #   - jq         : Pour le traitement JSON (optionnel)
 #==============================================================================
@@ -318,7 +318,7 @@ test_prometheus_metrics() {
     fi
 
     # Vérifier si le conteneur expose des métriques Prometheus
-    if sudo curl -s "http://localhost:$port/metrics" | grep -q "go_"; then
+    if sudo wget -q -O - "http://localhost:$port/metrics" | grep -q "go_"; then
         return 0
     else
         return 1
@@ -382,10 +382,10 @@ run_all_tests() {
     log "Démarrage des tests des conteneurs..."
 
     # Début du rapport JSON
-    sudo echo "{" > $REPORT_FILE
-    sudo echo "  \"test_suite\": \"Container Tests\"," >> $REPORT_FILE
-    sudo echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> $REPORT_FILE
-    sudo echo "  \"results\": {" >> $REPORT_FILE
+    sudo bash -c "echo '{' > $REPORT_FILE"
+    sudo bash -c "echo '  \"test_suite\": \"Container Tests\",' >> $REPORT_FILE"
+    sudo bash -c "echo '  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",' >> $REPORT_FILE"
+    sudo bash -c "echo '  \"results\": {' >> $REPORT_FILE"
 
     # Exécuter les tests pour chaque conteneur
     for container in "${CONTAINERS[@]}"; do
@@ -406,14 +406,14 @@ run_all_tests() {
     done
 
     # Fin du rapport JSON
-    sudo echo "  }," >> $REPORT_FILE
-    sudo echo "  \"summary\": {" >> $REPORT_FILE
-    sudo echo "    \"total\": $total_tests," >> $REPORT_FILE
-    sudo echo "    \"passed\": $passed_tests," >> $REPORT_FILE
-    sudo echo "    \"failed\": $failed_tests," >> $REPORT_FILE
-    sudo echo "    \"status\": $([ $failed_tests -eq 0 ] && echo "\"pass\"" || echo "\"fail\"")" >> $REPORT_FILE
-    sudo echo "  }" >> $REPORT_FILE
-    sudo echo "}" >> $REPORT_FILE
+    sudo bash -c "echo '  },' >> $REPORT_FILE"
+    sudo bash -c "echo '  \"summary\": {' >> $REPORT_FILE"
+    sudo bash -c "echo '    \"total\": $total_tests,' >> $REPORT_FILE"
+    sudo bash -c "echo '    \"passed\": $passed_tests,' >> $REPORT_FILE"
+    sudo bash -c "echo '    \"failed\": $failed_tests,' >> $REPORT_FILE"
+    sudo bash -c "echo '    \"status\": $([ $failed_tests -eq 0 ] && echo \"pass\" || echo \"fail\")' >> $REPORT_FILE"
+    sudo bash -c "echo '  }' >> $REPORT_FILE"
+    sudo bash -c "echo '}' >> $REPORT_FILE"
 
     log "Tests terminés. Rapport généré: $REPORT_FILE"
     log "Résumé: $passed_tests/$total_tests tests réussis, $failed_tests échecs."

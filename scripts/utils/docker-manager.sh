@@ -4,8 +4,8 @@
 # Description   : Script pour gérer les images Docker et les conteneurs.
 #                 Permet de construire, pousser et déployer des images Docker.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.1
-# Date          : 2025-04-27
+# Version       : 1.2
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./docker-manager.sh [action] [cible] [options]
 #
@@ -748,10 +748,10 @@ backup_containers() {
         # Installer AWS CLI si nécessaire
         if ! command -v aws &> /dev/null; then
             echo "[INFO] Installation de AWS CLI..."
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
+            sudo wget -q "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"
+            sudo unzip awscliv2.zip
             sudo ./aws/install
-            rm -rf aws awscliv2.zip
+            sudo rm -rf aws awscliv2.zip
         fi
 
         # Uploader la sauvegarde vers S3
@@ -810,10 +810,10 @@ restore_containers() {
         # Installer AWS CLI si nécessaire
         if ! command -v aws &> /dev/null; then
             echo "[INFO] Installation de AWS CLI..."
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
+            sudo wget -q "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"
+            sudo unzip awscliv2.zip
             sudo ./aws/install
-            rm -rf aws awscliv2.zip
+            sudo rm -rf aws awscliv2.zip
         fi
 
         # Lister les sauvegardes disponibles

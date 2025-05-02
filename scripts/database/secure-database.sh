@@ -6,8 +6,8 @@
 #                 les privilèges de l'utilisateur root et créer un utilisateur dédié
 #                 pour l'application.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-27
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./secure-database.sh [options]
 #
@@ -127,7 +127,7 @@ fi
 # Créer un fichier SQL temporaire avec le mot de passe généré
 log "Création du fichier SQL temporaire..."
 TMP_SQL_FILE=$(mktemp)
-cat scripts/database/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$NEW_DB_PASSWORD/g" > $TMP_SQL_FILE
+sudo cat scripts/database/secure-database.sql | sed "s/__DB_PASSWORD_PLACEHOLDER__/$NEW_DB_PASSWORD/g" | sudo tee $TMP_SQL_FILE > /dev/null
 
 # Exécuter le script SQL
 log "Exécution du script SQL pour sécuriser la base de données..."
@@ -153,8 +153,8 @@ if [ -n "$GH_PAT" ] && [ -n "$GITHUB_REPOSITORY" ]; then
 
     # Récupérer la clé publique pour chiffrer le secret
     log "Récupération de la clé publique pour le dépôt..."
-    PUBLIC_KEY_RESPONSE=$(curl -s -H "Authorization: token $GH_PAT" \
-        -H "Accept: application/vnd.github.v3+json" \
+    PUBLIC_KEY_RESPONSE=$(wget -q -O - --header="Authorization: token $GH_PAT" \
+        --header="Accept: application/vnd.github.v3+json" \
         https://api.github.com/repos/$GITHUB_REPOSITORY/actions/secrets/public-key)
 
     # Extraire key_id et key
@@ -176,24 +176,36 @@ fi
 # Mettre à jour le secret dans Terraform Cloud (si TF_API_TOKEN et TF_WORKSPACE_ID sont définis)
 if [ -n "$TF_API_TOKEN" ] && [ -n "$TF_WORKSPACE_ID" ]; then
     log "Mise à jour du secret db_password dans Terraform Cloud..."
-    curl -s -X POST "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" \
-        -H "Authorization: Bearer $TF_API_TOKEN" \
-        -H "Content-Type: application/vnd.api+json" \
-        -d "{
-            \"data\": {
-                \"type\": \"vars\",
-                \"attributes\": {
-                    \"key\": \"db_password\",
-                    \"value\": \"$NEW_DB_PASSWORD\",
-                    \"category\": \"terraform\",
-                    \"sensitive\": true,
-                    \"description\": \"Mot de passe de la base de données MySQL (généré automatiquement)\"
-                }
-            }
-        }"
+
+    # Créer un fichier temporaire pour les données JSON
+    TMP_JSON_FILE=$(mktemp)
+    sudo bash -c "cat > $TMP_JSON_FILE << EOF
+{
+    \"data\": {
+        \"type\": \"vars\",
+        \"attributes\": {
+            \"key\": \"db_password\",
+            \"value\": \"$NEW_DB_PASSWORD\",
+            \"category\": \"terraform\",
+            \"sensitive\": true,
+            \"description\": \"Mot de passe de la base de données MySQL (généré automatiquement)\"
+        }
+    }
+}
+EOF"
+
+    # Utiliser wget pour envoyer la requête POST
+    wget -q --method=POST --header="Authorization: Bearer $TF_API_TOKEN" \
+        --header="Content-Type: application/vnd.api+json" \
+        --body-file="$TMP_JSON_FILE" \
+        -O - "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars"
+
     if [ $? -ne 0 ]; then
         log "AVERTISSEMENT: Impossible de mettre à jour le secret dans Terraform Cloud. Vous devrez le faire manuellement."
     fi
+
+    # Supprimer le fichier temporaire
+    sudo rm $TMP_JSON_FILE
 fi
 
 log "Base de données sécurisée avec succès."
@@ -204,8 +216,8 @@ log "IMPORTANT: Mettez à jour les variables d'environnement de votre applicatio
 
 # Écrire le mot de passe dans un fichier temporaire sécurisé si l'option --output-file est spécifiée
 if [ ! -z "$OUTPUT_FILE" ]; then
-    sudo echo "Utilisateur: $NEW_DB_USER" > "$OUTPUT_FILE"
-    sudo echo "Mot de passe: $NEW_DB_PASSWORD" >> "$OUTPUT_FILE"
+    sudo bash -c "echo 'Utilisateur: $NEW_DB_USER' > '$OUTPUT_FILE'"
+    sudo bash -c "echo 'Mot de passe: $NEW_DB_PASSWORD' >> '$OUTPUT_FILE'"
     sudo chmod 600 "$OUTPUT_FILE"
     log "Les informations d'identification ont été enregistrées dans $OUTPUT_FILE"
     log "IMPORTANT: Supprimez ce fichier après avoir enregistré les informations dans un endroit sécurisé."

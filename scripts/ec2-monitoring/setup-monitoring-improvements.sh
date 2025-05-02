@@ -44,32 +44,36 @@ fi
 
 # Créer les répertoires nécessaires
 log "Création des répertoires..."
-mkdir -p /opt/monitoring/prometheus-rules
-mkdir -p /opt/monitoring/loki-data
-mkdir -p /opt/monitoring/test-reports
+sudo mkdir -p /opt/monitoring/prometheus-rules
+sudo mkdir -p /opt/monitoring/loki-data
+sudo mkdir -p /opt/monitoring/test-reports
 
-# Copier les fichiers de configuration
-log "Copie des fichiers de configuration..."
+# Télécharger les fichiers de configuration depuis GitHub
+log "Téléchargement des fichiers de configuration..."
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
 
 # 1. Surveillance des conteneurs
-cp container-health-check.sh /opt/monitoring/
-cp container-health-check.service /etc/systemd/system/
-cp container-health-check.timer /etc/systemd/system/
-cp /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/
+log "Téléchargement des fichiers de surveillance des conteneurs..."
+sudo wget -q -O /opt/monitoring/container-health-check.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-health-check.sh"
+sudo wget -q -O /etc/systemd/system/container-health-check.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-health-check.service"
+sudo wget -q -O /etc/systemd/system/container-health-check.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-health-check.timer"
+sudo cp /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/
 
 # 2. Logs centralisés
-cp /opt/monitoring/config/loki-config.yml /opt/monitoring/
-cp /opt/monitoring/config/promtail-config.yml /opt/monitoring/
+log "Configuration des logs centralisés..."
+sudo cp /opt/monitoring/config/loki-config.yml /opt/monitoring/
+sudo cp /opt/monitoring/config/promtail-config.yml /opt/monitoring/
 
 # 3. Automatisation des tests
-cp container-tests.sh /opt/monitoring/
-cp container-tests.service /etc/systemd/system/
-cp container-tests.timer /etc/systemd/system/
+log "Téléchargement des fichiers d'automatisation des tests..."
+sudo wget -q -O /opt/monitoring/container-tests.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-tests.sh"
+sudo wget -q -O /etc/systemd/system/container-tests.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-tests.service"
+sudo wget -q -O /etc/systemd/system/container-tests.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/container-tests.timer"
 
 # Rendre les scripts exécutables
 log "Configuration des permissions..."
-chmod +x /opt/monitoring/container-health-check.sh
-chmod +x /opt/monitoring/container-tests.sh
+sudo chmod +x /opt/monitoring/container-health-check.sh
+sudo chmod +x /opt/monitoring/container-tests.sh
 
 # Mettre à jour la configuration de Prometheus pour inclure les règles d'alerte
 log "Mise à jour de la configuration de Prometheus..."
@@ -77,31 +81,31 @@ if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
     # Vérifier si les règles sont déjà configurées
     if ! grep -q "rule_files:" /opt/monitoring/config/prometheus/prometheus.yml; then
         # Ajouter la section rule_files
-        sed -i '/scrape_configs:/i\rule_files:\n  - /etc/prometheus/rules/*.yml\n' /opt/monitoring/config/prometheus/prometheus.yml
+        sudo sed -i '/scrape_configs:/i\rule_files:\n  - /etc/prometheus/rules/*.yml\n' /opt/monitoring/config/prometheus/prometheus.yml
     elif ! grep -q "/etc/prometheus/rules/\*.yml" /opt/monitoring/config/prometheus/prometheus.yml; then
         # Ajouter le fichier de règles
-        sed -i '/rule_files:/a\  - /etc/prometheus/rules/*.yml' /opt/monitoring/config/prometheus/prometheus.yml
+        sudo sed -i '/rule_files:/a\  - /etc/prometheus/rules/*.yml' /opt/monitoring/config/prometheus/prometheus.yml
     fi
 
     # Ajouter un volume pour les règles dans docker-compose.yml si nécessaire
     if ! grep -q "/opt/monitoring/prometheus-rules:/etc/prometheus/rules" /opt/monitoring/docker-compose.yml; then
-        sed -i '/\/opt\/monitoring\/config\/prometheus\/prometheus.yml:\/etc\/prometheus\/prometheus.yml/a\      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules' /opt/monitoring/docker-compose.yml
+        sudo sed -i '/\/opt\/monitoring\/config\/prometheus\/prometheus.yml:\/etc\/prometheus\/prometheus.yml/a\      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules' /opt/monitoring/docker-compose.yml
     fi
 fi
 
 # Activer et démarrer les services systemd
 log "Activation des services..."
-systemctl daemon-reload
-systemctl enable container-health-check.timer
-systemctl start container-health-check.timer
-systemctl enable container-tests.timer
-systemctl start container-tests.timer
+sudo systemctl daemon-reload
+sudo systemctl enable container-health-check.timer
+sudo systemctl start container-health-check.timer
+sudo systemctl enable container-tests.timer
+sudo systemctl start container-tests.timer
 
 # Redémarrer les conteneurs Docker
 log "Redémarrage des conteneurs..."
 cd /opt/monitoring
-docker-compose down
-docker-compose up -d
+sudo docker-compose down
+sudo docker-compose up -d
 
 log "Installation des améliorations de surveillance terminée avec succès."
 log "Vous pouvez maintenant accéder aux logs centralisés via Grafana à l'adresse http://localhost:3000"

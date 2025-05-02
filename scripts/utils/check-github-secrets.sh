@@ -3,8 +3,8 @@
 # Nom du script : check-github-secrets.sh
 # Description   : Vérifie que les secrets GitHub nécessaires sont configurés
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-05-01
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./check-github-secrets.sh
 #
@@ -80,9 +80,9 @@ FOUND_SECRETS=0
 
 # Récupérer la liste des secrets configurés
 log "Récupération de la liste des secrets configurés..."
-SECRETS_RESPONSE=$(curl -s -X GET \
-    -H "Authorization: token $GITHUB_TOKEN" \
-    -H "Accept: application/vnd.github.v3+json" \
+SECRETS_RESPONSE=$(wget -q -O - \
+    --header="Authorization: token $GITHUB_TOKEN" \
+    --header="Accept: application/vnd.github.v3+json" \
     "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/secrets")
 
 # Vérifier si la réponse est valide
@@ -113,7 +113,7 @@ COMPAT_SECRETS=(
 for COMPAT in "${COMPAT_SECRETS[@]}"; do
     OLD_SECRET=$(echo "$COMPAT" | cut -d':' -f1)
     NEW_SECRET=$(echo "$COMPAT" | cut -d':' -f2)
-    
+
     if echo "$CONFIGURED_SECRETS" | grep -q "^$OLD_SECRET$"; then
         if echo "$CONFIGURED_SECRETS" | grep -q "^$NEW_SECRET$"; then
             log "ℹ️ Les secrets $OLD_SECRET et $NEW_SECRET sont tous deux configurés (compatibilité)"
@@ -135,7 +135,7 @@ if [ ${#MISSING_SECRETS[@]} -gt 0 ]; then
     for SECRET in "${MISSING_SECRETS[@]}"; do
         log "  - $SECRET"
     done
-    
+
     log "Pour configurer les secrets manquants, suivez les instructions dans le document docs/GITHUB-SECRETS-CONFIGURATION.md"
     exit 1
 else
