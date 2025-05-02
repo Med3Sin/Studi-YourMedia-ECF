@@ -38,7 +38,7 @@ if [ ! -f "$WAR_PATH" ]; then
 fi
 
 # Copier le fichier WAR dans webapps
-cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
+sudo cp $WAR_PATH /opt/tomcat/webapps/$TARGET_NAME
 
 # Vérifier si la copie a réussi
 if [ $? -ne 0 ]; then
@@ -47,7 +47,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Changer le propriétaire
-chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
+sudo chown tomcat:tomcat /opt/tomcat/webapps/$TARGET_NAME
 
 # Vérifier si le changement de propriétaire a réussi
 if [ $? -ne 0 ]; then
@@ -56,7 +56,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Redémarrer Tomcat
-systemctl restart tomcat
+sudo systemctl restart tomcat
 
 # Vérifier si le redémarrage a réussi
 if [ $? -ne 0 ]; then

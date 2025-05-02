@@ -163,9 +163,9 @@ start_tomcat() {
 
     # Vérifier si Tomcat a démarré correctement
     sleep 5
-    if ! systemctl is-active --quiet tomcat; then
+    if ! sudo systemctl is-active --quiet tomcat; then
         log "Échec du démarrage de Tomcat. Vérification des journaux..."
-        journalctl -u tomcat --no-pager -n 50
+        sudo journalctl -u tomcat --no-pager -n 50
         return 1
     fi
 
@@ -358,7 +358,7 @@ check_tomcat() {
     fi
 
     log "Vérification de l'activation du service Tomcat..."
-    if systemctl is-enabled --quiet tomcat; then
+    if sudo systemctl is-enabled --quiet tomcat; then
         log "✅ Le service Tomcat est activé."
     else
         log "❌ Le service Tomcat n'est pas activé."
@@ -372,7 +372,7 @@ check_tomcat() {
     fi
 
     log "Vérification de l'état du service Tomcat..."
-    if systemctl is-active --quiet tomcat; then
+    if sudo systemctl is-active --quiet tomcat; then
         log "✅ Le service Tomcat est en cours d'exécution."
     else
         log "❌ Le service Tomcat n'est pas en cours d'exécution."
@@ -384,12 +384,12 @@ check_tomcat() {
             sleep 10
 
             # Vérifier à nouveau l'état du service
-            if systemctl is-active --quiet tomcat; then
+            if sudo systemctl is-active --quiet tomcat; then
                 log "✅ Le service Tomcat a été démarré avec succès."
             else
                 log "❌ Le démarrage du service Tomcat a échoué."
                 log "Vérification des journaux Tomcat..."
-                journalctl -u tomcat --no-pager -n 50
+                sudo journalctl -u tomcat --no-pager -n 50
                 return 1
             fi
         else
@@ -401,9 +401,9 @@ check_tomcat() {
     # S'assurer que netstat est installé
     if ! command -v netstat &> /dev/null; then
         log "Installation de net-tools pour netstat..."
-        dnf install -y net-tools
+        sudo dnf install -y net-tools
     fi
-    if netstat -tuln | grep -q ":8080"; then
+    if sudo netstat -tuln | grep -q ":8080"; then
         log "✅ Le port 8080 est ouvert."
     else
         log "❌ Le port 8080 n'est pas ouvert."
@@ -411,12 +411,12 @@ check_tomcat() {
             log "Redémarrage du service Tomcat..."
             sudo systemctl restart tomcat
             sleep 10
-            if netstat -tuln | grep -q ":8080"; then
+            if sudo netstat -tuln | grep -q ":8080"; then
                 log "✅ Le port 8080 est maintenant ouvert."
             else
                 log "❌ Le port 8080 n'est toujours pas ouvert."
                 log "Vérification des journaux Tomcat..."
-                journalctl -u tomcat --no-pager -n 50
+                sudo journalctl -u tomcat --no-pager -n 50
                 return 1
             fi
         else
@@ -427,11 +427,11 @@ check_tomcat() {
     # Afficher un résumé
     log "Résumé de la vérification de Tomcat:"
     log "- Java est installé: $(java -version 2>&1 | head -n 1)"
-    log "- Tomcat est installé: $(ls -la /opt/tomcat/bin/startup.sh 2>/dev/null || echo "Non")"
-    log "- Service Tomcat configuré: $(systemctl is-enabled tomcat 2>/dev/null || echo "Non")"
-    log "- Service Tomcat en cours d'exécution: $(systemctl is-active tomcat 2>/dev/null || echo "Non")"
-    log "- Port 8080 ouvert: $(netstat -tuln | grep -q ":8080" && echo "Oui" || echo "Non")"
-    log "- Script de déploiement WAR: $(ls -la /opt/yourmedia/deploy-war.sh 2>/dev/null || echo "Non")"
+    log "- Tomcat est installé: $(sudo ls -la /opt/tomcat/bin/startup.sh 2>/dev/null || echo "Non")"
+    log "- Service Tomcat configuré: $(sudo systemctl is-enabled tomcat 2>/dev/null || echo "Non")"
+    log "- Service Tomcat en cours d'exécution: $(sudo systemctl is-active tomcat 2>/dev/null || echo "Non")"
+    log "- Port 8080 ouvert: $(sudo netstat -tuln | grep -q ":8080" && echo "Oui" || echo "Non")"
+    log "- Script de déploiement WAR: $(sudo ls -la /opt/yourmedia/deploy-war.sh 2>/dev/null || echo "Non")"
 
     return $status
 }

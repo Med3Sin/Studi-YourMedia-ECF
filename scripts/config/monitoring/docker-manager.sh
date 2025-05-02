@@ -77,7 +77,7 @@ SERVICE=${2:-all}
 start_containers() {
     log "Démarrage des conteneurs..."
     cd /opt/monitoring
-    docker-compose up -d $SERVICE
+    sudo docker-compose up -d $SERVICE
     if [ $? -eq 0 ]; then
         log "Conteneurs démarrés avec succès"
     else
@@ -89,7 +89,7 @@ start_containers() {
 stop_containers() {
     log "Arrêt des conteneurs..."
     cd /opt/monitoring
-    docker-compose down $SERVICE
+    sudo docker-compose down $SERVICE
     if [ $? -eq 0 ]; then
         log "Conteneurs arrêtés avec succès"
     else
@@ -101,7 +101,7 @@ stop_containers() {
 restart_containers() {
     log "Redémarrage des conteneurs..."
     cd /opt/monitoring
-    docker-compose restart $SERVICE
+    sudo docker-compose restart $SERVICE
     if [ $? -eq 0 ]; then
         log "Conteneurs redémarrés avec succès"
     else
@@ -112,7 +112,7 @@ restart_containers() {
 # Fonction pour afficher le statut des conteneurs
 status_containers() {
     log "Statut des conteneurs:"
-    docker ps -a
+    sudo docker ps -a
 }
 
 # Fonction pour déployer les conteneurs
@@ -121,10 +121,10 @@ deploy_containers() {
     cd /opt/monitoring
 
     # Arrêter les conteneurs existants
-    docker-compose down
+    sudo docker-compose down
 
     # Démarrer les conteneurs
-    docker-compose up -d
+    sudo docker-compose up -d
 
     if [ $? -eq 0 ]; then
         log "Conteneurs déployés avec succès"
