@@ -251,7 +251,8 @@ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 # Récupérer l'ID de l'instance pour les logs
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Récupération de l'ID de l'instance"
-INSTANCE_ID=$(wget -q -O - --timeout=10 http://169.254.169.254/latest/meta-data/instance-id || echo "unknown")
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id || echo "unknown")
 echo "ID de l'instance: $INSTANCE_ID"
 
 # Télécharger et exécuter le script d'initialisation depuis GitHub

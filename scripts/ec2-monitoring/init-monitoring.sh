@@ -55,7 +55,8 @@ RETRY_INTERVAL=5
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    INSTANCE_ID=$(sudo wget -q -O - --timeout=5 http://169.254.169.254/latest/meta-data/instance-id)
+    TOKEN=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    INSTANCE_ID=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id || echo "")
     if [ ! -z "$INSTANCE_ID" ]; then
         log "ID de l'instance récupéré: $INSTANCE_ID"
         break
@@ -66,7 +67,8 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 done
 
 # Récupérer la région
-REGION=$(sudo wget -q -O - --timeout=5 http://169.254.169.254/latest/meta-data/placement/region || echo "eu-west-3")
+TOKEN=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+REGION=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region || echo "eu-west-3")
 log "Région AWS: $REGION"
 
 # Récupérer le nom du bucket S3 depuis les tags de l'instance
@@ -137,8 +139,9 @@ RDS_NAME=$(jq -r '.RDS_NAME' /tmp/env.json)
 GRAFANA_ADMIN_PASSWORD=$(jq -r '.GRAFANA_ADMIN_PASSWORD' /tmp/env.json)
 S3_BUCKET_NAME=$(jq -r '.S3_BUCKET_NAME' /tmp/env.json)
 AWS_REGION=$(jq -r '.AWS_REGION' /tmp/env.json)
-MONITORING_EC2_PUBLIC_IP=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/public-ipv4)
-EC2_INSTANCE_PRIVATE_IP=$(sudo wget -q -O - http://169.254.169.254/latest/meta-data/local-ipv4)
+TOKEN=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+MONITORING_EC2_PUBLIC_IP=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+EC2_INSTANCE_PRIVATE_IP=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 
 # Suppression du fichier temporaire
 rm /tmp/env.json

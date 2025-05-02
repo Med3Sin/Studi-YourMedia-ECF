@@ -241,7 +241,8 @@ show_access_info() {
 
   # Récupérer les adresses IP
   local server_ip=$(hostname -I | awk '{print $1}')
-  local public_ip=$(sudo wget -q -O - --timeout=5 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "")
+  local token=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+  local public_ip=$(sudo curl -s -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "")
 
   log "Déploiement terminé avec succès"
 
