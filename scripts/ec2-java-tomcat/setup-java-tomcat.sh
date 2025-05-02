@@ -517,15 +517,15 @@ DB_ENDPOINT="$RDS_ENDPOINT"
 
 # Créer les répertoires nécessaires
 log "Création des répertoires nécessaires"
-mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
-chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
-chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
+sudo mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
+sudo chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
+sudo chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
 
 # Créer le fichier de variables d'environnement
 log "Création du fichier de variables d'environnement"
-cat > /opt/yourmedia/env.sh << EOL
+sudo bash -c 'cat > /opt/yourmedia/env.sh << EOL
 #!/bin/bash
-# Variables d'environnement pour l'application Java Tomcat
+# Variables d'\''environnement pour l'\''application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
 # Date de génération: $(date)
 
@@ -551,13 +551,13 @@ export TOMCAT_VERSION="${TOMCAT_VERSION:-9.0.104}"
 
 # Charger les variables sensibles
 source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
-EOL
+EOL'
 
 # Créer le fichier de variables sensibles
 log "Création du fichier de variables sensibles"
-cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
+sudo bash -c 'cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
 #!/bin/bash
-# Variables sensibles pour l'application Java Tomcat
+# Variables sensibles pour l'\''application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
 # Date de génération: $(date)
 
@@ -566,30 +566,30 @@ export RDS_PASSWORD="${RDS_PASSWORD:-password}"
 
 # Variables de compatibilité
 export DB_PASSWORD="$RDS_PASSWORD"
-EOL
+EOL'
 
 # Définir les permissions
-chmod 755 /opt/yourmedia/env.sh
-chmod 600 /opt/yourmedia/secure/sensitive-env.sh
-chown -R ec2-user:ec2-user /opt/yourmedia
+sudo chmod 755 /opt/yourmedia/env.sh
+sudo chmod 600 /opt/yourmedia/secure/sensitive-env.sh
+sudo chown -R ec2-user:ec2-user /opt/yourmedia
 
 # Fonction pour installer et configurer tout
 setup_java_tomcat() {
     # Mise à jour du système
     log "Mise à jour du système"
-    dnf update -y
+    sudo dnf update -y
 
     # Installation des dépendances nécessaires
     log "Installation des dépendances"
     # Installer jq et wget
-    dnf install -y jq wget
+    sudo dnf install -y jq wget
 
     # Vérifier si aws-cli est installé
     if ! command -v aws &> /dev/null; then
         log "Installation d'AWS CLI..."
-        dnf install -y aws-cli || {
+        sudo dnf install -y aws-cli || {
             log "Installation d'AWS CLI via le package aws-cli a échoué, tentative avec awscli..."
-            dnf install -y awscli
+            sudo dnf install -y awscli
         }
     else
         log "AWS CLI est déjà installé, version: $(aws --version)"
@@ -599,37 +599,37 @@ setup_java_tomcat() {
     log "Installation de curl"
     if ! command -v curl &> /dev/null; then
         # Si curl n'est pas installé, l'installer avec --allowerasing pour résoudre les conflits
-        dnf install -y --allowerasing curl
+        sudo dnf install -y --allowerasing curl
     else
         log "curl est déjà installé, version: $(curl --version | head -n 1)"
     fi
 
     # Configuration des clés SSH
     log "Configuration des clés SSH"
-    mkdir -p /home/ec2-user/.ssh
-    chmod 700 /home/ec2-user/.ssh
+    sudo mkdir -p /home/ec2-user/.ssh
+    sudo chmod 700 /home/ec2-user/.ssh
 
     # Récupérer la clé publique depuis les métadonnées de l'instance (si disponible)
     PUBLIC_KEY=$(curl -s http://169.254.169.254/latest/meta-data/public-keys/0/openssh-key 2>/dev/null || echo "")
     if [ ! -z "$PUBLIC_KEY" ]; then
-        echo "$PUBLIC_KEY" | tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
+        echo "$PUBLIC_KEY" | sudo tee -a /home/ec2-user/.ssh/authorized_keys > /dev/null
         log "Clé SSH publique AWS installée avec succès"
     fi
 
-    chmod 600 /home/ec2-user/.ssh/authorized_keys
-    chown -R ec2-user:ec2-user /home/ec2-user/.ssh
+    sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
+    sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
     # Créer les répertoires nécessaires
     log "Création des répertoires nécessaires"
-    mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
-    chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
-    chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
+    sudo mkdir -p /opt/yourmedia/secure || error_exit "Échec de la création du répertoire /opt/yourmedia/secure"
+    sudo chmod 755 /opt/yourmedia || error_exit "Échec de la modification des permissions de /opt/yourmedia"
+    sudo chmod 700 /opt/yourmedia/secure || error_exit "Échec de la modification des permissions de /opt/yourmedia/secure"
 
     # Créer le fichier de variables d'environnement
     log "Création du fichier de variables d'environnement"
-    cat > /opt/yourmedia/env.sh << EOL
+    sudo bash -c 'cat > /opt/yourmedia/env.sh << EOL
 #!/bin/bash
-# Variables d'environnement pour l'application Java Tomcat
+# Variables d'\''environnement pour l'\''application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
 # Date de génération: $(date)
 
@@ -655,13 +655,13 @@ export TOMCAT_VERSION="${TOMCAT_VERSION:-9.0.104}"
 
 # Charger les variables sensibles
 source /opt/yourmedia/secure/sensitive-env.sh 2>/dev/null || true
-EOL
+EOL'
 
     # Créer le fichier de variables sensibles
     log "Création du fichier de variables sensibles"
-    cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
+    sudo bash -c 'cat > /opt/yourmedia/secure/sensitive-env.sh << EOL
 #!/bin/bash
-# Variables sensibles pour l'application Java Tomcat
+# Variables sensibles pour l'\''application Java Tomcat
 # Généré automatiquement par setup-java-tomcat.sh
 # Date de génération: $(date)
 
@@ -670,12 +670,12 @@ export RDS_PASSWORD="${RDS_PASSWORD:-password}"
 
 # Variables de compatibilité
 export DB_PASSWORD="$RDS_PASSWORD"
-EOL
+EOL'
 
     # Définir les permissions
-    chmod 755 /opt/yourmedia/env.sh
-    chmod 600 /opt/yourmedia/secure/sensitive-env.sh
-    chown -R ec2-user:ec2-user /opt/yourmedia
+    sudo chmod 755 /opt/yourmedia/env.sh
+    sudo chmod 600 /opt/yourmedia/secure/sensitive-env.sh
+    sudo chown -R ec2-user:ec2-user /opt/yourmedia
 
     # Installation de Java
     install_java
@@ -693,8 +693,8 @@ EOL
     create_deploy_war_script
 
     # Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
-    echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war
-    chmod 440 /etc/sudoers.d/deploy-war
+    sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
+    sudo chmod 440 /etc/sudoers.d/deploy-war
 
     return 0
 }
@@ -781,13 +781,13 @@ case $MODE in
                 # Arrêter et désactiver Tomcat s'il est déjà installé
                 if [ -f "/etc/systemd/system/tomcat.service" ]; then
                     log "Arrêt et désactivation de Tomcat..."
-                    systemctl stop tomcat
-                    systemctl disable tomcat
+                    sudo systemctl stop tomcat
+                    sudo systemctl disable tomcat
                 fi
                 # Supprimer les répertoires existants
                 if [ -d "/opt/tomcat" ]; then
                     log "Suppression du répertoire /opt/tomcat..."
-                    rm -rf /opt/tomcat
+                    sudo rm -rf /opt/tomcat
                 fi
             fi
 
