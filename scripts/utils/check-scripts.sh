@@ -5,8 +5,8 @@
 #                 Ce script utilise shellcheck pour détecter les problèmes courants dans les
 #                 scripts shell et vérifie également les permissions et les caractères spéciaux.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-27
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./check-scripts.sh
 #

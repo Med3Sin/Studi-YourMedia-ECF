@@ -5,8 +5,8 @@
 #                 Ce script prend une variable et sa valeur en entrée et génère différentes
 #                 versions échappées pour différents contextes (sed, shell, URL).
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-27
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./escape-special-chars.sh <variable> <valeur>
 #

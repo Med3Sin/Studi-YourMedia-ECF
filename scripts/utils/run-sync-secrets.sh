@@ -3,8 +3,8 @@
 # Nom du script : run-sync-secrets.sh
 # Description   : Exécute la synchronisation des secrets GitHub vers Terraform Cloud
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-05-01
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./run-sync-secrets.sh
 #
@@ -37,7 +37,7 @@ ask_if_not_set() {
     local var_name=$1
     local prompt=$2
     local is_secret=${3:-false}
-    
+
     if [ -z "${!var_name}" ]; then
         if [ "$is_secret" = "true" ]; then
             # Pour les secrets, utiliser read -s pour ne pas afficher la saisie

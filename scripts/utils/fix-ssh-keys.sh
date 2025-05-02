@@ -5,8 +5,8 @@
 #                 Ce script supprime les guillemets simples qui entourent les clés SSH et
 #                 vérifie le format des clés pour s'assurer qu'elles sont valides.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-04-27
+# Version       : 1.1
+# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./fix-ssh-keys.sh
 #
