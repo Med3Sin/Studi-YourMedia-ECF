@@ -56,8 +56,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media_storage_enc
 resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   bucket = aws_s3_bucket.media_storage.id
 
-  # Ajouter une dépendance explicite pour s'assurer que le bucket est créé avant la configuration du cycle de vie
-  depends_on = [aws_s3_bucket.media_storage, aws_s3_bucket_versioning.media_storage_versioning]
+  # Ajouter une dépendance explicite pour s'assurer que le bucket et le versioning sont créés avant la configuration du cycle de vie
+  depends_on = [
+    aws_s3_bucket.media_storage,
+    aws_s3_bucket_versioning.media_storage_versioning,
+    aws_s3_bucket_server_side_encryption_configuration.media_storage_encryption,
+    aws_s3_bucket_public_access_block.media_storage_public_access
+  ]
 
   # Règle pour les builds temporaires
   rule {
@@ -77,6 +82,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     # Suppression des versions précédentes après 7 jours
     noncurrent_version_expiration {
       noncurrent_days = 7
+    }
+
+    # Ajouter une configuration d'abort_incomplete_multipart_upload pour éviter les problèmes
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 
@@ -98,6 +108,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     # Suppression des versions précédentes après 14 jours
     noncurrent_version_expiration {
       noncurrent_days = 14
+    }
+
+    # Ajouter une configuration d'abort_incomplete_multipart_upload pour éviter les problèmes
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 }
