@@ -56,13 +56,18 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media_storage_enc
 resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   bucket = aws_s3_bucket.media_storage.id
 
-  # Ajouter une dépendance explicite pour s'assurer que le bucket et le versioning sont créés avant la configuration du cycle de vie
+  # Ajouter une dépendance explicite pour s'assurer que le bucket et toutes ses configurations sont créés avant la configuration du cycle de vie
   depends_on = [
     aws_s3_bucket.media_storage,
     aws_s3_bucket_versioning.media_storage_versioning,
     aws_s3_bucket_server_side_encryption_configuration.media_storage_encryption,
     aws_s3_bucket_public_access_block.media_storage_public_access
   ]
+
+  # Attendre que le bucket soit complètement créé
+  lifecycle {
+    create_before_destroy = true
+  }
 
   # Règle pour les builds temporaires
   rule {
@@ -111,6 +116,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     }
 
     # Ajouter une configuration d'abort_incomplete_multipart_upload pour éviter les problèmes
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  # Règle par défaut pour tous les autres objets
+  rule {
+    id     = "default-rule"
+    status = "Enabled"
+
+    # Aucun préfixe spécifié pour cibler tous les objets
+
+    # Configuration pour les téléchargements multipartites incomplets
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
