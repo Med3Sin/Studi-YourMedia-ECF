@@ -162,27 +162,57 @@ echo "ID de l'instance: $INSTANCE_ID"
 # Télécharger et exécuter le script d'initialisation depuis GitHub
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/yourmedia
-GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Répertoire /opt/yourmedia créé"
 
-# Utiliser wget au lieu de curl pour télécharger le script d'initialisation
-sudo wget -q -O /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh"
+# Afficher les variables pour le débogage
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Variables: repo_owner=${var.repo_owner}, repo_name=${var.repo_name}"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - URL GitHub Raw: $GITHUB_RAW_URL"
+
+# Tester la connectivité à GitHub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Test de connectivité à GitHub..."
+if sudo wget -q --spider --timeout=10 "https://raw.githubusercontent.com"; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Connectivité à GitHub OK"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de se connecter à GitHub"
+fi
+
+# Utiliser wget avec plus de verbosité pour télécharger le script d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script init-java-tomcat.sh..."
+sudo wget -v -O /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
 
 # Vérifier si le téléchargement a réussi
 if [ ! -s /opt/yourmedia/init-java-tomcat.sh ]; then
-  echo "ERREUR: Le téléchargement du script init-java-tomcat.sh a échoué. Tentative avec le chemin complet..."
-  sudo wget -q -O /opt/yourmedia/init-java-tomcat.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/init-java-tomcat.sh"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script init-java-tomcat.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -v -O /opt/yourmedia/init-java-tomcat.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/init-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
 fi
 
-sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
+# Vérifier à nouveau si le téléchargement a réussi
+if [ -s /opt/yourmedia/init-java-tomcat.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script init-java-tomcat.sh téléchargé avec succès"
+  sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR CRITIQUE: Impossible de télécharger le script init-java-tomcat.sh"
+  exit 1
+fi
 
 # Télécharger directement le script de configuration pour éviter les problèmes
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration"
-sudo wget -q -O /opt/yourmedia/setup-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/setup-java-tomcat.sh"
-sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration setup-java-tomcat.sh..."
+sudo wget -v -O /opt/yourmedia/setup-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/setup-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier si le téléchargement a réussi
+if [ -s /opt/yourmedia/setup-java-tomcat.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script setup-java-tomcat.sh téléchargé avec succès"
+  sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le script setup-java-tomcat.sh"
+fi
 
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
-sudo /opt/yourmedia/init-java-tomcat.sh
+sudo /opt/yourmedia/init-java-tomcat.sh 2>&1 | tee -a /var/log/user-data-init.log
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF

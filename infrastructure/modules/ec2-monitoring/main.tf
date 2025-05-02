@@ -258,31 +258,68 @@ echo "ID de l'instance: $INSTANCE_ID"
 # Télécharger et exécuter le script d'initialisation depuis GitHub
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/monitoring
-GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Répertoire /opt/monitoring créé"
 
-# Utiliser wget au lieu de curl pour télécharger le script d'initialisation
-sudo wget -q -O /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+# Afficher les variables pour le débogage
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Variables: repo_owner=${var.repo_owner}, repo_name=${var.repo_name}"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - URL GitHub Raw: $GITHUB_RAW_URL"
+
+# Tester la connectivité à GitHub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Test de connectivité à GitHub..."
+if sudo wget -q --spider --timeout=10 "https://raw.githubusercontent.com"; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Connectivité à GitHub OK"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de se connecter à GitHub"
+fi
+
+# Utiliser wget avec plus de verbosité pour télécharger le script d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script init-monitoring.sh..."
+sudo wget -v -O /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh" 2>&1 | tee -a /var/log/user-data-init.log
 
 # Vérifier si le téléchargement a réussi
 if [ ! -s /opt/monitoring/init-monitoring.sh ]; then
-  echo "ERREUR: Le téléchargement du script init-monitoring.sh a échoué. Tentative avec le chemin complet..."
-  sudo wget -q -O /opt/monitoring/init-monitoring.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/init-monitoring.sh"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script init-monitoring.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -v -O /opt/monitoring/init-monitoring.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/init-monitoring.sh" 2>&1 | tee -a /var/log/user-data-init.log
 fi
 
-sudo chmod +x /opt/monitoring/init-monitoring.sh
+# Vérifier à nouveau si le téléchargement a réussi
+if [ -s /opt/monitoring/init-monitoring.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script init-monitoring.sh téléchargé avec succès"
+  sudo chmod +x /opt/monitoring/init-monitoring.sh
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR CRITIQUE: Impossible de télécharger le script init-monitoring.sh"
+  exit 1
+fi
 
 # Télécharger directement le script de configuration pour éviter les problèmes
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration"
-sudo wget -q -O /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
-sudo chmod +x /opt/monitoring/setup-monitoring.sh
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration setup-monitoring.sh..."
+sudo wget -v -O /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh" 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier si le téléchargement a réussi
+if [ -s /opt/monitoring/setup-monitoring.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script setup-monitoring.sh téléchargé avec succès"
+  sudo chmod +x /opt/monitoring/setup-monitoring.sh
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le script setup-monitoring.sh"
+fi
 
 # Télécharger le fichier docker-compose.yml
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du fichier docker-compose.yml"
-sudo wget -q -O /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du fichier docker-compose.yml..."
+sudo wget -v -O /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml" 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier si le téléchargement a réussi
+if [ -s /opt/monitoring/docker-compose.yml ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Fichier docker-compose.yml téléchargé avec succès"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le fichier docker-compose.yml"
+fi
 
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
-sudo /opt/monitoring/init-monitoring.sh
+sudo /opt/monitoring/init-monitoring.sh 2>&1 | tee -a /var/log/user-data-init.log
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
