@@ -126,7 +126,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     id     = "default-rule"
     status = "Enabled"
 
-    # Aucun préfixe spécifié pour cibler tous les objets
+    # Filtre vide pour cibler tous les objets
+    filter {}
 
     # Configuration pour les téléchargements multipartites incomplets
     abort_incomplete_multipart_upload {
