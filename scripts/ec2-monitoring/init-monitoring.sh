@@ -119,19 +119,32 @@ log "Téléchargement du script setup-monitoring.sh"
 sudo wget -q -O /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
 sudo chmod +x /opt/monitoring/setup-monitoring.sh
 
-# Création d'un fichier env.json vide si nécessaire
-log "Création d'un fichier env.json vide"
-echo '{
-  "RDS_USERNAME": "",
-  "RDS_PASSWORD": "",
-  "RDS_ENDPOINT": "",
-  "RDS_NAME": "",
-  "GRAFANA_ADMIN_PASSWORD": "admin",
-  "S3_BUCKET_NAME": "",
-  "AWS_REGION": "eu-west-3"
-}' > /tmp/env.json
+# Création d'un fichier env.json avec les valeurs récupérées
+log "Création d'un fichier env.json avec les valeurs récupérées"
 
-# Extraction des variables
+# Définir des variables par défaut si elles ne sont pas déjà définies
+RDS_USERNAME=${RDS_USERNAME:-""}
+RDS_PASSWORD=${RDS_PASSWORD:-""}
+RDS_ENDPOINT=${RDS_ENDPOINT:-""}
+RDS_NAME=${RDS_NAME:-""}
+GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-"admin"}
+# Utiliser le S3_BUCKET_NAME récupéré précédemment
+AWS_REGION=${AWS_REGION:-"eu-west-3"}
+
+# Créer le fichier env.json avec les valeurs définies
+cat > /tmp/env.json << EOF
+{
+  "RDS_USERNAME": "${RDS_USERNAME}",
+  "RDS_PASSWORD": "${RDS_PASSWORD}",
+  "RDS_ENDPOINT": "${RDS_ENDPOINT}",
+  "RDS_NAME": "${RDS_NAME}",
+  "GRAFANA_ADMIN_PASSWORD": "${GRAFANA_ADMIN_PASSWORD}",
+  "S3_BUCKET_NAME": "${S3_BUCKET_NAME}",
+  "AWS_REGION": "${AWS_REGION}"
+}
+EOF
+
+# Extraction des variables (pour s'assurer qu'elles sont correctement définies)
 RDS_USERNAME=$(jq -r '.RDS_USERNAME' /tmp/env.json)
 RDS_PASSWORD=$(jq -r '.RDS_PASSWORD' /tmp/env.json)
 RDS_ENDPOINT=$(jq -r '.RDS_ENDPOINT' /tmp/env.json)
