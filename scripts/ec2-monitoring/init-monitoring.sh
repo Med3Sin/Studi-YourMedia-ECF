@@ -5,6 +5,7 @@
 #                 Ce script configure l'environnement de l'instance, télécharge les scripts
 #                 nécessaires depuis S3, récupère les variables d'environnement et initialise
 #                 les conteneurs Docker.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
 # Version       : 2.0
 # Date          : 2025-05-01
 #==============================================================================
@@ -92,7 +93,7 @@ check_dependency() {
 
     if ! command -v $cmd &> /dev/null; then
         log "Dépendance manquante: $cmd. Installation de $pkg..."
-        dnf install -y $pkg || error_exit "Impossible d'installer $pkg"
+        sudo dnf install -y $pkg || error_exit "Impossible d'installer $pkg"
     fi
 }
 
@@ -194,16 +195,16 @@ chmod +x /opt/monitoring/env.sh
 log "Vérification de l'installation de Docker"
 if ! command -v docker &> /dev/null; then
     log "Installation de Docker..."
-    dnf install -y docker
-    systemctl start docker
-    systemctl enable docker
-    usermod -aG docker ec2-user
+    sudo dnf install -y docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker ec2-user
 else
     log "Docker est déjà installé"
     # S'assurer que Docker est démarré
-    if ! systemctl is-active --quiet docker; then
-        systemctl start docker
-        systemctl enable docker
+    if ! sudo systemctl is-active --quiet docker; then
+        sudo systemctl start docker
+        sudo systemctl enable docker
     fi
 fi
 
@@ -211,9 +212,9 @@ fi
 log "Vérification de l'installation de Docker Compose"
 if ! command -v docker-compose &> /dev/null; then
     log "Installation de Docker Compose..."
-    curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 else
     log "Docker Compose est déjà installé"
 fi
@@ -278,25 +279,25 @@ source /opt/monitoring/env.sh
 # Installation des services systemd pour la surveillance des conteneurs
 log "Installation des services systemd pour la surveillance des conteneurs"
 if [ -f "/opt/monitoring/container-health-check.service" ]; then
-    cp /opt/monitoring/container-health-check.service /etc/systemd/system/
-    cp /opt/monitoring/container-health-check.timer /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable container-health-check.timer
-    systemctl start container-health-check.timer
+    sudo cp /opt/monitoring/container-health-check.service /etc/systemd/system/
+    sudo cp /opt/monitoring/container-health-check.timer /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable container-health-check.timer
+    sudo systemctl start container-health-check.timer
     log "Service container-health-check installé et activé"
 fi
 
 if [ -f "/opt/monitoring/container-tests.service" ]; then
-    cp /opt/monitoring/container-tests.service /etc/systemd/system/
-    cp /opt/monitoring/container-tests.timer /etc/systemd/system/
-    systemctl daemon-reload
-    systemctl enable container-tests.timer
-    systemctl start container-tests.timer
+    sudo cp /opt/monitoring/container-tests.service /etc/systemd/system/
+    sudo cp /opt/monitoring/container-tests.timer /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable container-tests.timer
+    sudo systemctl start container-tests.timer
     log "Service container-tests installé et activé"
 fi
 
 # Vérification des conteneurs en cours d'exécution
 log "Vérification des conteneurs en cours d'exécution"
-docker ps
+sudo docker ps
 
 log "Initialisation terminée avec succès"
