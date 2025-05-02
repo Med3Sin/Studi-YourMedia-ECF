@@ -1,0 +1,31 @@
+---
+region: ${AWS_REGION:-eu-west-3}
+metrics:
+  - aws_namespace: AWS/S3
+    aws_metric_name: BucketSizeBytes
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/S3
+    aws_metric_name: NumberOfObjects
+    aws_dimensions: [BucketName, StorageType]
+    aws_dimension_select:
+      BucketName: ["${S3_BUCKET_NAME}"]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: CPUUtilization
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: DatabaseConnections
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]
+
+  - aws_namespace: AWS/RDS
+    aws_metric_name: FreeStorageSpace
+    aws_dimensions: [DBInstanceIdentifier]
+    aws_statistics: [Average]

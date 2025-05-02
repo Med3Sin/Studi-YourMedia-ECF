@@ -155,7 +155,20 @@ create_cloudwatch_config() {
         return 0
     fi
 
-    cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
+    # URL du fichier de configuration sur GitHub
+    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/monitoring/cloudwatch-config.yml"
+
+    # Télécharger le fichier de configuration avec wget
+    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
+    wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$CONFIG_URL"
+
+    # Vérifier si le téléchargement a réussi
+    if [ ! -s /opt/monitoring/config/cloudwatch-config.yml ]; then
+        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création manuelle..."
+
+        # Créer le fichier manuellement en cas d'échec du téléchargement
+        cat > /opt/monitoring/config/cloudwatch-config.yml << EOF
 ---
 region: ${AWS_REGION:-eu-west-3}
 metrics:
@@ -188,6 +201,11 @@ metrics:
     aws_dimensions: [DBInstanceIdentifier]
     aws_statistics: [Average]
 EOF
+    fi
+
+    # Remplacer les variables dans le fichier téléchargé
+    sed -i "s/\${AWS_REGION:-eu-west-3}/${AWS_REGION:-eu-west-3}/g" /opt/monitoring/config/cloudwatch-config.yml
+    sed -i "s/\${S3_BUCKET_NAME}/${S3_BUCKET_NAME}/g" /opt/monitoring/config/cloudwatch-config.yml
 
     # Créer un lien symbolique pour la compatibilité avec les anciens scripts
     mkdir -p /opt/monitoring/cloudwatch-config
@@ -439,13 +457,52 @@ create_docker_manager_script() {
         aws s3 cp s3://$S3_BUCKET_NAME/scripts/utils/docker-manager.sh /opt/monitoring/docker-manager.sh || log "Échec du téléchargement du script docker-manager.sh depuis S3"
     fi
 
-    # Si le téléchargement a échoué, créer une version simplifiée du script
+    # Si le téléchargement depuis S3 a échoué, essayer de télécharger depuis GitHub
     if [ ! -f "/opt/monitoring/docker-manager.sh" ]; then
+        log "Téléchargement du script docker-manager.sh depuis GitHub"
+
+        # URL du script sur GitHub
+        GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+        SCRIPT_URL="$GITHUB_RAW_URL/scripts/config/monitoring/docker-manager.sh"
+
+        # Télécharger le script avec wget
+        wget -q -O /opt/monitoring/docker-manager.sh "$SCRIPT_URL"
+    fi
+
+    # Si les deux téléchargements ont échoué, créer une version simplifiée du script
+    if [ ! -s "/opt/monitoring/docker-manager.sh" ]; then
         log "Création d'une version simplifiée du script docker-manager.sh"
         cat > /opt/monitoring/docker-manager.sh << 'EOF'
 #!/bin/bash
-# Script simplifié de gestion des conteneurs Docker
-# Usage: docker-manager.sh [start|stop|restart|status|deploy] [service_name]
+#==============================================================================
+# Nom du script : docker-manager.sh
+# Description   : Script simplifié de gestion des conteneurs Docker.
+#                 Ce script permet de démarrer, arrêter, redémarrer et vérifier
+#                 le statut des conteneurs Docker.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-05-02
+#==============================================================================
+# Utilisation   : sudo ./docker-manager.sh [start|stop|restart|status|deploy] [service_name]
+#
+# Options       :
+#   start       : Démarrer les conteneurs
+#   stop        : Arrêter les conteneurs
+#   restart     : Redémarrer les conteneurs
+#   status      : Afficher le statut des conteneurs
+#   deploy      : Déployer les conteneurs (arrêter puis démarrer)
+#
+# Exemples      :
+#   sudo ./docker-manager.sh start
+#   sudo ./docker-manager.sh stop grafana
+#   sudo ./docker-manager.sh restart prometheus
+#==============================================================================
+# Dépendances   :
+#   - docker    : Pour gérer les conteneurs
+#   - docker-compose : Pour gérer les services
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
 
 # Fonction pour afficher les messages
 log() {
