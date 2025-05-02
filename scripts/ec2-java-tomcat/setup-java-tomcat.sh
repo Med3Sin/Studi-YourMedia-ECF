@@ -105,7 +105,7 @@ configure_tomcat_service() {
 
     # URL du fichier de configuration sur GitHub
     GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    SERVICE_CONFIG_URL="$GITHUB_RAW_URL/scripts/ec2-java-tomcat/config/tomcat.service"
+    SERVICE_CONFIG_URL="$GITHUB_RAW_URL/scripts/config/tomcat/tomcat.service"
 
     # Télécharger le fichier de configuration avec wget
     sudo wget -q -O /etc/systemd/system/tomcat.service "$SERVICE_CONFIG_URL"
@@ -182,7 +182,7 @@ create_deploy_war_script() {
 
     # URL du fichier de script sur GitHub
     GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    DEPLOY_SCRIPT_URL="$GITHUB_RAW_URL/scripts/ec2-java-tomcat/config/deploy-war.sh"
+    DEPLOY_SCRIPT_URL="$GITHUB_RAW_URL/scripts/config/tomcat/deploy-war.sh"
 
     # Télécharger le script avec wget
     sudo wget -q -O /opt/yourmedia/deploy-war.sh "$DEPLOY_SCRIPT_URL"
