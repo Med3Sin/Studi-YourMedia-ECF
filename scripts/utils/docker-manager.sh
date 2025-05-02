@@ -125,10 +125,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Variables EC2
-export EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP}
-export EC2_APP_IP=${TF_EC2_PUBLIC_IP}
+# Variables EC2 - Utiliser plusieurs sources possibles pour les adresses IP
+export EC2_MONITORING_IP=${TF_MONITORING_EC2_PUBLIC_IP:-${MONITORING_EC2_PUBLIC_IP:-""}}
+export EC2_APP_IP=${TF_EC2_PUBLIC_IP:-${EC2_PUBLIC_IP:-""}}
 export EC2_SSH_KEY="${EC2_SSH_PRIVATE_KEY}"
+
+# Afficher un message si les variables ne sont pas définies
+if [ -z "$EC2_MONITORING_IP" ]; then
+    log_warning "La variable EC2_MONITORING_IP n'est pas définie. Certaines fonctionnalités pourraient ne pas fonctionner correctement."
+fi
+
+if [ -z "$EC2_APP_IP" ]; then
+    log_warning "La variable EC2_APP_IP n'est pas définie. Certaines fonctionnalités pourraient ne pas fonctionner correctement."
+fi
 
 # Variables Grafana
 export GRAFANA_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
@@ -318,13 +327,35 @@ check_deploy_vars() {
     # Vérifier les variables spécifiques à la cible
     if [ "$TARGET" = "mobile" ] || [ "$TARGET" = "all" ]; then
         if [ -z "$EC2_APP_IP" ]; then
-            log_error "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP."
+            if [ "$ACTION" = "cleanup" ]; then
+                log_warning "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                # Si nous sommes en train de nettoyer et que la cible est 'all', on continue avec les autres cibles
+                if [ "$TARGET" = "all" ]; then
+                    return 0
+                else
+                    # Sinon, on sort avec un code d'erreur
+                    return 1
+                fi
+            else
+                log_error "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP ou EC2_PUBLIC_IP."
+            fi
         fi
     fi
 
     if [ "$TARGET" = "monitoring" ] || [ "$TARGET" = "all" ]; then
         if [ -z "$EC2_MONITORING_IP" ]; then
-            log_error "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP."
+            if [ "$ACTION" = "cleanup" ]; then
+                log_warning "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                # Si nous sommes en train de nettoyer et que la cible est 'all', on continue avec les autres cibles
+                if [ "$TARGET" = "all" ]; then
+                    return 0
+                else
+                    # Sinon, on sort avec un code d'erreur
+                    return 1
+                fi
+            else
+                log_error "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP ou MONITORING_EC2_PUBLIC_IP."
+            fi
         fi
 
         # Vérifier les variables de base de données pour le monitoring
@@ -909,22 +940,22 @@ cleanup_containers() {
 
     # Vérifier que les paramètres requis sont définis
     if [ -z "$ip" ]; then
-        log_error "L'adresse IP n'est pas définie"
+        log_warning "L'adresse IP n'est pas définie pour l'instance $instance_type. Le nettoyage ne sera pas effectué."
         return 1
     fi
 
     if [ -z "$instance_type" ]; then
-        log_error "Le type d'instance n'est pas défini"
+        log_warning "Le type d'instance n'est pas défini. Le nettoyage ne sera pas effectué."
         return 1
     fi
 
     if [ -z "$cleanup_type" ]; then
-        log_error "Le type de nettoyage n'est pas défini"
-        return 1
+        log_warning "Le type de nettoyage n'est pas défini. Utilisation du type par défaut: 'all'."
+        cleanup_type="all"
     fi
 
     if [ -z "$EC2_SSH_KEY" ]; then
-        log_error "La variable EC2_SSH_KEY n'est pas définie"
+        log_warning "La variable EC2_SSH_KEY n'est pas définie. Le nettoyage ne sera pas effectué."
         return 1
     fi
 
@@ -1186,7 +1217,9 @@ case $ACTION in
         esac
         ;;
     cleanup)
-        check_deploy_vars
+        # Vérifier les variables requises, mais continuer même si certaines sont manquantes
+        check_deploy_vars || log_warning "Des variables requises sont manquantes, mais le nettoyage va continuer avec les variables disponibles."
+
         log_info "Nettoyage des conteneurs Docker (type: $CLEANUP_TYPE)"
 
         # Demander confirmation avant de procéder
@@ -1204,18 +1237,58 @@ case $ACTION in
             fi
         fi
 
+        # Variable pour suivre le succès du nettoyage
+        local cleanup_success=true
+
         case $TARGET in
             mobile)
-                cleanup_containers $EC2_APP_IP "application" $CLEANUP_TYPE
+                if [ -n "$EC2_APP_IP" ]; then
+                    cleanup_containers "$EC2_APP_IP" "application" "$CLEANUP_TYPE" || {
+                        log_warning "Le nettoyage des conteneurs sur l'instance d'application a échoué."
+                        cleanup_success=false
+                    }
+                else
+                    log_warning "L'adresse IP de l'instance d'application n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                fi
                 ;;
             monitoring)
-                cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
+                if [ -n "$EC2_MONITORING_IP" ]; then
+                    cleanup_containers "$EC2_MONITORING_IP" "monitoring" "$CLEANUP_TYPE" || {
+                        log_warning "Le nettoyage des conteneurs sur l'instance de monitoring a échoué."
+                        cleanup_success=false
+                    }
+                else
+                    log_warning "L'adresse IP de l'instance de monitoring n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                fi
                 ;;
             all)
-                cleanup_containers $EC2_MONITORING_IP "monitoring" $CLEANUP_TYPE
-                cleanup_containers $EC2_APP_IP "application" $CLEANUP_TYPE
+                if [ -n "$EC2_MONITORING_IP" ]; then
+                    cleanup_containers "$EC2_MONITORING_IP" "monitoring" "$CLEANUP_TYPE" || {
+                        log_warning "Le nettoyage des conteneurs sur l'instance de monitoring a échoué."
+                        cleanup_success=false
+                    }
+                else
+                    log_warning "L'adresse IP de l'instance de monitoring n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                fi
+
+                if [ -n "$EC2_APP_IP" ]; then
+                    cleanup_containers "$EC2_APP_IP" "application" "$CLEANUP_TYPE" || {
+                        log_warning "Le nettoyage des conteneurs sur l'instance d'application a échoué."
+                        cleanup_success=false
+                    }
+                else
+                    log_warning "L'adresse IP de l'instance d'application n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                fi
                 ;;
         esac
+
+        if [ "$cleanup_success" = true ]; then
+            log_success "Nettoyage des conteneurs terminé avec succès."
+        else
+            log_warning "Le nettoyage des conteneurs a rencontré des problèmes. Vérifiez les logs pour plus de détails."
+            # On ne sort pas avec un code d'erreur pour ne pas bloquer le workflow de destruction
+            # exit 1
+        fi
         ;;
 esac
 

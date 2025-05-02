@@ -20,11 +20,20 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
   # Permission pour créer et décrire des tags EC2
   statement {
     actions = [
-      "ec2:CreateTags",
-      "ec2:DescribeTags"
+      "ec2:CreateTags"
     ]
     resources = [
       "arn:aws:ec2:${var.aws_region}:*:*"
+    ]
+  }
+
+  # Permission pour décrire les tags EC2 (nécessite "*" comme ressource)
+  statement {
+    actions = [
+      "ec2:DescribeTags"
+    ]
+    resources = [
+      "*"
     ]
   }
   # Ajouter ici d'autres permissions si nécessaire (ex: Secrets Manager, etc.)

@@ -163,12 +163,19 @@ resource "aws_iam_policy" "monitoring_policy" {
       },
       {
         Action = [
-          "ec2:CreateTags",
+          "ec2:CreateTags"
+        ]
+        Effect = "Allow"
+        # Permission pour créer des tags EC2
+        Resource = "arn:aws:ec2:${var.aws_region}:*:*"
+      },
+      {
+        Action = [
           "ec2:DescribeTags"
         ]
         Effect = "Allow"
-        # Permission pour créer et décrire des tags EC2
-        Resource = "arn:aws:ec2:${var.aws_region}:*:*"
+        # Permission pour décrire les tags EC2 (nécessite "*" comme ressource)
+        Resource = "*"
       },
     ]
   })
