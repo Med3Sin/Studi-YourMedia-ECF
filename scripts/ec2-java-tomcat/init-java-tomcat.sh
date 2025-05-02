@@ -1,4 +1,25 @@
 #!/bin/bash
+#==============================================================================
+# Nom du script : init-java-tomcat.sh
+# Description   : Script d'initialisation pour l'instance EC2 Java/Tomcat.
+#                 Ce script télécharge et exécute les scripts de configuration
+#                 nécessaires pour configurer l'environnement Java et Tomcat.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-05-02
+#==============================================================================
+# Utilisation   : Ce script est exécuté automatiquement lors du démarrage de l'instance EC2.
+#
+# Exemples      :
+#   sudo ./init-java-tomcat.sh
+#==============================================================================
+# Dépendances   :
+#   - curl/wget : Pour télécharger les scripts depuis GitHub
+#   - jq        : Pour traiter les fichiers JSON
+#   - aws-cli   : Pour interagir avec les services AWS
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
 
 # Journalisation
 LOG_FILE="/var/log/init-java-tomcat.log"
