@@ -164,9 +164,9 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation
 sudo mkdir -p /opt/yourmedia
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Répertoire /opt/yourmedia créé"
 
-# Afficher les variables pour le débogage
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Variables: repo_owner=${var.repo_owner}, repo_name=${var.repo_name}"
-GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
+# Définir directement l'URL GitHub Raw
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Définition directe de l'URL GitHub"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - URL GitHub Raw: $GITHUB_RAW_URL"
 
 # Tester la connectivité à GitHub
