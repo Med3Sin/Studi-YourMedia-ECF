@@ -162,8 +162,22 @@ echo "ID de l'instance: $INSTANCE_ID"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/yourmedia
 GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
-sudo curl -L -o /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh"
+
+# Utiliser wget au lieu de curl pour télécharger le script d'initialisation
+sudo wget -q -O /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/yourmedia/init-java-tomcat.sh ]; then
+  echo "ERREUR: Le téléchargement du script init-java-tomcat.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -q -O /opt/yourmedia/init-java-tomcat.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/init-java-tomcat.sh"
+fi
+
 sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
+
+# Télécharger directement le script de configuration pour éviter les problèmes
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration"
+sudo wget -q -O /opt/yourmedia/setup-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/setup-java-tomcat.sh"
+sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
 
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"

@@ -258,8 +258,26 @@ echo "ID de l'instance: $INSTANCE_ID"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
 sudo mkdir -p /opt/monitoring
 GITHUB_RAW_URL="https://raw.githubusercontent.com/${var.repo_owner}/${var.repo_name}/main"
-sudo curl -L -o /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+
+# Utiliser wget au lieu de curl pour télécharger le script d'initialisation
+sudo wget -q -O /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /opt/monitoring/init-monitoring.sh ]; then
+  echo "ERREUR: Le téléchargement du script init-monitoring.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -q -O /opt/monitoring/init-monitoring.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/init-monitoring.sh"
+fi
+
 sudo chmod +x /opt/monitoring/init-monitoring.sh
+
+# Télécharger directement le script de configuration pour éviter les problèmes
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration"
+sudo wget -q -O /opt/monitoring/setup-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring.sh"
+sudo chmod +x /opt/monitoring/setup-monitoring.sh
+
+# Télécharger le fichier docker-compose.yml
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du fichier docker-compose.yml"
+sudo wget -q -O /opt/monitoring/docker-compose.yml "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-compose.yml"
 
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
