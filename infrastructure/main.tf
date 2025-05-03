@@ -177,7 +177,7 @@ module "ec2-java-tomcat" {
   key_pair_name         = var.ec2_key_pair_name
   subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
   ec2_security_group_id = module.network.ec2_security_group_id
-  ssh_public_key        = var.ssh_public_key   # Clé SSH publique pour l'accès à l'instance
+  ssh_public_key        = var.ssh_public_key # Clé SSH publique pour l'accès à l'instance
   aws_region            = var.aws_region
 
   # Variables pour GitHub
