@@ -181,7 +181,7 @@ Pour assurer la cohérence et la maintenabilité du code, les variables d'enviro
 - **S3_BUCKET_NAME** : Nom du bucket S3 (alias: TF_S3_BUCKET_NAME)
 
 ### Variables Grafana
-- **GRAFANA_ADMIN_PASSWORD** : Mot de passe administrateur Grafana (alias: GF_SECURITY_ADMIN_PASSWORD)
+- **GF_SECURITY_ADMIN_PASSWORD** : Mot de passe administrateur Grafana (anciennement: GRAFANA_ADMIN_PASSWORD)
 
 
 

@@ -370,7 +370,7 @@ jobs:
               -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
               -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
               -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
-              -var="grafana_admin_password=${{ secrets.GRAFANA_ADMIN_PASSWORD }}" \
+              -var="grafana_admin_password=${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}" \
               -var-file=terraform.tfvars.scripts
           else
             echo "Fichier terraform.tfvars.scripts non trouvé, utilisation des variables par défaut..."
@@ -394,7 +394,7 @@ jobs:
               -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
               -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
               -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}" \
-              -var="grafana_admin_password=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+              -var="grafana_admin_password=${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}"
           fi
 
           # Récupérer le nom du bucket S3
@@ -550,8 +550,6 @@ jobs:
           export DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}"
           export DOCKERHUB_TOKEN="${{ secrets.DOCKERHUB_TOKEN }}"
           export DOCKERHUB_REPO="${{ secrets.DOCKERHUB_REPO }}"
-          export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
-          export DOCKER_REPO="${{ secrets.DOCKER_REPO }}"
 
           # Exécuter le script de nettoyage des conteneurs
           echo "Nettoyage des conteneurs Docker sur les instances EC2..."
@@ -626,9 +624,9 @@ jobs:
             -var="environment=${{ github.event.inputs.environment }}" \
             -var="tf_api_token=${{ secrets.TF_API_TOKEN }}" \
             -var="tf_workspace_id=${{ secrets.TF_WORKSPACE_ID }}" \
-            -var="dockerhub_username=${{ secrets.DOCKER_USERNAME }}" \
+            -var="dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
             -var="dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}" \
-            -var="dockerhub_repo=${{ secrets.DOCKER_REPO }}"
+            -var="dockerhub_repo=${{ secrets.DOCKERHUB_REPO }}"
           echo "::endgroup::"
         continue-on-error: true  # Continuer même si la destruction échoue pour pouvoir nettoyer les ressources persistantes
 
@@ -950,17 +948,13 @@ jobs:
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           # Exporter les secrets SSH et EC2
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           EC2_SSH_PUBLIC_KEY: ${{ secrets.EC2_SSH_PUBLIC_KEY }}
           EC2_KEY_PAIR_NAME: ${{ secrets.EC2_KEY_PAIR_NAME }}
           # Exporter les secrets Docker
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO }}
           # Exporter les secrets Grafana
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}

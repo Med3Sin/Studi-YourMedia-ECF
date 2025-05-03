@@ -77,7 +77,7 @@ jobs:
 
           # Récupérer le token d'authentification Docker Hub
           echo "Récupération du token Docker Hub..."
-          DOCKER_TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "'$DOCKER_USERNAME'", "password": "'$DOCKER_PASSWORD'"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+          DOCKER_TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "'$DOCKERHUB_USERNAME'", "password": "'$DOCKERHUB_TOKEN'"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
 
           if [ -z "$DOCKER_TOKEN" ] || [ "$DOCKER_TOKEN" = "null" ]; then
             echo "❌ Échec de l'authentification Docker Hub"
@@ -123,8 +123,8 @@ jobs:
       # Étape 5: Exécution du script de nettoyage
       - name: Run cleanup script
         env:
-          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           # Installation de jq pour le traitement JSON
           sudo apt-get update

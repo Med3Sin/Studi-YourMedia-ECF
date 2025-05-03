@@ -238,18 +238,14 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
           TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
-          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
-          DB_USERNAME: ${{ secrets.RDS_USERNAME }}
-          DB_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
           TF_RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
           GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID || 'dummy-id' }}
           GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || 'dummy-secret' }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
           if [ -f "./scripts/utils/docker-manager.sh" ]; then
@@ -271,7 +267,6 @@ jobs:
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
           TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
           if [ -f "./scripts/utils/docker-manager.sh" ]; then
@@ -323,18 +318,14 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
           TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
-          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.GF_SECURITY_ADMIN_PASSWORD }}
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
-          DB_USERNAME: ${{ secrets.RDS_USERNAME }}
-          DB_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
           TF_RDS_ENDPOINT: ${{ secrets.TF_RDS_ENDPOINT }}
           GITHUB_CLIENT_ID: ${{ secrets.GITHUB_CLIENT_ID || 'dummy-id' }}
           GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || 'dummy-secret' }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
           if [ -f "./scripts/utils/docker-manager.sh" ]; then
@@ -356,7 +347,6 @@ jobs:
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
           TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
           if [ -f "./scripts/utils/docker-manager.sh" ]; then
