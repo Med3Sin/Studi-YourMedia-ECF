@@ -9,7 +9,7 @@ Le système de monitoring de YourMedia est basé sur Prometheus et Grafana, dép
 Le système de monitoring est déployé sur une instance EC2 avec les caractéristiques suivantes :
 - Type d'instance : t2.micro (1 vCPU, 1 Go de RAM)
 - Système d'exploitation : Amazon Linux 2023
-- Conteneurs Docker : Prometheus, Grafana, Node Exporter, CloudWatch Exporter, MySQL Exporter
+- Conteneurs Docker : Prometheus, Grafana, Node Exporter, Loki, Promtail
 - Volume EBS : 20 Go (gp3)
 
 ## Composants
@@ -26,13 +26,13 @@ Grafana est une plateforme d'analyse et de visualisation de données qui permet 
 
 Node Exporter est un exportateur Prometheus qui collecte des métriques système sur l'instance EC2 (CPU, mémoire, disque, réseau, etc.).
 
-### CloudWatch Exporter
+### Loki
 
-CloudWatch Exporter est un exportateur Prometheus qui collecte des métriques AWS CloudWatch (S3, RDS, EC2, etc.).
+Loki est un système d'agrégation de logs inspiré de Prometheus. Il est conçu pour être très économe en ressources et est parfaitement intégré à Grafana.
 
-### MySQL Exporter
+### Promtail
 
-MySQL Exporter est un exportateur Prometheus qui collecte des métriques MySQL depuis la base de données RDS.
+Promtail est un agent qui collecte les logs et les envoie à Loki. Il est configuré pour collecter les logs système et les logs des conteneurs Docker.
 
 ## Déploiement
 
@@ -83,16 +83,13 @@ http://<IP_PUBLIQUE_INSTANCE>:9090
 Prometheus est configuré pour scraper les métriques des cibles suivantes :
 - Prometheus lui-même
 - Node Exporter (métriques système)
-- CloudWatch Exporter (métriques AWS)
-- MySQL Exporter (métriques RDS)
-- Instance EC2 Java/Tomcat
 
 ### Configuration de Grafana
 
 Grafana est configuré avec les paramètres suivants :
-- Source de données Prometheus
-- Tableaux de bord prédéfinis pour les métriques système, AWS et MySQL
-- Authentification anonyme activée en mode lecture seule
+- Source de données Prometheus pour les métriques
+- Source de données Loki pour les logs
+- Authentification avec identifiants par défaut (admin/admin)
 
 ## Alertes
 
@@ -112,13 +109,6 @@ Le système de monitoring est configuré avec les alertes suivantes :
 - HighDiskUsage : L'utilisation du disque est supérieure à 80% pendant plus de 5 minutes
 - InstanceDown : Une instance EC2 est arrêtée
 
-### Alertes RDS
-
-- RDSHighCPU : La charge CPU de RDS est supérieure à 80% pendant plus de 5 minutes
-- RDSHighMemory : L'utilisation de la mémoire de RDS est supérieure à 80% pendant plus de 5 minutes
-- RDSHighDiskUsage : L'utilisation du disque de RDS est supérieure à 80% pendant plus de 5 minutes
-- RDSHighConnections : Le nombre de connexions à RDS est supérieur à 80% de la limite pendant plus de 5 minutes
-
 ## Sécurité
 
 L'instance de monitoring est sécurisée avec les mesures suivantes :
@@ -131,9 +121,10 @@ L'instance de monitoring est sécurisée avec les mesures suivantes :
 ### Sauvegarde
 
 Pour sauvegarder le système de monitoring, vous devez sauvegarder :
-1. Le répertoire `/opt/monitoring/prometheus-data`
-2. Le répertoire `/opt/monitoring/grafana-data`
-3. Les fichiers de configuration dans `/opt/monitoring`
+1. Le répertoire `/opt/monitoring/prometheus`
+2. Le répertoire `/var/lib/grafana`
+3. Le répertoire `/opt/monitoring/loki`
+4. Les fichiers de configuration dans `/opt/monitoring`
 
 ### Mise à jour
 
@@ -151,11 +142,34 @@ docker-compose up -d
 1. **Les conteneurs ne démarrent pas**
    - Vérifiez les logs Docker : `docker logs <NOM_CONTENEUR>`
    - Vérifiez l'état des conteneurs : `docker ps -a`
+   - Vérifiez les permissions des répertoires : `/var/lib/grafana` et `/opt/monitoring/loki`
 
 2. **Prometheus ne collecte pas de métriques**
    - Vérifiez la configuration de Prometheus : `/opt/monitoring/prometheus.yml`
    - Vérifiez l'état des cibles dans l'interface Prometheus : `http://<IP_PUBLIQUE_INSTANCE>:9090/targets`
 
 3. **Grafana n'affiche pas de données**
-   - Vérifiez la configuration de la source de données Prometheus
+   - Vérifiez la configuration des sources de données dans Grafana
    - Vérifiez que Prometheus collecte bien les métriques
+
+4. **Loki ne collecte pas de logs**
+   - Vérifiez la configuration de Promtail : `/opt/monitoring/promtail-config.yml`
+   - Vérifiez les logs de Promtail : `docker logs promtail`
+
+## Simplifications apportées
+
+Pour améliorer la fiabilité et la simplicité du système de monitoring, les modifications suivantes ont été apportées :
+
+1. **Suppression des exporters problématiques**
+   - MySQL Exporter a été supprimé car il nécessitait une configuration complexe pour se connecter à RDS
+   - CloudWatch Exporter a été supprimé car il nécessitait des permissions AWS spécifiques
+
+2. **Simplification de la configuration**
+   - Les fichiers de configuration sont maintenant générés directement lors de l'initialisation de l'instance
+   - Les chemins de fichiers ont été standardisés pour éviter les problèmes de liens symboliques
+   - Les permissions des répertoires ont été ajustées pour éviter les problèmes d'accès
+
+3. **Optimisation pour le free tier AWS**
+   - Utilisation d'images Docker officielles pour une meilleure compatibilité
+   - Configuration simplifiée pour réduire la consommation de ressources
+   - Réduction du nombre de conteneurs pour limiter l'utilisation de la mémoire

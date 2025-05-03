@@ -247,18 +247,185 @@ log "Téléchargement des fichiers de configuration supplémentaires depuis GitH
 # Téléchargement des fichiers de configuration Prometheus
 log "Téléchargement des fichiers de configuration Prometheus"
 sudo mkdir -p /opt/monitoring/config/prometheus
-sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
-sudo wget -q -O /opt/monitoring/config/prometheus/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+sudo mkdir -p /opt/monitoring/prometheus/rules
+
+# Création du fichier prometheus.yml
+log "Création du fichier prometheus.yml"
+sudo bash -c 'cat > /opt/monitoring/prometheus.yml << EOF
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+EOF'
+
+# Création du fichier container-alerts.yml
+log "Création du fichier container-alerts.yml"
+sudo bash -c 'cat > /opt/monitoring/prometheus/rules/container-alerts.yml << EOF
+groups:
+  - name: containers
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~"prometheus|grafana|node-exporter|loki|promtail"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ \$labels.name }} is down"
+          description: "Container {{ \$labels.name }} has been down for more than 1 minute."
+
+      - alert: ContainerHighCPU
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|node-exporter|loki|promtail"}[1m])) by (name) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ \$labels.name }} high CPU usage"
+          description: "Container {{ \$labels.name }} CPU usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ \$labels.name }} high memory usage"
+          description: "Container {{ \$labels.name }} memory usage is above 80% for more than 5 minutes."
+
+      - alert: ContainerHighRestarts
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|node-exporter|loki|promtail"}[15m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ \$labels.name }} high restart count"
+          description: "Container {{ \$labels.name }} has been restarted more than 3 times in the last 15 minutes."
+EOF'
 
 # Téléchargement des fichiers de configuration Grafana
-log "Téléchargement des fichiers de configuration Grafana"
-sudo mkdir -p /opt/monitoring/config/grafana
-sudo wget -q -O /opt/monitoring/config/grafana/grafana.ini "$GITHUB_RAW_URL/scripts/config/grafana/grafana.ini"
+log "Configuration de Grafana"
+sudo mkdir -p /opt/monitoring/config/grafana/datasources
+sudo mkdir -p /opt/monitoring/config/grafana/dashboards
+
+# Création du fichier datasource Prometheus
+log "Création du fichier datasource Prometheus"
+sudo bash -c 'cat > /opt/monitoring/config/grafana/datasources/prometheus.yml << EOF
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+EOF'
+
+# Création du fichier datasource Loki
+log "Création du fichier datasource Loki"
+sudo bash -c 'cat > /opt/monitoring/config/grafana/datasources/loki.yml << EOF
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+EOF'
+
+# Création du fichier dashboard configuration
+log "Création du fichier dashboard configuration"
+sudo bash -c 'cat > /opt/monitoring/config/grafana/dashboards/default.yml << EOF
+apiVersion: 1
+
+providers:
+  - name: "Default"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+EOF'
 
 # Téléchargement des fichiers de configuration Loki et Promtail
-log "Téléchargement des fichiers de configuration Loki et Promtail"
-sudo wget -q -O /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
-sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+log "Configuration de Loki et Promtail"
+
+# Création du fichier loki-config.yml
+log "Création du fichier loki-config.yml"
+sudo bash -c 'cat > /opt/monitoring/loki-config.yml << EOF
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+
+schema_config:
+  configs:
+    - from: 2020-05-15
+      store: boltdb
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 168h
+
+storage_config:
+  boltdb:
+    directory: /loki/index
+
+  filesystem:
+    directory: /loki/chunks
+
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+EOF'
+
+# Création du fichier promtail-config.yml
+log "Création du fichier promtail-config.yml"
+sudo bash -c 'cat > /opt/monitoring/promtail-config.yml << EOF
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+EOF'
 
 # Téléchargement du fichier docker-compose.yml
 log "Téléchargement du fichier docker-compose.yml"
@@ -330,9 +497,11 @@ fi
 
 # Création des répertoires de données avec les bonnes permissions
 log "Création des répertoires de données avec les bonnes permissions"
-sudo mkdir -p /opt/monitoring/data/prometheus /opt/monitoring/data/grafana
-sudo chown -R 1000:1000 /opt/monitoring/data
-sudo chmod -R 755 /opt/monitoring/data
+sudo mkdir -p /opt/monitoring/loki/chunks /opt/monitoring/loki/index
+sudo mkdir -p /var/lib/grafana
+sudo chown -R 472:472 /var/lib/grafana
+sudo chmod -R 755 /var/lib/grafana
+sudo chmod -R 777 /opt/monitoring/loki
 
 # Démarrer les conteneurs Docker
 log "Démarrage des conteneurs Docker"

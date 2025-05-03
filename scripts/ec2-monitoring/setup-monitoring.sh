@@ -234,56 +234,31 @@ EOF"
 # Fonction pour créer le fichier prometheus.yml
 create_prometheus_config() {
     log "Création du fichier prometheus.yml"
-    sudo mkdir -p /opt/monitoring/config/prometheus
 
-    # Vérifier si le fichier existe déjà dans le répertoire config
-    if [ -f "/opt/monitoring/config/prometheus/prometheus.yml" ]; then
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/prometheus.yml" ]; then
         log "Le fichier de configuration Prometheus existe déjà"
         return 0
     fi
 
-    # URL du fichier de configuration sur GitHub
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
-
-    # Télécharger le fichier de configuration avec wget
-    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
-    sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$CONFIG_URL"
-
-    # Vérifier si le téléchargement a réussi
-    if [ ! -s /opt/monitoring/config/prometheus/prometheus.yml ]; then
-        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
-
-        # Créer un fichier temporaire avec le contenu de base
-        sudo bash -c 'cat > /tmp/prometheus.yml << "EOF"
+    # Créer le fichier prometheus.yml
+    sudo bash -c 'cat > /opt/monitoring/prometheus.yml << "EOF"
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - "rules/*.yml"
+
 scrape_configs:
-  - job_name: '\''prometheus'\''
+  - job_name: "prometheus"
     static_configs:
-      - targets: ['\''localhost:9090'\'']
+      - targets: ["localhost:9090"]
 
-  - job_name: '\''node-exporter'\''
+  - job_name: "node-exporter"
     static_configs:
-      - targets: ['\''node-exporter:9100'\'']
-
-  - job_name: '\''mysql-exporter'\''
-    static_configs:
-      - targets: ['\''mysql-exporter:9104'\'']
-
-  - job_name: '\''cloudwatch-exporter'\''
-    static_configs:
-      - targets: ['\''cloudwatch-exporter:9106'\'']
+      - targets: ["node-exporter:9100"]
 EOF'
-        # Copier le fichier temporaire vers l'emplacement final
-        sudo cp /tmp/prometheus.yml /opt/monitoring/config/prometheus/prometheus.yml
-        sudo rm /tmp/prometheus.yml
-    fi
-
-    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    sudo ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
 
     log "Fichier prometheus.yml créé avec succès"
     return 0
@@ -292,72 +267,57 @@ EOF'
 # Fonction pour créer le fichier loki-config.yml
 create_loki_config() {
     log "Création du fichier loki-config.yml"
-    sudo mkdir -p /opt/monitoring/config
+    sudo mkdir -p /opt/monitoring/loki/chunks /opt/monitoring/loki/index
 
-    # Vérifier si le fichier existe déjà dans le répertoire config
-    if [ -f "/opt/monitoring/config/loki-config.yml" ]; then
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/loki-config.yml" ]; then
         log "Le fichier de configuration Loki existe déjà"
         return 0
     fi
 
-    # URL du fichier de configuration sur GitHub
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/loki-config.yml"
-
-    # Télécharger le fichier de configuration avec wget
-    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
-    sudo wget -q -O /opt/monitoring/config/loki-config.yml "$CONFIG_URL"
-
-    # Vérifier si le téléchargement a réussi
-    if [ ! -s /opt/monitoring/config/loki-config.yml ]; then
-        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
-
-        # Créer un fichier temporaire avec le contenu de base
-        sudo bash -c 'cat > /tmp/loki-config.yml << "EOF"
+    # Créer le fichier loki-config.yml
+    sudo bash -c 'cat > /opt/monitoring/loki-config.yml << "EOF"
 auth_enabled: false
 
 server:
   http_listen_port: 3100
-  grpc_listen_port: 9096
 
-common:
-  path_prefix: /tmp/loki
-  storage:
-    filesystem:
-      chunks_directory: /tmp/loki/chunks
-      rules_directory: /tmp/loki/rules
-  replication_factor: 1
-  ring:
-    instance_addr: 127.0.0.1
-    kvstore:
-      store: inmemory
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
 
 schema_config:
   configs:
-    - from: 2020-10-24
-      store: boltdb-shipper
+    - from: 2020-05-15
+      store: boltdb
       object_store: filesystem
       schema: v11
       index:
         prefix: index_
-        period: 24h
+        period: 168h
 
-ruler:
-  alertmanager_url: http://localhost:9093
+storage_config:
+  boltdb:
+    directory: /loki/index
+
+  filesystem:
+    directory: /loki/chunks
 
 limits_config:
-  retention_period: 7d
-
-analytics:
-  reporting_enabled: false
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
 EOF'
-        # Copier le fichier temporaire vers l'emplacement final
-        sudo cp /tmp/loki-config.yml /opt/monitoring/config/loki-config.yml
-        sudo rm /tmp/loki-config.yml
-    fi
 
-    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    sudo ln -sf /opt/monitoring/config/loki-config.yml /opt/monitoring/loki-config.yml
+    # Définir les permissions appropriées
+    sudo chmod -R 777 /opt/monitoring/loki
 
     log "Fichier loki-config.yml créé avec succès"
     return 0
@@ -366,28 +326,15 @@ EOF'
 # Fonction pour créer le fichier promtail-config.yml
 create_promtail_config() {
     log "Création du fichier promtail-config.yml"
-    sudo mkdir -p /opt/monitoring/config
 
-    # Vérifier si le fichier existe déjà dans le répertoire config
-    if [ -f "/opt/monitoring/config/promtail-config.yml" ]; then
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/promtail-config.yml" ]; then
         log "Le fichier de configuration Promtail existe déjà"
         return 0
     fi
 
-    # URL du fichier de configuration sur GitHub
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
-
-    # Télécharger le fichier de configuration avec wget
-    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
-    sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$CONFIG_URL"
-
-    # Vérifier si le téléchargement a réussi
-    if [ ! -s /opt/monitoring/config/promtail-config.yml ]; then
-        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
-
-        # Créer un fichier temporaire avec le contenu de base
-        sudo bash -c 'cat > /tmp/promtail-config.yml << "EOF"
+    # Créer le fichier promtail-config.yml
+    sudo bash -c 'cat > /opt/monitoring/promtail-config.yml << "EOF"
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -399,94 +346,107 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: docker
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: docker
-          __path__: /var/lib/docker/containers/*/*-json.log
-    pipeline_stages:
-      - json:
-          expressions:
-            output: log
-            stream: stream
-            attrs: attrs
-            time: time
-            container_name: attrs.container_name
-      - labels:
-          container_name:
-      - timestamp:
-          source: time
-          format: RFC3339Nano
-      - output:
-          source: output
-
   - job_name: system
     static_configs:
       - targets:
           - localhost
         labels:
-          job: system
-          __path__: /var/log/syslog
-    pipeline_stages:
-      - regex:
-          expression: '\''^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<host>\S+)\s+(?P<app>\S+)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'\''
-      - labels:
-          host:
-          app:
-          pid:
-      - timestamp:
-          source: timestamp
-          format: Jan 2 15:04:05
-      - output:
-          source: message
+          job: varlogs
+          __path__: /var/log/*log
 EOF'
-        # Copier le fichier temporaire vers l'emplacement final
-        sudo cp /tmp/promtail-config.yml /opt/monitoring/config/promtail-config.yml
-        sudo rm /tmp/promtail-config.yml
-    fi
-
-    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    sudo ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
 
     log "Fichier promtail-config.yml créé avec succès"
+    return 0
+}
+
+# Fonction pour créer les datasources Grafana
+create_grafana_datasources() {
+    log "Création des datasources Grafana"
+    sudo mkdir -p /opt/monitoring/config/grafana/datasources
+
+    # Vérifier si les fichiers existent déjà
+    if [ -f "/opt/monitoring/config/grafana/datasources/prometheus.yml" ] && [ -f "/opt/monitoring/config/grafana/datasources/loki.yml" ]; then
+        log "Les fichiers de datasources Grafana existent déjà"
+        return 0
+    fi
+
+    # Créer le fichier datasource Prometheus
+    sudo bash -c 'cat > /opt/monitoring/config/grafana/datasources/prometheus.yml << "EOF"
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+EOF'
+
+    # Créer le fichier datasource Loki
+    sudo bash -c 'cat > /opt/monitoring/config/grafana/datasources/loki.yml << "EOF"
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+EOF'
+
+    log "Fichiers de datasources Grafana créés avec succès"
+    return 0
+}
+
+# Fonction pour créer les dashboards Grafana
+create_grafana_dashboards() {
+    log "Création des dashboards Grafana"
+    sudo mkdir -p /opt/monitoring/config/grafana/dashboards
+
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/config/grafana/dashboards/default.yml" ]; then
+        log "Le fichier de configuration des dashboards Grafana existe déjà"
+        return 0
+    fi
+
+    # Créer le fichier de configuration des dashboards
+    sudo bash -c 'cat > /opt/monitoring/config/grafana/dashboards/default.yml << "EOF"
+apiVersion: 1
+
+providers:
+  - name: "Default"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+EOF'
+
+    log "Fichier de configuration des dashboards Grafana créé avec succès"
     return 0
 }
 
 # Fonction pour créer le fichier container-alerts.yml
 create_container_alerts() {
     log "Création du fichier container-alerts.yml"
-    sudo mkdir -p /opt/monitoring/prometheus-rules
-    sudo mkdir -p /opt/monitoring/config/prometheus
+    sudo mkdir -p /opt/monitoring/prometheus/rules
 
-    # Vérifier si le fichier existe déjà dans le répertoire config
-    if [ -f "/opt/monitoring/config/prometheus/container-alerts.yml" ]; then
+    # Vérifier si le fichier existe déjà
+    if [ -f "/opt/monitoring/prometheus/rules/container-alerts.yml" ]; then
         log "Le fichier d'alertes existe déjà"
-        # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-        sudo ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
         return 0
     fi
 
-    # URL du fichier de configuration sur GitHub
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
-    CONFIG_URL="$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
-
-    # Télécharger le fichier de configuration avec wget
-    log "Téléchargement du fichier de configuration depuis $CONFIG_URL"
-    sudo wget -q -O /opt/monitoring/config/prometheus/container-alerts.yml "$CONFIG_URL"
-
-    # Vérifier si le téléchargement a réussi
-    if [ ! -s /opt/monitoring/config/prometheus/container-alerts.yml ]; then
-        log "ERREUR: Le téléchargement du fichier de configuration a échoué. Création d'un fichier de base..."
-
-        # Créer un fichier temporaire avec le contenu de base
-        sudo bash -c 'cat > /tmp/container-alerts.yml << "EOF"
+    # Créer le fichier container-alerts.yml
+    sudo bash -c 'cat > /opt/monitoring/prometheus/rules/container-alerts.yml << "EOF"
 groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|node-exporter|loki|promtail"})
         for: 1m
         labels:
           severity: critical
@@ -495,7 +455,7 @@ groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|node-exporter|loki|promtail"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -504,7 +464,7 @@ groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -513,20 +473,13 @@ groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|node-exporter|cloudwatch-exporter|mysql-exporter"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|node-exporter|loki|promtail"}[15m]) > 3
         labels:
           severity: warning
         annotations:
           summary: "Container {{ $labels.name }} high restart count"
           description: "Container {{ $labels.name }} has been restarted more than 3 times in the last 15 minutes."
 EOF'
-        # Copier le fichier temporaire vers l'emplacement final
-        sudo cp /tmp/container-alerts.yml /opt/monitoring/config/prometheus/container-alerts.yml
-        sudo rm /tmp/container-alerts.yml
-    fi
-
-    # Créer un lien symbolique pour la compatibilité avec les anciens scripts
-    sudo ln -sf /opt/monitoring/config/prometheus/container-alerts.yml /opt/monitoring/prometheus-rules/container-alerts.yml
 
     log "Fichier container-alerts.yml créé avec succès"
     return 0
@@ -1630,6 +1583,14 @@ fi
 
 # Créer un lien symbolique pour la compatibilité avec les anciens scripts
 sudo ln -sf /opt/monitoring/config/promtail-config.yml /opt/monitoring/promtail-config.yml
+
+# Création des datasources Grafana
+log "Création des datasources Grafana"
+create_grafana_datasources
+
+# Création des dashboards Grafana
+log "Création des dashboards Grafana"
+create_grafana_dashboards
 
 # Création du fichier container-alerts.yml
 log "Création du fichier container-alerts.yml"

@@ -4,7 +4,7 @@ Ce document centralise toutes les informations relatives au monitoring dans le p
 
 ## 1. Vue d'ensemble
 
-Le projet YourMedia utilise une stack de monitoring complète basée sur Prometheus, Grafana, Loki et divers exporters pour surveiller l'infrastructure et les applications. Cette stack est déployée sur une instance EC2 dédiée.
+Le projet YourMedia utilise une stack de monitoring simplifiée basée sur Prometheus, Grafana, Loki et Node Exporter pour surveiller l'infrastructure. Cette stack est déployée sur une instance EC2 dédiée.
 
 ## 2. Architecture de monitoring
 
@@ -18,16 +18,16 @@ Le projet YourMedia utilise une stack de monitoring complète basée sur Prometh
 │         │                │                    │              │
 │         └────────────────┼────────────────────┘              │
 │                          │                                   │
-│  ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐    │
-│  │Node Exporter │   │MySQL Exporter│   │    Promtail     │    │
-│  └─────────────┘   └─────────────┘   └─────────────────┘    │
+│  ┌─────────────┐                       ┌─────────────────┐    │
+│  │Node Exporter │                       │    Promtail     │    │
+│  └─────────────┘                       └─────────────────┘    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
                            │
                            ▼
-┌─────────────────┐   ┌─────────────┐   ┌─────────────────┐
-│  EC2 Java/Tomcat │   │  RDS MySQL  │   │  Autres services │
-└─────────────────┘   └─────────────┘   └─────────────────┘
+┌─────────────────┐                     ┌─────────────────┐
+│  EC2 Java/Tomcat │                     │  Autres services │
+└─────────────────┘                     └─────────────────┘
 ```
 
 ## 3. Composants de monitoring
@@ -38,30 +38,29 @@ Prometheus est utilisé pour collecter et stocker les métriques de l'infrastruc
 
 #### Configuration
 
-Le fichier de configuration principal de Prometheus se trouve dans `scripts/config/prometheus/prometheus.yml`. Voici un extrait :
+Le fichier de configuration principal de Prometheus se trouve dans `/opt/monitoring/prometheus.yml`. Voici un extrait :
 
 ```yaml
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - "rules/*.yml"
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'node'
+  - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
-
-  - job_name: 'mysql'
-    static_configs:
-      - targets: ['mysql-exporter:9104']
 ```
 
 #### Alertes
 
-Les règles d'alerte sont définies dans `scripts/config/prometheus/alerts.yml` et `scripts/config/prometheus/container-alerts.yml`.
+Les règles d'alerte sont définies dans `/opt/monitoring/prometheus/rules/container-alerts.yml`.
 
 ### 3.2. Grafana
 
@@ -69,13 +68,11 @@ Grafana est utilisé pour visualiser les métriques collectées par Prometheus e
 
 #### Configuration
 
-La configuration de Grafana se trouve dans `scripts/config/grafana/`. Les datasources sont configurées dans `scripts/config/grafana/datasources/`.
+La configuration de Grafana se trouve dans `/opt/monitoring/config/grafana/`. Les datasources sont configurées dans `/opt/monitoring/config/grafana/datasources/`.
 
 #### Dashboards
 
-Les dashboards Grafana sont stockés dans `scripts/config/grafana/dashboards/` et incluent :
-- `system-overview.json` : Vue d'ensemble du système
-- `logs-dashboard.json` : Visualisation des logs
+Les dashboards Grafana sont configurés dans `/opt/monitoring/config/grafana/dashboards/`.
 
 ### 3.3. Loki
 
@@ -83,17 +80,13 @@ Loki est utilisé pour collecter et stocker les logs de l'infrastructure et des 
 
 #### Configuration
 
-La configuration de Loki se trouve dans `scripts/config/loki-config.yml`.
+La configuration de Loki se trouve dans `/opt/monitoring/loki-config.yml`.
 
 ### 3.4. Exporters
 
 #### Node Exporter
 
 Node Exporter collecte les métriques système (CPU, mémoire, disque, réseau) des instances EC2.
-
-#### MySQL Exporter
-
-MySQL Exporter collecte les métriques de la base de données RDS MySQL.
 
 #### Promtail
 
@@ -133,40 +126,49 @@ Les variables d'environnement suivantes sont utilisées pour configurer la stack
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
-| `DOCKERHUB_USERNAME` | Nom d'utilisateur Docker Hub | - |
-| `DOCKERHUB_TOKEN` | Token Docker Hub | - |
-| `DOCKERHUB_REPO` | Nom du dépôt Docker Hub | `yourmedia-ecf` |
-| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | `YourMedia2025!` |
-| `RDS_USERNAME` | Nom d'utilisateur RDS | `yourmedia` |
-| `RDS_PASSWORD` | Mot de passe RDS | - |
-| `RDS_ENDPOINT` | Point de terminaison RDS | - |
+| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | `admin` |
+| `AWS_REGION` | Région AWS | `eu-west-3` |
+| `EC2_INSTANCE_ID` | ID de l'instance EC2 | Détecté automatiquement |
+| `EC2_INSTANCE_PUBLIC_IP` | IP publique de l'instance EC2 | Détecté automatiquement |
 
 ### 5.2. Fichier docker-compose.yml
 
-Le fichier `scripts/ec2-monitoring/docker-compose.yml` définit tous les services de monitoring. Voici un extrait :
+Le fichier `/opt/monitoring/docker-compose.yml` définit tous les services de monitoring. Voici un extrait :
 
 ```yaml
 version: '3'
 services:
   prometheus:
-    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:prometheus-latest
-    volumes:
-      - prometheus_data:/prometheus
+    image: prom/prometheus:latest
+    container_name: prometheus
     ports:
       - "9090:9090"
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus/rules:/etc/prometheus/rules
     restart: always
-    mem_limit: 256m
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
 
   grafana:
-    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:grafana-latest
-    volumes:
-      - grafana_data:/var/lib/grafana
+    image: grafana/grafana:latest
+    container_name: grafana
     ports:
       - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
     restart: always
-    mem_limit: 256m
+    volumes:
+      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - /var/lib/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=localhost
+      - GF_SMTP_ENABLED=false
 ```
 
 ## 6. Utilisation
@@ -176,14 +178,11 @@ services:
 - **Prometheus** : http://<MONITORING_EC2_PUBLIC_IP>:9090
 - **Grafana** : http://<MONITORING_EC2_PUBLIC_IP>:3000
   - Nom d'utilisateur : `admin`
-  - Mot de passe : Valeur de `GF_SECURITY_ADMIN_PASSWORD`
+  - Mot de passe : `admin` (par défaut)
 
 ### 6.2. Dashboards Grafana
 
-Les dashboards suivants sont disponibles dans Grafana :
-
-- **System Overview** : Vue d'ensemble du système (CPU, mémoire, disque, réseau)
-- **Logs Dashboard** : Visualisation des logs collectés par Loki
+Vous pouvez créer vos propres dashboards dans Grafana pour visualiser les métriques collectées par Prometheus et les logs collectés par Loki.
 
 ### 6.3. Requêtes Prometheus
 
@@ -259,22 +258,25 @@ Le projet inclut plusieurs scripts de diagnostic pour vérifier l'état des cont
 - `scripts/ec2-monitoring/container-tests.sh` : Exécute des tests sur les conteneurs
 - `scripts/ec2-monitoring/restart-containers.sh` : Redémarre les conteneurs en cas de problème
 
-## 9. Optimisations pour le free tier AWS
+## 9. Simplifications apportées
 
-### 9.1. Limites de ressources
+Pour améliorer la fiabilité et la simplicité du système de monitoring, les modifications suivantes ont été apportées :
 
-Les limites de ressources des conteneurs Docker ont été optimisées pour s'adapter aux contraintes du Free Tier :
+### 9.1. Suppression des exporters problématiques
 
-- Prometheus : 256 Mo de RAM (au lieu de 512 Mo)
-- Grafana : 256 Mo de RAM (au lieu de 512 Mo)
-- MySQL Exporter : 128 Mo de RAM (au lieu de 256 Mo)
-- Node Exporter : 128 Mo de RAM
-- Loki : 256 Mo de RAM (au lieu de 512 Mo)
-- Promtail : 128 Mo de RAM (au lieu de 256 Mo)
+Les exporters suivants ont été supprimés car ils causaient des problèmes de stabilité :
 
-### 9.2. Rétention des données
+- MySQL Exporter : Supprimé car il nécessitait une configuration complexe pour se connecter à RDS
+- CloudWatch Exporter : Supprimé car il nécessitait des permissions AWS spécifiques
 
-La rétention des données a été configurée pour limiter l'utilisation du disque :
+### 9.2. Simplification de la configuration
 
-- Prometheus : 15 jours
-- Loki : 7 jours
+- Les fichiers de configuration sont maintenant générés directement lors de l'initialisation de l'instance
+- Les chemins de fichiers ont été standardisés pour éviter les problèmes de liens symboliques
+- Les permissions des répertoires ont été ajustées pour éviter les problèmes d'accès
+
+### 9.3. Optimisation pour le free tier AWS
+
+- Utilisation d'images Docker officielles pour une meilleure compatibilité
+- Configuration simplifiée pour réduire la consommation de ressources
+- Réduction du nombre de conteneurs pour limiter l'utilisation de la mémoire

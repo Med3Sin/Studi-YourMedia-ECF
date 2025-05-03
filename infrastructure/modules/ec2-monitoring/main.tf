@@ -280,6 +280,14 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de se connecter à GitHub"
 fi
 
+# Créer les répertoires nécessaires pour les fichiers de configuration
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires pour les fichiers de configuration"
+sudo mkdir -p /opt/monitoring/prometheus-rules
+sudo mkdir -p /opt/monitoring/config/prometheus
+sudo mkdir -p /opt/monitoring/data/prometheus
+sudo mkdir -p /opt/monitoring/data/grafana
+sudo mkdir -p /config
+
 # Utiliser wget avec plus de verbosité pour télécharger le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script init-monitoring.sh..."
 sudo wget -v -O /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh" 2>&1 | tee -a /var/log/user-data-init.log
@@ -324,9 +332,35 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le fichier docker-compose.yml"
 fi
 
+# Télécharger les fichiers de configuration nécessaires
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des fichiers de configuration nécessaires"
+sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
+sudo wget -q -O /opt/monitoring/prometheus-rules/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
+sudo wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$GITHUB_RAW_URL/scripts/config/cloudwatch-config.yml"
+
+# Créer un lien symbolique pour le fichier cloudwatch-config.yml
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un lien symbolique pour le fichier cloudwatch-config.yml"
+sudo ln -sf /opt/monitoring/config/cloudwatch-config.yml /config/cloudwatch-config.yml
+
+# Créer un fichier de configuration pour MySQL Exporter
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un fichier de configuration pour MySQL Exporter"
+sudo bash -c "cat > /opt/monitoring/.my.cnf << EOF
+[client]
+user=yourmedia
+password=password
+host=localhost
+port=3306
+EOF"
+sudo chmod 600 /opt/monitoring/.my.cnf
+
 # S'assurer que tous les scripts sont exécutables
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
 sudo chmod +x /opt/monitoring/*.sh 2>/dev/null || true
+
+# Définir les bonnes permissions pour les répertoires de données
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Définition des bonnes permissions pour les répertoires de données"
+sudo chown -R 1000:1000 /opt/monitoring/data
+sudo chmod -R 755 /opt/monitoring/data
 
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
@@ -340,6 +374,8 @@ if [ "$CONTAINER_COUNT" -gt 0 ]; then
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Aucun conteneur Docker n'est en cours d'exécution. Démarrage manuel..."
     cd /opt/monitoring
+    sudo docker-compose down
+    sleep 5
     sudo docker-compose up -d
     sleep 10
     CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
@@ -347,6 +383,8 @@ else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Les conteneurs Docker ont été démarrés avec succès"
     else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage des conteneurs Docker"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des logs Docker..."
+        sudo docker-compose logs
     fi
 fi
 

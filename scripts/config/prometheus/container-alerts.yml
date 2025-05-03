@@ -2,7 +2,7 @@ groups:
   - name: containers
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|loki|promtail"})
+        expr: absent(container_last_seen{name=~"prometheus|grafana|node-exporter|loki|promtail"})
         for: 1m
         labels:
           severity: critical
@@ -11,7 +11,7 @@ groups:
           description: "Container {{ $labels.name }} has been down for more than 1 minute."
 
       - alert: ContainerHighCPU
-        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|loki|promtail"}[1m])) by (name) > 0.8
+        expr: sum(rate(container_cpu_usage_seconds_total{name=~"prometheus|grafana|node-exporter|loki|promtail"}[1m])) by (name) > 0.8
         for: 5m
         labels:
           severity: warning
@@ -20,7 +20,7 @@ groups:
           description: "Container {{ $labels.name }} CPU usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighMemory
-        expr: container_memory_usage_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|loki|promtail"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|loki|promtail"} > 0.8
+        expr: container_memory_usage_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} / container_spec_memory_limit_bytes{name=~"prometheus|grafana|node-exporter|loki|promtail"} > 0.8
         for: 5m
         labels:
           severity: warning
@@ -29,7 +29,7 @@ groups:
           description: "Container {{ $labels.name }} memory usage is above 80% for more than 5 minutes."
 
       - alert: ContainerHighRestarts
-        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|cloudwatch-exporter|mysql-exporter|loki|promtail"}[15m]) > 3
+        expr: changes(container_start_time_seconds{name=~"prometheus|grafana|node-exporter|loki|promtail"}[15m]) > 3
         labels:
           severity: warning
         annotations:

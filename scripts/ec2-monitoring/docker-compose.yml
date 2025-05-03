@@ -7,161 +7,87 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - /opt/monitoring/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /opt/monitoring/prometheus-rules:/etc/prometheus/rules
-      - /opt/monitoring/data/prometheus:/prometheus
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /opt/monitoring/prometheus/rules:/etc/prometheus/rules
+    restart: always
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--storage.tsdb.retention.size=1GB'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    restart: always
+      - '--web.enable-lifecycle'
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-    user: "1000:1000"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: always
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - /:/host:ro,rslave
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
       - "3000:3000"
+    restart: always
     volumes:
-      - /opt/monitoring/data/grafana:/var/lib/grafana
-      - /opt/monitoring/config/grafana:/etc/grafana/provisioning
+      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - /var/lib/grafana:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-YourMedia2025!}
+      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
-    depends_on:
-      - prometheus
-    restart: always
+      - GF_SERVER_DOMAIN=localhost
+      - GF_SMTP_ENABLED=false
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 512m
-    user: "1000:1000"
-    cpu_shares: 512
 
-  # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
-  cloudwatch-exporter:
-    image: prom/cloudwatch-exporter:latest
-    container_name: cloudwatch-exporter
-    ports:
-      - "9106:9106"
-    volumes:
-      - /opt/monitoring/config/cloudwatch-config.yml:/config/cloudwatch-config.yml
-    environment:
-      - AWS_REGION=${AWS_REGION:-eu-west-3}
-    command: "--config.file=/config/cloudwatch-config.yml"
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256m
-    cpu_shares: 256
-    user: "1000:1000"
-
-  # Exportateur MySQL pour surveiller RDS
-  mysql-exporter:
-    image: prom/mysqld-exporter:v0.15.0
-    container_name: mysql-exporter
-    ports:
-      - "9104:9104"
-    environment:
-      # Format correct pour la connexion MySQL: user:password@protocol(host:port)/
-      - DATA_SOURCE_NAME=${RDS_USERNAME:-yourmedia}:${RDS_PASSWORD:-password}@tcp(${RDS_HOST:-localhost}:${RDS_PORT:-3306})/
-    entrypoint:
-      - /bin/mysqld_exporter
-    command:
-      - --web.listen-address=:9104
-      - --collect.info_schema.tables
-      - --collect.global_status
-      - --collect.global_variables
-    restart: always
-    user: "1000:1000"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256m
-    cpu_shares: 256
-
-  # Node Exporter pour surveiller l'instance EC2
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    ports:
-      - "9100:9100"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 128m
-    cpu_shares: 128
-    user: "1000:1000"
-
-  # Loki pour la centralisation des logs
   loki:
     image: grafana/loki:2.9.2
     container_name: loki
     ports:
       - "3100:3100"
-    volumes:
-      - /opt/monitoring/config/loki-config.yml:/etc/loki/local-config.yaml
-      - /opt/monitoring/data/loki:/loki
-    command: -config.file=/etc/loki/local-config.yaml
     restart: always
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - /opt/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - /opt/monitoring/loki:/loki
+    user: "0"
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-    user: "1000:1000"
 
-  # Promtail pour collecter les logs des conteneurs
   promtail:
     image: grafana/promtail:2.9.2
     container_name: promtail
+    restart: always
     volumes:
       - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /opt/monitoring/config/promtail-config.yml:/etc/promtail/config.yml
+      - /opt/monitoring/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
-    restart: always
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 256m
-    cpu_shares: 256
-    user: "1000:1000"

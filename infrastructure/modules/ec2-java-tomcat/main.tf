@@ -128,7 +128,7 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-sudo dnf install -y jq wget aws-cli
+sudo dnf install -y jq wget aws-cli java-17-amazon-corretto-devel net-tools
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
@@ -144,10 +144,12 @@ TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-m
 INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id || echo "unknown")
 echo "ID de l'instance: $INSTANCE_ID"
 
-# Télécharger et exécuter le script d'initialisation depuis GitHub
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation depuis GitHub"
-sudo mkdir -p /opt/yourmedia
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Répertoire /opt/yourmedia créé"
+# Créer les répertoires nécessaires
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires"
+sudo mkdir -p /opt/yourmedia/secure
+sudo mkdir -p /opt/tomcat
+sudo chmod 755 /opt/yourmedia
+sudo chmod 700 /opt/yourmedia/secure
 
 # Définir directement l'URL GitHub Raw
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Définition directe de l'URL GitHub"
@@ -162,83 +164,228 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de se connecter à GitHub"
 fi
 
-# Utiliser wget avec plus de verbosité pour télécharger le script d'initialisation
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script init-java-tomcat.sh..."
-sudo wget -v -O /opt/yourmedia/init-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/init-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
-
-# Vérifier si le téléchargement a réussi
-if [ ! -s /opt/yourmedia/init-java-tomcat.sh ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script init-java-tomcat.sh a échoué. Tentative avec le chemin complet..."
-  sudo wget -v -O /opt/yourmedia/init-java-tomcat.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/init-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
+# Création du fichier de service Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier de service Tomcat..."
+# Trouver le chemin correct de Java
+JAVA_HOME_PATH=$(find /usr/lib/jvm -name "java-17-amazon-corretto*" -type d | head -n 1)
+if [ -z "$JAVA_HOME_PATH" ]; then
+    JAVA_HOME_PATH="/usr/lib/jvm/java-17-amazon-corretto.x86_64"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Chemin Java non trouvé, utilisation de la valeur par défaut: $JAVA_HOME_PATH"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Chemin Java trouvé: $JAVA_HOME_PATH"
 fi
 
-# Vérifier à nouveau si le téléchargement a réussi
-if [ -s /opt/yourmedia/init-java-tomcat.sh ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script init-java-tomcat.sh téléchargé avec succès"
-  sudo chmod +x /opt/yourmedia/init-java-tomcat.sh
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
-else
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR CRITIQUE: Impossible de télécharger le script init-java-tomcat.sh"
+sudo bash -c "cat > /etc/systemd/system/tomcat.service << EOF
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=forking
+
+Environment=JAVA_HOME=$JAVA_HOME_PATH
+Environment=CATALINA_PID=/opt/tomcat/temp/tomcat.pid
+Environment=CATALINA_HOME=/opt/tomcat
+Environment=CATALINA_BASE=/opt/tomcat
+Environment=\"CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC\"
+Environment=\"JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom\"
+
+ExecStart=/opt/tomcat/bin/startup.sh
+ExecStop=/opt/tomcat/bin/shutdown.sh
+
+User=tomcat
+Group=tomcat
+UMask=0007
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+# Créer le script de déploiement WAR
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du script de déploiement WAR"
+sudo mkdir -p /opt/yourmedia
+sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << EOF
+#!/bin/bash
+#==============================================================================
+# Nom du script : deploy-war.sh
+# Description   : Script pour déployer un fichier WAR dans Tomcat.
+#                 Ce script copie le fichier WAR spécifié dans le répertoire webapps de Tomcat,
+#                 change le propriétaire et redémarre Tomcat.
+# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Version       : 1.0
+# Date          : 2025-05-03
+#==============================================================================
+# Utilisation   : sudo ./deploy-war.sh <chemin_vers_war>
+#
+# Exemples      :
+#   sudo ./deploy-war.sh /tmp/yourmedia-backend.war
+#==============================================================================
+# Dépendances   :
+#   - Tomcat    : Le serveur d'\''applications Tomcat doit être installé
+#==============================================================================
+# Droits requis : Ce script doit être exécuté avec des privilèges sudo ou en tant que root.
+#==============================================================================
+
+# Vérifier si un argument a été fourni
+if [ \$# -ne 1 ]; then
+  echo "Usage: \$0 <chemin_vers_war>"
   exit 1
 fi
 
-# Télécharger directement le script de configuration pour éviter les problèmes
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration setup-java-tomcat.sh..."
-sudo wget -v -O /opt/yourmedia/setup-java-tomcat.sh "$GITHUB_RAW_URL/scripts/ec2-java-tomcat/setup-java-tomcat.sh" 2>&1 | tee -a /var/log/user-data-init.log
+WAR_PATH=\$1
+WAR_NAME=\$(basename \$WAR_PATH)
+TARGET_NAME="yourmedia-backend.war"
 
-# Vérifier si le téléchargement a réussi
-if [ -s /opt/yourmedia/setup-java-tomcat.sh ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script setup-java-tomcat.sh téléchargé avec succès"
-  sudo chmod +x /opt/yourmedia/setup-java-tomcat.sh
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Permissions exécutables accordées au script"
-else
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le script setup-java-tomcat.sh"
+echo "Déploiement du fichier WAR: \$WAR_PATH vers /opt/tomcat/webapps/\$TARGET_NAME"
+
+# Vérifier si le fichier existe
+if [ ! -f "\$WAR_PATH" ]; then
+  echo "ERREUR: Le fichier \$WAR_PATH n'\''existe pas"
+  exit 1
 fi
 
-# S'assurer que tous les scripts sont exécutables
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
-sudo chmod +x /opt/yourmedia/*.sh 2>/dev/null || true
+# Copier le fichier WAR dans webapps
+sudo cp \$WAR_PATH /opt/tomcat/webapps/\$TARGET_NAME
 
-# Définir la version de Tomcat
-export TOMCAT_VERSION=9.0.104
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Version de Tomcat à installer: $TOMCAT_VERSION"
+# Vérifier si la copie a réussi
+if [ \$? -ne 0 ]; then
+  echo "ERREUR: Échec de la copie du fichier WAR dans /opt/tomcat/webapps/"
+  exit 1
+fi
 
-# Exécuter le script d'initialisation avec la variable TOMCAT_VERSION
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
-sudo -E /opt/yourmedia/init-java-tomcat.sh 2>&1 | tee -a /var/log/user-data-init.log
+# Changer le propriétaire
+sudo chown tomcat:tomcat /opt/tomcat/webapps/\$TARGET_NAME
+
+# Vérifier si le changement de propriétaire a réussi
+if [ \$? -ne 0 ]; then
+  echo "ERREUR: Échec du changement de propriétaire du fichier WAR"
+  exit 1
+fi
+
+# Redémarrer Tomcat
+sudo systemctl restart tomcat
+
+# Vérifier si le redémarrage a réussi
+if [ \$? -ne 0 ]; then
+  echo "ERREUR: Échec du redémarrage de Tomcat"
+  exit 1
+fi
+
+echo "Déploiement terminé avec succès"
+exit 0
+EOF'
+
+# S'assurer que le script est exécutable
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution au script"
+sudo chmod +x /opt/yourmedia/deploy-war.sh
+
+# Créer l'utilisateur et groupe Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur et groupe Tomcat"
+sudo groupadd tomcat 2>/dev/null || true
+sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
+
+# Télécharger et installer Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de Tomcat"
+TOMCAT_VERSION=9.0.104
+cd /tmp
+sudo wget -q https://dlcdn.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+
+# Vérifier si le téléchargement a réussi
+if [ ! -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement de Tomcat a échoué. Tentative avec une URL alternative..."
+  sudo wget -q https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+fi
+
+# Extraire Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Extraction de Tomcat"
+sudo tar xzf apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/tomcat --strip-components=1
+
+# Créer les répertoires nécessaires s'ils n'existent pas
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires"
+sudo mkdir -p /opt/tomcat/temp
+sudo mkdir -p /opt/tomcat/logs
+sudo mkdir -p /opt/tomcat/webapps
+
+# Configuration des permissions
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des permissions"
+sudo chown -R tomcat:tomcat /opt/tomcat
+sudo chmod +x /opt/tomcat/bin/*.sh
+sudo chmod -R 755 /opt/tomcat/webapps
+sudo chmod -R 755 /opt/tomcat/logs
+sudo chmod -R 755 /opt/tomcat/temp
+
+# Recharger systemd et démarrer Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage de Tomcat"
+sudo systemctl daemon-reload
+sudo systemctl start tomcat
+sudo systemctl enable tomcat
 
 # Vérifier si Tomcat est en cours d'exécution
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification finale de l'état de Tomcat"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification de l'état de Tomcat"
+sleep 10
 if sudo systemctl is-active --quiet tomcat; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat est en cours d'exécution"
 else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Tomcat n'est pas en cours d'exécution. Démarrage manuel..."
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Tomcat n'est pas en cours d'exécution. Vérification des journaux..."
+    sudo journalctl -u tomcat --no-pager -n 50
 
-    # Vérifier si le service Tomcat existe
+    # Vérifier le fichier de service Tomcat
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification du fichier de service Tomcat"
     if [ -f "/etc/systemd/system/tomcat.service" ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Le service Tomcat existe, tentative de démarrage"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Le fichier de service Tomcat existe"
+
+        # Vérifier les permissions des scripts Tomcat
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des permissions des scripts Tomcat"
+        sudo chmod +x /opt/tomcat/bin/*.sh
+
+        # Vérifier si le répertoire temp existe
+        if [ ! -d "/opt/tomcat/temp" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - Le répertoire temp n'existe pas. Création..."
+            sudo mkdir -p /opt/tomcat/temp
+            sudo chown tomcat:tomcat /opt/tomcat/temp
+        fi
+
+        # Redémarrer Tomcat
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Redémarrage de Tomcat"
         sudo systemctl daemon-reload
-        sudo systemctl start tomcat
-        sudo systemctl enable tomcat
+        sudo systemctl restart tomcat
         sleep 10
+
         if sudo systemctl is-active --quiet tomcat; then
             echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès"
         else
             echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat"
         fi
     else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le service Tomcat n'existe pas, exécution manuelle de setup-java-tomcat.sh"
-        cd /opt/yourmedia
-        export TOMCAT_VERSION=9.0.104
-        sudo -E ./setup-java-tomcat.sh
-        sleep 10
-        if sudo systemctl is-active --quiet tomcat; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès après installation manuelle"
-        else
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat après installation manuelle"
-        fi
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le fichier de service Tomcat n'existe pas"
     fi
 fi
+
+# Vérifier si le port 8080 est ouvert
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification du port 8080"
+if sudo netstat -tuln | grep -q ":8080"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Le port 8080 est ouvert"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le port 8080 n'est pas ouvert. Redémarrage de Tomcat..."
+    sudo systemctl restart tomcat
+    sleep 10
+    if sudo netstat -tuln | grep -q ":8080"; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Le port 8080 est maintenant ouvert"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le port 8080 n'est toujours pas ouvert"
+    fi
+fi
+
+# Créer un lien symbolique pour le script de déploiement
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un lien symbolique pour le script de déploiement"
+sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+sudo chmod +x /usr/local/bin/deploy-war.sh
+
+# Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
+sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
+sudo chmod 440 /etc/sudoers.d/deploy-war
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
