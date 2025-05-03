@@ -53,6 +53,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "media_storage_enc
 }
 
 # Configuration du cycle de vie pour nettoyer automatiquement les anciens objets
+# Commenté temporairement pour éviter les problèmes de déploiement
+# Cette configuration peut être réactivée une fois le bucket créé avec succès
+/*
 resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
   bucket = aws_s3_bucket.media_storage.id
 
@@ -137,6 +140,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "media_storage_lifecycle" {
     }
   }
 }
+*/
 
 
 
