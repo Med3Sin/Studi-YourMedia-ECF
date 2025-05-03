@@ -318,8 +318,34 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
-# Vérification des conteneurs en cours d'exécution
-log "Vérification des conteneurs en cours d'exécution"
+# Démarrer les conteneurs Docker
+log "Démarrage des conteneurs Docker"
+cd /opt/monitoring
+sudo docker-compose up -d
+
+# Vérifier que les conteneurs sont bien démarrés
+log "Vérification du démarrage des conteneurs"
+CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+if [ "$CONTAINER_COUNT" -gt 0 ]; then
+    log "✅ Les conteneurs Docker ont été démarrés avec succès"
+else
+    log "❌ Aucun conteneur Docker n'est en cours d'exécution. Tentative de démarrage..."
+    sudo docker-compose down
+    sleep 5
+    sudo docker-compose up -d
+    sleep 10
+    CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+    if [ "$CONTAINER_COUNT" -gt 0 ]; then
+        log "✅ Les conteneurs Docker ont été démarrés avec succès après une nouvelle tentative"
+    else
+        log "❌ Échec du démarrage des conteneurs Docker"
+        log "Vérification des logs Docker..."
+        sudo docker-compose logs
+    fi
+fi
+
+# Afficher les conteneurs en cours d'exécution
+log "Liste des conteneurs en cours d'exécution"
 sudo docker ps
 
 log "Initialisation terminée avec succès"

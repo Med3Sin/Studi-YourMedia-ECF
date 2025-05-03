@@ -1952,7 +1952,47 @@ case $MODE in
             # Démarrage des conteneurs
             log "Démarrage des conteneurs"
             cd /opt/monitoring
+
+            # Vérifier si docker-compose est installé
+            if ! command -v docker-compose &> /dev/null; then
+                log "Installation de Docker Compose..."
+                sudo wget -q -O /usr/local/bin/docker-compose "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)"
+                sudo chmod +x /usr/local/bin/docker-compose
+                sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+            fi
+
+            # Vérifier si Docker est en cours d'exécution
+            if ! systemctl is-active --quiet docker; then
+                log "Démarrage du service Docker..."
+                sudo systemctl start docker
+                sudo systemctl enable docker
+                sleep 5
+            fi
+
+            # Démarrer les conteneurs
+            log "Exécution de docker-compose up -d"
             docker-compose up -d
+
+            # Vérifier que les conteneurs sont bien démarrés
+            sleep 10
+            CONTAINER_COUNT=$(docker ps -q | wc -l)
+            if [ "$CONTAINER_COUNT" -gt 0 ]; then
+                log "✅ Les conteneurs Docker ont été démarrés avec succès"
+            else
+                log "❌ Aucun conteneur Docker n'est en cours d'exécution. Tentative de redémarrage..."
+                docker-compose down
+                sleep 5
+                docker-compose up -d
+                sleep 10
+                CONTAINER_COUNT=$(docker ps -q | wc -l)
+                if [ "$CONTAINER_COUNT" -gt 0 ]; then
+                    log "✅ Les conteneurs Docker ont été démarrés avec succès après une nouvelle tentative"
+                else
+                    log "❌ Échec du démarrage des conteneurs Docker"
+                    log "Vérification des logs Docker..."
+                    docker-compose logs
+                fi
+            fi
 
             # Vérification du statut des conteneurs
             log "Vérification du statut des conteneurs"

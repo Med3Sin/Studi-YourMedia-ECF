@@ -219,9 +219,29 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le script setup-java-tomcat.sh"
 fi
 
+# S'assurer que tous les scripts sont exécutables
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
+sudo chmod +x /opt/yourmedia/*.sh 2>/dev/null || true
+
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
 sudo /opt/yourmedia/init-java-tomcat.sh 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier si Tomcat est en cours d'exécution
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification finale de l'état de Tomcat"
+if sudo systemctl is-active --quiet tomcat; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat est en cours d'exécution"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Tomcat n'est pas en cours d'exécution. Démarrage manuel..."
+    sudo systemctl start tomcat
+    sudo systemctl enable tomcat
+    sleep 10
+    if sudo systemctl is-active --quiet tomcat; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat"
+    fi
+fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF

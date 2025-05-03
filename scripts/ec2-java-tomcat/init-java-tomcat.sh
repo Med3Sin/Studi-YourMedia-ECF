@@ -144,4 +144,72 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script de configuration"
 cd /opt/yourmedia
 sudo ./setup-java-tomcat.sh
 
+# Vérifier si Tomcat est en cours d'exécution
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification de l'état de Tomcat"
+if sudo systemctl is-active --quiet tomcat; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat est en cours d'exécution"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Tomcat n'est pas en cours d'exécution. Tentative de démarrage..."
+    sudo systemctl start tomcat
+    sudo systemctl enable tomcat
+
+    # Attendre quelques secondes pour que Tomcat démarre
+    sleep 10
+
+    # Vérifier à nouveau l'état du service
+    if sudo systemctl is-active --quiet tomcat; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat. Vérification des journaux..."
+        sudo journalctl -u tomcat --no-pager -n 50
+
+        # Vérifier si le service existe
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification de l'existence du service Tomcat"
+        if [ -f "/etc/systemd/system/tomcat.service" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - Le fichier de service Tomcat existe"
+            # Recharger systemd et réessayer
+            sudo systemctl daemon-reload
+            sudo systemctl start tomcat
+            sleep 5
+            if sudo systemctl is-active --quiet tomcat; then
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès après rechargement"
+            else
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat après rechargement"
+            fi
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le fichier de service Tomcat n'existe pas"
+            # Exécuter à nouveau le script de configuration avec l'option --fix
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de correction avec l'option --fix"
+            sudo ./setup-java-tomcat.sh --fix
+            sleep 5
+            if sudo systemctl is-active --quiet tomcat; then
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès après correction"
+            else
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat après correction"
+            fi
+        fi
+    fi
+fi
+
+# Vérifier si le port 8080 est ouvert
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification du port 8080"
+# S'assurer que netstat est installé
+if ! command -v netstat &> /dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de net-tools pour netstat"
+    sudo dnf install -y net-tools
+fi
+
+if sudo netstat -tuln | grep -q ":8080"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Le port 8080 est ouvert"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le port 8080 n'est pas ouvert. Redémarrage de Tomcat..."
+    sudo systemctl restart tomcat
+    sleep 10
+    if sudo netstat -tuln | grep -q ":8080"; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Le port 8080 est maintenant ouvert"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le port 8080 n'est toujours pas ouvert"
+    fi
+fi
+
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation terminée avec succès"

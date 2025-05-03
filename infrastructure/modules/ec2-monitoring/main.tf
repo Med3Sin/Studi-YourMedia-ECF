@@ -324,9 +324,31 @@ else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Impossible de télécharger le fichier docker-compose.yml"
 fi
 
+# S'assurer que tous les scripts sont exécutables
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
+sudo chmod +x /opt/monitoring/*.sh 2>/dev/null || true
+
 # Exécuter le script d'initialisation
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
 sudo /opt/monitoring/init-monitoring.sh 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier si les conteneurs Docker sont en cours d'exécution
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des conteneurs Docker"
+CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+if [ "$CONTAINER_COUNT" -gt 0 ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Les conteneurs Docker sont en cours d'exécution"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Aucun conteneur Docker n'est en cours d'exécution. Démarrage manuel..."
+    cd /opt/monitoring
+    sudo docker-compose up -d
+    sleep 10
+    CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+    if [ "$CONTAINER_COUNT" -gt 0 ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Les conteneurs Docker ont été démarrés avec succès"
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage des conteneurs Docker"
+    fi
+fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
