@@ -4,48 +4,54 @@ Ce dossier contient tous les scripts utilisés dans le projet YourMedia, organis
 
 ## Structure des dossiers
 
-- **database/** : Scripts liés à la base de données
-  - `secure-database.sh` : Script pour sécuriser la base de données MySQL
-
-- **docker/** : Scripts et configurations Docker
-  - `docker-manager.sh` : Script principal pour gérer les conteneurs Docker
-  - `cleanup-containers.sh` : Script pour nettoyer les conteneurs Docker inutilisés
-  - `backup-restore-containers.sh` : Script pour sauvegarder et restaurer les conteneurs Docker
+- **config/** : Fichiers de configuration pour les différents services
   - **grafana/** : Configuration pour le conteneur Grafana
     - **dashboards/** : Tableaux de bord Grafana
-    - **provisioning/** : Configuration de provisionnement Grafana
+    - **datasources/** : Sources de données Grafana
   - **prometheus/** : Configuration pour le conteneur Prometheus
-    - **rules/** : Règles d'alerte Prometheus
-
-  - **monitoring/** : Configuration Docker Compose pour les services de monitoring
-
-- **ec2-java-tomcat/** : Scripts pour l'instance EC2 Java/Tomcat
-  - `install_java_tomcat.sh` : Script d'installation de Java et Tomcat
-  - `deploy-war.sh` : Script pour déployer un fichier WAR dans Tomcat
-  - `fix_permissions.sh` : Script pour corriger les permissions des fichiers
-  - `init-instance-env.sh` : Script d'initialisation de l'instance avec les variables d'environnement
-
-- **ec2-monitoring/** : Scripts pour l'instance EC2 de monitoring
-  - `setup.sh` : Script de configuration initiale de l'instance
-  - `fix_permissions.sh` : Script pour corriger les permissions des fichiers
-
-  - `init-instance-env.sh` : Script d'initialisation de l'instance avec les variables d'environnement
-  - `docker-compose.yml` : Configuration Docker Compose pour les services de monitoring
-  - `prometheus.yml` : Configuration Prometheus
-  - `fix-containers.sh` : Script pour corriger les problèmes des conteneurs Docker
-  - `container-health-check.sh` : Script pour surveiller l'état des conteneurs Docker
-  - `container-tests.sh` : Script pour tester automatiquement les conteneurs Docker
-  - `setup-monitoring-improvements.sh` : Script pour configurer les améliorations de surveillance
+    - `alerts.yml` : Règles d'alerte Prometheus
+    - `container-alerts.yml` : Règles d'alerte spécifiques aux conteneurs
+    - `prometheus.yml` : Configuration principale de Prometheus
+  - **tomcat/** : Configuration pour Tomcat
+  - `cloudwatch-config.yml` : Configuration pour l'exportateur CloudWatch
   - `loki-config.yml` : Configuration pour Loki (centralisation des logs)
   - `promtail-config.yml` : Configuration pour Promtail (agent de collecte de logs)
-  - **prometheus-rules/** : Règles d'alerte Prometheus
+  - `mysql-exporter-config.cnf` : Configuration pour l'exportateur MySQL
+
+- **database/** : Scripts liés à la base de données
+  - `secure-database.sh` : Script pour sécuriser la base de données MySQL
+  - `secure-database.sql` : Requêtes SQL pour sécuriser la base de données
+
+- **ec2-java-tomcat/** : Scripts pour l'instance EC2 Java/Tomcat
+  - `init-java-tomcat.sh` : Script d'initialisation de l'instance Java/Tomcat
+  - `setup-java-tomcat.sh` : Script de configuration de Java et Tomcat
+  - `deploy-war.sh` : Script pour déployer un fichier WAR dans Tomcat
+
+- **ec2-monitoring/** : Scripts pour l'instance EC2 de monitoring
+  - `init-monitoring.sh` : Script d'initialisation de l'instance de monitoring
+  - `setup-monitoring.sh` : Script de configuration des services de monitoring
+  - `docker-compose.yml` : Configuration Docker Compose pour les services de monitoring
+  - `container-health-check.sh` : Script pour surveiller l'état des conteneurs Docker
+  - `container-health-check.service` : Service systemd pour la surveillance des conteneurs
+  - `container-health-check.timer` : Timer systemd pour la surveillance des conteneurs
+  - `container-tests.sh` : Script pour tester automatiquement les conteneurs Docker
+  - `container-tests.service` : Service systemd pour les tests des conteneurs
+  - `container-tests.timer` : Timer systemd pour les tests des conteneurs
+  - `container-monitor.sh` : Script pour surveiller les conteneurs Docker
+  - `generate-config.sh` : Script pour générer les fichiers de configuration
+  - `get-aws-resources-info.sh` : Script pour récupérer les informations des ressources AWS
+  - `restart-containers.sh` : Script pour redémarrer les conteneurs Docker
 
 - **utils/** : Scripts utilitaires
+  - `docker-manager.sh` : Script principal pour gérer les conteneurs Docker
   - `fix-ssh-keys.sh` : Script pour corriger les clés SSH
   - `ssh-key-checker.service` : Service systemd pour vérifier les clés SSH
   - `ssh-key-checker.timer` : Timer systemd pour exécuter le service de vérification des clés SSH
+  - `check-github-secrets.sh` : Script pour vérifier les secrets GitHub
   - `check-scripts.sh` : Script pour vérifier la cohérence des scripts
   - `escape-special-chars.sh` : Script pour échapper les caractères spéciaux dans les variables
+  - `run-sync-secrets.sh` : Script pour exécuter la synchronisation des secrets
+  - `sync-github-secrets-to-terraform.sh` : Script pour synchroniser les secrets GitHub vers Terraform
 
 ## Utilisation
 
@@ -54,28 +60,28 @@ Les scripts sont référencés dans les fichiers Terraform et les workflows GitH
 ### Exemple d'utilisation
 
 ```bash
-# Exécuter le script d'installation de Java et Tomcat
-sudo ./scripts/ec2-java-tomcat/install_java_tomcat.sh
+# Initialiser et configurer l'instance Java/Tomcat
+sudo /opt/yourmedia/init-java-tomcat.sh
+sudo /opt/yourmedia/setup-java-tomcat.sh
 
 # Déployer un fichier WAR dans Tomcat
-sudo ./scripts/ec2-java-tomcat/deploy-war.sh /chemin/vers/application.war
+sudo /opt/yourmedia/deploy-war.sh /chemin/vers/application.war
+
+# Initialiser et configurer l'instance de monitoring
+sudo /opt/monitoring/init-monitoring.sh
+sudo /opt/monitoring/setup-monitoring.sh
 
 # Gérer les conteneurs Docker
-sudo ./scripts/docker/docker-manager.sh start
-sudo ./scripts/docker/docker-manager.sh stop
-sudo ./scripts/docker/docker-manager.sh restart
-
-# Configurer l'instance de monitoring
-sudo ./scripts/ec2-monitoring/setup.sh
+sudo /opt/monitoring/docker-manager.sh build all
+sudo /opt/monitoring/docker-manager.sh push all
+sudo /opt/monitoring/docker-manager.sh deploy all
+sudo /opt/monitoring/docker-manager.sh cleanup all
 
 # Surveiller l'état des conteneurs Docker
-sudo ./scripts/ec2-monitoring/container-health-check.sh
+sudo /opt/monitoring/container-health-check.sh
 
 # Exécuter les tests automatisés des conteneurs
-sudo ./scripts/ec2-monitoring/container-tests.sh
-
-# Configurer les améliorations de surveillance
-sudo ./scripts/ec2-monitoring/setup-monitoring-improvements.sh
+sudo /opt/monitoring/container-tests.sh
 ```
 
 ### Surveillance des conteneurs
@@ -84,10 +90,10 @@ Les scripts de surveillance des conteneurs permettent de détecter rapidement le
 
 ```bash
 # Vérifier l'état des conteneurs
-sudo ./scripts/ec2-monitoring/container-health-check.sh
+sudo /opt/monitoring/container-health-check.sh
 
 # Exécuter les tests automatisés
-sudo ./scripts/ec2-monitoring/container-tests.sh
+sudo /opt/monitoring/container-tests.sh
 
 # Consulter les rapports de test
 ls -la /opt/monitoring/test-reports/
@@ -98,8 +104,8 @@ ls -la /opt/monitoring/test-reports/
 Les logs des conteneurs sont centralisés avec Loki et Promtail, et peuvent être consultés via Grafana :
 
 1. Accéder à Grafana : http://IP_INSTANCE:3000
-2. Se connecter avec les identifiants par défaut (admin/YourMedia2025!)
-3. Consulter le dashboard "Container Logs"
+2. Se connecter avec les identifiants par défaut (admin/admin)
+3. Consulter le dashboard "Logs"
 
 ## Maintenance
 
