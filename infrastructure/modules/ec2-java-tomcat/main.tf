@@ -2,31 +2,8 @@
 # IAM Role et Politique pour l'instance EC2
 # -----------------------------------------------------------------------------
 
-# Politique IAM autorisant l'accès au bucket S3 spécifié
-data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
-  statement {
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-      "s3:DeleteObject",
-      "s3:ListBucket" # ListBucket nécessite l'ARN du bucket lui-même
-    ]
-    resources = [
-      var.s3_bucket_arn,       # Accès au bucket
-      "${var.s3_bucket_arn}/*" # Accès aux objets dans le bucket
-    ]
-  }
-
-  # Permission pour créer et décrire des tags EC2
-  statement {
-    actions = [
-      "ec2:CreateTags"
-    ]
-    resources = [
-      "arn:aws:ec2:${var.aws_region}:*:*"
-    ]
-  }
-
+# Politique IAM pour l'instance EC2 (simplifiée pour Hello World)
+data "aws_iam_policy_document" "ec2_policy_doc" {
   # Permission pour décrire les tags EC2 (nécessite "*" comme ressource)
   statement {
     actions = [
@@ -36,16 +13,15 @@ data "aws_iam_policy_document" "ec2_s3_access_policy_doc" {
       "*"
     ]
   }
-  # Ajouter ici d'autres permissions si nécessaire (ex: Secrets Manager, etc.)
 }
 
-resource "aws_iam_policy" "ec2_s3_access_policy" {
-  name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy-v2"
-  description = "Politique autorisant l'EC2 à accéder au bucket S3 du projet"
-  policy      = data.aws_iam_policy_document.ec2_s3_access_policy_doc.json
+resource "aws_iam_policy" "ec2_policy" {
+  name        = "${var.project_name}-${var.environment}-ec2-policy-v2"
+  description = "Politique simplifiée pour l'EC2 Java Tomcat (Hello World)"
+  policy      = data.aws_iam_policy_document.ec2_policy_doc.json
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-ec2-s3-access-policy"
+    Name        = "${var.project_name}-${var.environment}-ec2-policy"
     Project     = var.project_name
     Environment = var.environment
     ManagedBy   = "Terraform"
@@ -81,10 +57,10 @@ resource "aws_iam_role" "ec2_role" {
   }
 }
 
-# Attacher la politique S3 au rôle EC2
-resource "aws_iam_role_policy_attachment" "ec2_s3_policy_attach" {
+# Attacher la politique au rôle EC2
+resource "aws_iam_role_policy_attachment" "ec2_policy_attach" {
   role       = aws_iam_role.ec2_role.name
-  policy_arn = aws_iam_policy.ec2_s3_access_policy.arn
+  policy_arn = aws_iam_policy.ec2_policy.arn
 }
 
 # Profil d'instance EC2 pour attacher le rôle à l'instance
@@ -283,9 +259,9 @@ resource "aws_instance" "app_server" {
   depends_on = [aws_iam_instance_profile.ec2_profile]
 
   tags = {
-    Name         = "${var.project_name}-${var.environment}-app-server"
-    Project      = var.project_name
-    Environment  = var.environment
-    S3BucketName = var.s3_bucket_name
+    Name        = "${var.project_name}-${var.environment}-app-server"
+    Project     = var.project_name
+    Environment = var.environment
+    AppType     = "HelloWorld"
   }
 }

@@ -46,13 +46,6 @@ variable "ec2_security_group_id" {
   type        = string
 }
 
-# Variable pour le nom du bucket S3 (pour la politique IAM)
-variable "s3_bucket_arn" {
-  description = "ARN du bucket S3 pour accorder les permissions à l'EC2."
-  type        = string
-  default     = "" # Sera fourni par le module racine
-}
-
 # Variable pour la clé SSH publique
 variable "ssh_public_key" {
   description = "Clé SSH publique à installer sur l'instance"
@@ -60,57 +53,10 @@ variable "ssh_public_key" {
   default     = "" # Sera fourni par le module racine via les secrets GitHub
 }
 
-# Variables pour le bucket S3
-variable "s3_bucket_name" {
-  description = "Nom du bucket S3 pour télécharger les scripts"
-  type        = string
-  default     = ""
-}
-
 variable "aws_region" {
   description = "Région AWS pour le déploiement"
   type        = string
   default     = "eu-west-3"
-}
-
-# Variables pour la base de données
-variable "db_username" {
-  description = "Nom d'utilisateur de la base de données"
-  type        = string
-  default     = ""
-}
-
-variable "db_password" {
-  description = "Mot de passe de la base de données"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "rds_endpoint" {
-  description = "Point de terminaison de la base de données RDS"
-  type        = string
-  default     = ""
-}
-
-# Variables pour Docker Hub
-variable "dockerhub_username" {
-  description = "Nom d'utilisateur Docker Hub"
-  type        = string
-  default     = ""
-}
-
-variable "dockerhub_token" {
-  description = "Token Docker Hub"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "dockerhub_repo" {
-  description = "Nom du dépôt Docker Hub"
-  type        = string
-  default     = ""
 }
 
 # Variables pour GitHub

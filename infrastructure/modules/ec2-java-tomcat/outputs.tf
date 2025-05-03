@@ -18,6 +18,6 @@ output "private_ip" {
 }
 
 output "tomcat_url" {
-  description = "URL d'accès à Tomcat"
-  value       = "http://${aws_instance.app_server.public_ip}:8080"
+  description = "URL d'accès à l'application Hello World Tomcat"
+  value       = "http://${aws_instance.app_server.public_ip}:8080/hello-world"
 }

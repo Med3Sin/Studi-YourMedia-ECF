@@ -1,17 +1,17 @@
 #!/bin/bash
 #==============================================================================
 # Nom du script : deploy-war.sh
-# Description   : Script pour déployer un fichier WAR dans Tomcat.
+# Description   : Script simplifié pour déployer un fichier WAR dans Tomcat.
 #                 Ce script copie le fichier WAR spécifié dans le répertoire webapps de Tomcat,
 #                 change le propriétaire et redémarre Tomcat.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2025-05-02
+# Version       : 1.1
+# Date          : 2024-05-03
 #==============================================================================
 # Utilisation   : sudo ./deploy-war.sh <chemin_vers_war>
 #
 # Exemples      :
-#   sudo ./deploy-war.sh /tmp/yourmedia-backend.war
+#   sudo ./deploy-war.sh /tmp/hello-world.war
 #==============================================================================
 # Dépendances   :
 #   - Tomcat    : Le serveur d'applications Tomcat doit être installé
@@ -27,7 +27,7 @@ fi
 
 WAR_PATH=$1
 WAR_NAME=$(basename $WAR_PATH)
-TARGET_NAME="yourmedia-backend.war"
+TARGET_NAME="hello-world.war"
 
 echo "Déploiement du fichier WAR: $WAR_PATH vers /opt/tomcat/webapps/$TARGET_NAME"
 
