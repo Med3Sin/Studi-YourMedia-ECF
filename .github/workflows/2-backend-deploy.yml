@@ -1,7 +1,7 @@
-name: 2 - Compilation et Déploiement du Backend (Java WAR)
+name: 2 - Compilation et Déploiement de l'Application Hello World (Java WAR)
 
 # -----------------------------------------------------------------------
-# Ce workflow gère la compilation et le déploiement de l'application backend Java.
+# Ce workflow gère la compilation et le déploiement de l'application Hello World Java.
 # Il compile le code Java avec Maven, télécharge le WAR sur S3, puis le déploie
 # sur l'instance EC2 exécutant Tomcat via SSH.
 # -----------------------------------------------------------------------
@@ -33,7 +33,7 @@ env:
   JAVA_DISTRIBUTION: 'temurin' # Distribution Java (Adoptium Temurin)
   AWS_REGION: eu-west-3      # Région AWS (Paris)
   APP_DIR: app-java          # Répertoire de l'application Java (sans ./ pour éviter les problèmes de chemin)
-  WAR_NAME: yourmedia-backend.war # Nom du fichier WAR (sera modifié pour inclure l'environnement)
+  WAR_NAME: hello-world.war  # Nom du fichier WAR (sera modifié pour inclure l'environnement)
 
 jobs:
   build-and-deploy:
@@ -112,15 +112,15 @@ jobs:
         run: |
           echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
           # Vérifier que le fichier WAR existe
-          if [ ! -f "${{ env.APP_DIR }}/target/yourmedia-backend.war" ]; then
-            echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/yourmedia-backend.war"
+          if [ ! -f "${{ env.APP_DIR }}/target/hello-world.war" ]; then
+            echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/hello-world.war"
             echo "Contenu du répertoire target:"
             ls -la ${{ env.APP_DIR }}/target/
             exit 1
           fi
 
           # Copier le WAR vers S3 avec le nom de déploiement (incluant l'environnement)
-          aws s3 cp ${{ env.APP_DIR }}/target/yourmedia-backend.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
+          aws s3 cp ${{ env.APP_DIR }}/target/hello-world.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
           echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
@@ -217,5 +217,5 @@ jobs:
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
           # Utiliser le contexte configuré dans application.properties
-          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/yourmedia-backend/" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/hello-world/" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY

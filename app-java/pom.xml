@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.yourmedia</groupId>
-    <artifactId>yourmedia-backend</artifactId>
+    <artifactId>hello-world</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>war</packaging>
 
     <name>YourMedia Backend</name>
-    <description>Backend application for YourMedia project</description>
+    <description>Simple Hello World application for Tomcat</description>
 
     <properties>
         <java.version>17</java.version>
@@ -88,7 +88,7 @@
     </dependencies>
 
     <build>
-        <finalName>yourmedia-backend</finalName>
+        <finalName>hello-world</finalName>
         <plugins>
             <!-- Maven Compiler Plugin -->
             <plugin>
