@@ -52,21 +52,9 @@ TOKEN=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-
 REGION=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region || echo "eu-west-3")
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Région AWS: $REGION"
 
-# Récupérer le nom du bucket S3 depuis les tags de l'instance
-if [ ! -z "$INSTANCE_ID" ]; then
-  S3_BUCKET_NAME=$(sudo aws ec2 describe-tags --region "$REGION" --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=S3BucketName" --query "Tags[0].Value" --output text)
-else
-  S3_BUCKET_NAME="None"
-fi
-
-# Si le nom du bucket n'est pas trouvé, utiliser la valeur par défaut
-if [ -z "$S3_BUCKET_NAME" ] || [ "$S3_BUCKET_NAME" == "None" ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Nom du bucket S3 non trouvé dans les tags, utilisation de la valeur par défaut"
-  # Récupérer le nom du bucket depuis les variables d'environnement Terraform
-  S3_BUCKET_NAME="yourmedia-dev-media-797748030261-e6ly5tku"
-fi
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Nom du bucket S3: $S3_BUCKET_NAME"
+# Simplification : pas besoin de S3 pour une application Hello World
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Application Hello World : pas de dépendance S3 nécessaire"
+S3_BUCKET_NAME="non-requis-pour-hello-world"
 
 # Téléchargement des scripts depuis GitHub
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts depuis GitHub"
@@ -91,46 +79,17 @@ sudo chmod +x /opt/yourmedia/deploy-war.sh
 # Création d'un fichier env.json avec les valeurs récupérées
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un fichier env.json avec les valeurs récupérées"
 
-# Définir des variables par défaut si elles ne sont pas déjà définies
-RDS_USERNAME=${RDS_USERNAME:-""}
-RDS_PASSWORD=${RDS_PASSWORD:-""}
-RDS_ENDPOINT=${RDS_ENDPOINT:-""}
-RDS_NAME=${RDS_NAME:-""}
-# Utiliser le S3_BUCKET_NAME récupéré précédemment
+# Simplification : pas besoin de RDS pour une application Hello World
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Application Hello World : pas de dépendance RDS nécessaire"
+
+# Définir des variables simplifiées pour l'application Hello World
 AWS_REGION=${AWS_REGION:-"eu-west-3"}
-
-# Créer le fichier env.json avec les valeurs définies
-sudo bash -c "cat > /tmp/env.json << EOF
-{
-  \"RDS_USERNAME\": \"${RDS_USERNAME}\",
-  \"RDS_PASSWORD\": \"${RDS_PASSWORD}\",
-  \"RDS_ENDPOINT\": \"${RDS_ENDPOINT}\",
-  \"RDS_NAME\": \"${RDS_NAME}\",
-  \"S3_BUCKET_NAME\": \"${S3_BUCKET_NAME}\",
-  \"AWS_REGION\": \"${AWS_REGION}\"
-}
-EOF"
-
-# Extraction des variables (pour s'assurer qu'elles sont correctement définies)
-RDS_USERNAME=$(jq -r '.RDS_USERNAME' /tmp/env.json)
-RDS_PASSWORD=$(jq -r '.RDS_PASSWORD' /tmp/env.json)
-RDS_ENDPOINT=$(jq -r '.RDS_ENDPOINT' /tmp/env.json)
-RDS_NAME=$(jq -r '.RDS_NAME' /tmp/env.json)
-S3_BUCKET_NAME=$(jq -r '.S3_BUCKET_NAME' /tmp/env.json)
-AWS_REGION=$(jq -r '.AWS_REGION' /tmp/env.json)
 TOKEN=$(sudo curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 JAVA_TOMCAT_EC2_PUBLIC_IP=$(sudo curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
 
-# Suppression du fichier temporaire
-sudo rm /tmp/env.json
-
-# Création du fichier de variables d'environnement
+# Création du fichier de variables d'environnement simplifié pour Hello World
 sudo bash -c "cat > /opt/yourmedia/secure/.env << EOF
-RDS_USERNAME=$RDS_USERNAME
-RDS_PASSWORD=$RDS_PASSWORD
-RDS_ENDPOINT=$RDS_ENDPOINT
-RDS_NAME=$RDS_NAME
-S3_BUCKET_NAME=$S3_BUCKET_NAME
+# Application Hello World - Configuration simplifiée
 AWS_REGION=$AWS_REGION
 JAVA_TOMCAT_EC2_PUBLIC_IP=$JAVA_TOMCAT_EC2_PUBLIC_IP
 TOMCAT_VERSION=9.0.104

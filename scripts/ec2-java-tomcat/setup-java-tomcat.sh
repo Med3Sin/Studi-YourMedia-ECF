@@ -525,38 +525,8 @@ fi
 export TOMCAT_VERSION
 log "Version de Tomcat à installer: $TOMCAT_VERSION"
 
-# Variables S3 - Standardisation sur S3_*
-if [ -z "$S3_BUCKET_NAME" ]; then
-    log "La variable S3_BUCKET_NAME n'est pas définie, utilisation de la valeur par défaut yourmedia-ecf-studi"
-    S3_BUCKET_NAME="yourmedia-ecf-studi"
-fi
-
-# Variables RDS - Standardisation sur RDS_*
-if [ -z "$RDS_USERNAME" ] && [ -n "$DB_USERNAME" ]; then
-    RDS_USERNAME="$DB_USERNAME"
-elif [ -z "$RDS_USERNAME" ]; then
-    RDS_USERNAME="yourmedia"
-    log "La variable RDS_USERNAME n'est pas définie, utilisation de la valeur par défaut $RDS_USERNAME"
-fi
-
-if [ -z "$RDS_PASSWORD" ] && [ -n "$DB_PASSWORD" ]; then
-    RDS_PASSWORD="$DB_PASSWORD"
-elif [ -z "$RDS_PASSWORD" ]; then
-    RDS_PASSWORD="password"
-    log "La variable RDS_PASSWORD n'est pas définie, utilisation de la valeur par défaut (non sécurisée)"
-fi
-
-if [ -z "$RDS_ENDPOINT" ] && [ -n "$DB_ENDPOINT" ]; then
-    RDS_ENDPOINT="$DB_ENDPOINT"
-elif [ -z "$RDS_ENDPOINT" ]; then
-    RDS_ENDPOINT="localhost:3306"
-    log "La variable RDS_ENDPOINT n'est pas définie, utilisation de la valeur par défaut $RDS_ENDPOINT"
-fi
-
-# Variables de compatibilité
-DB_USERNAME="$RDS_USERNAME"
-DB_PASSWORD="$RDS_PASSWORD"
-DB_ENDPOINT="$RDS_ENDPOINT"
+# Simplification : pas besoin de S3 ou RDS pour une application Hello World
+log "Application Hello World : pas de dépendance S3 ou RDS nécessaire"
 
 # Créer les répertoires nécessaires
 log "Création des répertoires nécessaires"
