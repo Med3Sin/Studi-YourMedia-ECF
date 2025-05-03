@@ -76,11 +76,39 @@ install_tomcat() {
     sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
 
     # Téléchargement et installation de Tomcat
-    log "Téléchargement et installation de Tomcat"
+    log "Téléchargement et installation de Tomcat version ${TOMCAT_VERSION}"
     cd /tmp
-    sudo wget https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz
-    if [ $? -ne 0 ]; then
-        error_exit "Le téléchargement de Tomcat a échoué"
+
+    # Vérifier si le fichier existe déjà
+    if [ -f "/tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz" ]; then
+        log "Le fichier apache-tomcat-${TOMCAT_VERSION}.tar.gz existe déjà"
+    else
+        log "Téléchargement de https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
+        sudo wget -v https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz
+
+        # Vérifier si le téléchargement a réussi
+        if [ $? -ne 0 ]; then
+            log "Le téléchargement direct a échoué, tentative avec une URL alternative..."
+            sudo wget -v https://archive.apache.org/dist/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz
+
+            if [ $? -ne 0 ]; then
+                log "Le téléchargement alternatif a échoué, tentative avec une version spécifique..."
+                # Essayer avec une version spécifique connue pour être disponible
+                TOMCAT_VERSION="9.0.104"
+                export TOMCAT_VERSION
+                log "Utilisation de la version fixe: ${TOMCAT_VERSION}"
+                sudo wget -v https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz
+
+                if [ $? -ne 0 ]; then
+                    error_exit "Le téléchargement de Tomcat a échoué après plusieurs tentatives"
+                fi
+            fi
+        fi
+    fi
+
+    log "Vérification du fichier téléchargé"
+    if [ ! -s "/tmp/apache-tomcat-${TOMCAT_VERSION}.tar.gz" ]; then
+        error_exit "Le fichier téléchargé est vide ou n'existe pas"
     fi
 
     sudo mkdir -p /opt/tomcat
@@ -492,6 +520,10 @@ if [ -z "$TOMCAT_VERSION" ]; then
     log "La variable TOMCAT_VERSION n'est pas définie, utilisation de la valeur par défaut 9.0.104"
     TOMCAT_VERSION="9.0.104"
 fi
+
+# Exporter la variable TOMCAT_VERSION pour qu'elle soit disponible dans les fonctions
+export TOMCAT_VERSION
+log "Version de Tomcat à installer: $TOMCAT_VERSION"
 
 # Variables S3 - Standardisation sur S3_*
 if [ -z "$S3_BUCKET_NAME" ]; then

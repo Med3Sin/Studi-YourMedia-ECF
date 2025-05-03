@@ -223,9 +223,13 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
 sudo chmod +x /opt/yourmedia/*.sh 2>/dev/null || true
 
-# Exécuter le script d'initialisation
+# Définir la version de Tomcat
+export TOMCAT_VERSION=9.0.104
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Version de Tomcat à installer: $TOMCAT_VERSION"
+
+# Exécuter le script d'initialisation avec la variable TOMCAT_VERSION
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
-sudo /opt/yourmedia/init-java-tomcat.sh 2>&1 | tee -a /var/log/user-data-init.log
+sudo -E /opt/yourmedia/init-java-tomcat.sh 2>&1 | tee -a /var/log/user-data-init.log
 
 # Vérifier si Tomcat est en cours d'exécution
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification finale de l'état de Tomcat"
@@ -233,13 +237,30 @@ if sudo systemctl is-active --quiet tomcat; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat est en cours d'exécution"
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Tomcat n'est pas en cours d'exécution. Démarrage manuel..."
-    sudo systemctl start tomcat
-    sudo systemctl enable tomcat
-    sleep 10
-    if sudo systemctl is-active --quiet tomcat; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès"
+
+    # Vérifier si le service Tomcat existe
+    if [ -f "/etc/systemd/system/tomcat.service" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Le service Tomcat existe, tentative de démarrage"
+        sudo systemctl daemon-reload
+        sudo systemctl start tomcat
+        sudo systemctl enable tomcat
+        sleep 10
+        if sudo systemctl is-active --quiet tomcat; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès"
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat"
+        fi
     else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le service Tomcat n'existe pas, exécution manuelle de setup-java-tomcat.sh"
+        cd /opt/yourmedia
+        export TOMCAT_VERSION=9.0.104
+        sudo -E ./setup-java-tomcat.sh
+        sleep 10
+        if sudo systemctl is-active --quiet tomcat; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Tomcat a été démarré avec succès après installation manuelle"
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Tomcat après installation manuelle"
+        fi
     fi
 fi
 

@@ -133,6 +133,7 @@ RDS_NAME=$RDS_NAME
 S3_BUCKET_NAME=$S3_BUCKET_NAME
 AWS_REGION=$AWS_REGION
 JAVA_TOMCAT_EC2_PUBLIC_IP=$JAVA_TOMCAT_EC2_PUBLIC_IP
+TOMCAT_VERSION=9.0.104
 EOF"
 
 # Sécurisation du fichier
@@ -142,7 +143,13 @@ sudo chown root:root /opt/yourmedia/secure/.env
 # Exécution du script de configuration
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script de configuration"
 cd /opt/yourmedia
-sudo ./setup-java-tomcat.sh
+
+# Exporter la variable TOMCAT_VERSION
+export TOMCAT_VERSION=9.0.104
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Version de Tomcat à installer: $TOMCAT_VERSION"
+
+# Exécuter le script de configuration avec la variable TOMCAT_VERSION
+sudo -E ./setup-java-tomcat.sh
 
 # Vérifier si Tomcat est en cours d'exécution
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification de l'état de Tomcat"
