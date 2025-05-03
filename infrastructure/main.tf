@@ -143,13 +143,6 @@ module "s3" {
   aws_region              = var.aws_region
   monitoring_scripts_path = "${path.module}/scripts" # Chemin vers les scripts
   scripts_base_path       = path.root                # Chemin absolu vers la racine du projet
-
-  # Variables sensibles
-  rds_username           = var.db_username
-  rds_password           = var.db_password
-  rds_endpoint           = module.rds-mysql.rds_endpoint
-  rds_name               = var.db_name
-  grafana_admin_password = var.grafana_admin_password
 }
 
 # -----------------------------------------------------------------------------
@@ -184,22 +177,8 @@ module "ec2-java-tomcat" {
   key_pair_name         = var.ec2_key_pair_name
   subnet_id             = aws_subnet.main_az1.id # Déploie dans le premier sous-réseau créé
   ec2_security_group_id = module.network.ec2_security_group_id
-  s3_bucket_arn         = module.s3.bucket_arn # Fournir l'ARN du bucket S3
   ssh_public_key        = var.ssh_public_key   # Clé SSH publique pour l'accès à l'instance
   aws_region            = var.aws_region
-
-  # Variables pour le bucket S3
-  s3_bucket_name = module.s3.bucket_name
-
-  # Variables pour la base de données
-  db_username  = var.db_username
-  db_password  = var.db_password
-  rds_endpoint = module.rds-mysql.rds_endpoint
-
-  # Variables pour Docker Hub
-  dockerhub_username = var.dockerhub_username
-  dockerhub_token    = var.dockerhub_token
-  dockerhub_repo     = var.dockerhub_repo
 
   # Variables pour GitHub
   repo_owner = var.repo_owner
@@ -207,8 +186,7 @@ module "ec2-java-tomcat" {
 
   # Dépendances explicites
   depends_on = [
-    module.s3,
-    module.rds-mysql
+    module.s3
   ]
 }
 
@@ -234,7 +212,6 @@ module "ec2-monitoring" {
   # car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
   ami_id                       = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
   use_latest_ami               = var.use_latest_ami
-  use_existing_sg              = true                                        # Utiliser le groupe de sécurité créé par le module network
   monitoring_security_group_id = module.network.monitoring_security_group_id # ID du groupe de sécurité créé par le module network
   key_name                     = var.ec2_key_pair_name                       # Remplacé key_pair_name par key_name
   ssh_private_key_path         = var.ssh_private_key_path
@@ -243,16 +220,6 @@ module "ec2-monitoring" {
   enable_provisioning          = false
   s3_bucket_name               = module.s3.bucket_name
   s3_config_policy_arn         = module.s3.monitoring_s3_access_policy_arn
-  db_username                  = var.db_username
-  db_password                  = var.db_password
-  rds_endpoint                 = module.rds-mysql.rds_endpoint
-
-  grafana_admin_password = var.grafana_admin_password
-  tf_api_token           = var.tf_api_token
-  tf_workspace_id        = var.tf_workspace_id
-  docker_username        = var.dockerhub_username
-  docker_repo            = var.dockerhub_repo
-  dockerhub_token        = var.dockerhub_token
 
   # Variables pour GitHub
   repo_owner = var.repo_owner
