@@ -3,8 +3,8 @@
 # Nom du script : sync-github-secrets-to-terraform.sh
 # Description   : Synchronise les secrets GitHub vers Terraform Cloud
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.1
-# Date          : 2023-11-15
+# Version       : 1.2
+# Date          : 2024-05-03
 #==============================================================================
 # Utilisation   : ./sync-github-secrets-to-terraform.sh
 #
@@ -20,7 +20,7 @@
 #   - AWS_SECRET_ACCESS_KEY
 #   - RDS_USERNAME
 #   - RDS_PASSWORD
-#   - EC2_SSH_PRIVATE_KEY
+#   - EC2_SSH_PRIVATE_KEY (encodé en base64 pour éviter les problèmes d'échappement)
 #   - EC2_SSH_PUBLIC_KEY
 #   - DOCKERHUB_USERNAME (standard)
 #   - DOCKERHUB_TOKEN (standard)
@@ -29,6 +29,16 @@
 #   - TF_S3_BUCKET_NAME
 #   - TF_MONITORING_EC2_PUBLIC_IP
 #   - TF_RDS_ENDPOINT
+#
+# Améliorations dans cette version :
+# - Utilisation de curl au lieu de wget pour une meilleure gestion des API
+# - Encodage en base64 des clés SSH pour éviter les problèmes d'échappement
+# - Logs de débogage améliorés
+# - Option pour diviser les grandes clés SSH si nécessaire
+#
+# Note: Pour une solution plus robuste en production, envisagez d'utiliser
+# AWS Secrets Manager ou HashiCorp Vault pour stocker les clés SSH, puis
+# référencez ces secrets dans Terraform.
 #==============================================================================
 
 set -e
@@ -38,10 +48,35 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
 }
 
+# Fonction pour afficher les messages de débogage
+debug() {
+    if [ "${DEBUG:-false}" = "true" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - DEBUG: $1"
+    fi
+}
+
 # Fonction pour afficher les erreurs et quitter
 error_exit() {
     log "ERREUR: $1"
     exit 1
+}
+
+# Fonction pour vérifier la taille d'une variable
+check_variable_size() {
+    local key="$1"
+    local value="$2"
+    local size=${#value}
+
+    debug "Taille de la variable $key: $size caractères"
+
+    # Terraform Cloud a une limite de taille pour les variables
+    # Si la taille dépasse 20000 caractères, afficher un avertissement
+    if [ $size -gt 20000 ]; then
+        log "AVERTISSEMENT: La variable $key est très grande ($size caractères). Envisagez de la diviser ou d'utiliser un gestionnaire de secrets externe."
+        return 1
+    fi
+
+    return 0
 }
 
 # Vérifier les variables d'environnement requises
@@ -80,8 +115,88 @@ escape_json_value() {
     echo "$value"
 }
 
+# Fonction pour encoder une valeur en base64
+encode_base64() {
+    local value="$1"
+    echo "$value" | base64 -w 0
+}
+
+# Fonction pour diviser une grande valeur en plusieurs parties
+split_large_value() {
+    local value="$1"
+    local max_size="$2"
+    local parts=()
+
+    # Calculer le nombre de parties nécessaires
+    local total_size=${#value}
+    local num_parts=$(( (total_size + max_size - 1) / max_size ))
+
+    debug "Divisant la valeur de taille $total_size en $num_parts parties de taille maximale $max_size"
+
+    # Diviser la valeur en parties
+    for (( i=0; i<num_parts; i++ )); do
+        local start=$((i * max_size))
+        local part="${value:$start:$max_size}"
+        parts+=("$part")
+    done
+
+    echo "${parts[@]}"
+}
+
 # Fonction pour créer ou mettre à jour une variable Terraform Cloud
 create_or_update_tf_variable() {
+    local key="$1"
+    local value="$2"
+    local category="$3"  # terraform ou env
+    local sensitive="$4" # true ou false
+    local description="$5"
+
+    # Vérifier la taille de la variable
+    check_variable_size "$key" "$value"
+    local size_check_result=$?
+
+    # Pour les clés SSH, utiliser l'encodage base64
+    if [[ "$key" == *"SSH"* && "$key" == *"KEY"* ]]; then
+        log "Traitement spécial pour la clé SSH: $key"
+
+        # Si la clé est trop grande, la diviser
+        if [ $size_check_result -eq 1 ]; then
+            log "La clé SSH est trop grande, elle sera divisée et encodée en base64"
+
+            # Diviser la clé en parties de 15000 caractères maximum
+            local parts=($(split_large_value "$value" 15000))
+            local num_parts=${#parts[@]}
+
+            log "La clé SSH a été divisée en $num_parts parties"
+
+            # Créer une variable pour chaque partie
+            for (( i=0; i<num_parts; i++ )); do
+                local part_key="${key}_PART_$((i+1))_OF_$num_parts"
+                local part_value=$(encode_base64 "${parts[$i]}")
+                local part_description="$description (Partie $((i+1)) de $num_parts, encodée en base64)"
+
+                # Créer ou mettre à jour la variable pour cette partie
+                create_or_update_tf_variable_with_curl "$part_key" "$part_value" "$category" "$sensitive" "$part_description"
+            done
+
+            # Créer une variable indiquant le nombre de parties
+            create_or_update_tf_variable_with_curl "${key}_PARTS_COUNT" "$num_parts" "$category" "false" "Nombre de parties pour $key"
+
+            return
+        else
+            # Encoder la clé en base64
+            log "Encodage de la clé SSH en base64: $key"
+            value=$(encode_base64 "$value")
+            description="$description (encodée en base64)"
+        fi
+    fi
+
+    # Créer ou mettre à jour la variable
+    create_or_update_tf_variable_with_curl "$key" "$value" "$category" "$sensitive" "$description"
+}
+
+# Fonction pour créer ou mettre à jour une variable Terraform Cloud avec curl
+create_or_update_tf_variable_with_curl() {
     local key="$1"
     local value="$2"
     local category="$3"  # terraform ou env
@@ -92,18 +207,21 @@ create_or_update_tf_variable() {
     local escaped_value=$(escape_json_value "$value")
 
     # Vérifier si la variable existe déjà
-    local variable_id=$(wget -q -O - \
-        --header="Authorization: Bearer $TF_API_TOKEN" \
-        --header="Content-Type: application/vnd.api+json" \
-        "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars" | \
-        jq -r --arg key "$key" --arg category "$category" '.data[] | select(.attributes.key == $key and .attributes.category == $category) | .id')
+    debug "Vérification de l'existence de la variable $key dans Terraform Cloud"
+    local response=$(curl -s -H "Authorization: Bearer $TF_API_TOKEN" \
+        -H "Content-Type: application/vnd.api+json" \
+        "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars")
+
+    local variable_id=$(echo "$response" | jq -r --arg key "$key" --arg category "$category" '.data[] | select(.attributes.key == $key and .attributes.category == $category) | .id')
+    debug "ID de la variable $key: $variable_id"
+
+    # Créer un fichier temporaire pour les données JSON
+    local tmp_json_file=$(mktemp)
 
     if [ -z "$variable_id" ] || [ "$variable_id" == "null" ]; then
         # Créer une nouvelle variable
         log "Création de la variable $key dans Terraform Cloud"
 
-        # Créer un fichier temporaire pour les données JSON
-        local tmp_json_file=$(mktemp)
         cat > "$tmp_json_file" << EOF
 {
   "data": {
@@ -121,21 +239,24 @@ create_or_update_tf_variable() {
 }
 EOF
 
-        # Utiliser wget pour envoyer la requête POST
-        wget -q -O - \
-            --header="Authorization: Bearer $TF_API_TOKEN" \
-            --header="Content-Type: application/vnd.api+json" \
-            --post-file="$tmp_json_file" \
-            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars"
+        # Utiliser curl pour envoyer la requête POST
+        local response=$(curl -s -X POST \
+            -H "Authorization: Bearer $TF_API_TOKEN" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d @"$tmp_json_file" \
+            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars")
 
-        # Supprimer le fichier temporaire
-        rm -f "$tmp_json_file"
+        debug "Réponse de l'API Terraform Cloud (création): $response"
+
+        # Vérifier si la requête a réussi
+        if echo "$response" | jq -e '.errors' > /dev/null; then
+            log "ERREUR lors de la création de la variable $key:"
+            echo "$response" | jq '.errors'
+        fi
     else
         # Mettre à jour la variable existante
         log "Mise à jour de la variable $key dans Terraform Cloud"
 
-        # Créer un fichier temporaire pour les données JSON
-        local tmp_json_file=$(mktemp)
         cat > "$tmp_json_file" << EOF
 {
   "data": {
@@ -154,17 +275,24 @@ EOF
 }
 EOF
 
-        # Utiliser wget pour envoyer la requête PATCH
-        wget -q -O - \
-            --header="Authorization: Bearer $TF_API_TOKEN" \
-            --header="Content-Type: application/vnd.api+json" \
-            --method=PATCH \
-            --body-file="$tmp_json_file" \
-            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars/$variable_id"
+        # Utiliser curl pour envoyer la requête PATCH
+        local response=$(curl -s -X PATCH \
+            -H "Authorization: Bearer $TF_API_TOKEN" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d @"$tmp_json_file" \
+            "https://app.terraform.io/api/v2/workspaces/$TF_WORKSPACE_ID/vars/$variable_id")
 
-        # Supprimer le fichier temporaire
-        rm -f "$tmp_json_file"
+        debug "Réponse de l'API Terraform Cloud (mise à jour): $response"
+
+        # Vérifier si la requête a réussi
+        if echo "$response" | jq -e '.errors' > /dev/null; then
+            log "ERREUR lors de la mise à jour de la variable $key:"
+            echo "$response" | jq '.errors'
+        fi
     fi
+
+    # Supprimer le fichier temporaire
+    rm -f "$tmp_json_file"
 }
 
 # Synchroniser les secrets AWS
@@ -310,4 +438,12 @@ fi
 
 
 
+# Activer le mode débogage si la variable DEBUG est définie
+if [ "${DEBUG:-false}" = "true" ]; then
+    log "Mode débogage activé"
+fi
+
 log "Synchronisation des secrets GitHub vers Terraform Cloud terminée avec succès"
+
+# Afficher un message d'information sur l'utilisation d'un gestionnaire de secrets externe
+log "Note: Pour une solution plus robuste en production, envisagez d'utiliser AWS Secrets Manager ou HashiCorp Vault pour stocker les clés SSH."
