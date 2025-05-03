@@ -2,7 +2,7 @@ version: '3'
 
 services:
   prometheus:
-    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:prometheus-latest
+    image: prom/prometheus:latest
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -25,9 +25,10 @@ services:
         max-file: "3"
     mem_limit: 512m
     cpu_shares: 512
+    user: "1000:1000"
 
   grafana:
-    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest
+    image: grafana/grafana:latest
     container_name: grafana
     ports:
       - "3000:3000"
@@ -49,6 +50,7 @@ services:
         max-size: "10m"
         max-file: "3"
     mem_limit: 512m
+    user: "1000:1000"
     cpu_shares: 512
 
   # Exportateur CloudWatch pour surveiller les services AWS (S3, RDS, EC2)
@@ -70,6 +72,7 @@ services:
         max-file: "3"
     mem_limit: 256m
     cpu_shares: 256
+    user: "1000:1000"
 
   # Exportateur MySQL pour surveiller RDS
   mysql-exporter:
@@ -88,6 +91,7 @@ services:
       - --collect.global_status
       - --collect.global_variables
     restart: always
+    user: "1000:1000"
     logging:
       driver: "json-file"
       options:
@@ -119,6 +123,7 @@ services:
         max-file: "3"
     mem_limit: 128m
     cpu_shares: 128
+    user: "1000:1000"
 
   # Loki pour la centralisation des logs
   loki:
@@ -138,6 +143,7 @@ services:
         max-file: "3"
     mem_limit: 512m
     cpu_shares: 512
+    user: "1000:1000"
 
   # Promtail pour collecter les logs des conteneurs
   promtail:
@@ -158,3 +164,4 @@ services:
         max-file: "3"
     mem_limit: 256m
     cpu_shares: 256
+    user: "1000:1000"

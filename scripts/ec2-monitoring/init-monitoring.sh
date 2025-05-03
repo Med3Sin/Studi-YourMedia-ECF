@@ -318,18 +318,21 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
-# Authentification Docker Hub si les identifiants sont disponibles
-if [ ! -z "${DOCKERHUB_USERNAME}" ] && [ ! -z "${DOCKERHUB_TOKEN}" ]; then
-    log "Authentification à Docker Hub avec l'utilisateur ${DOCKERHUB_USERNAME}"
-    echo "${DOCKERHUB_TOKEN}" | sudo docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-    if [ $? -eq 0 ]; then
-        log "✅ Authentification Docker Hub réussie"
-    else
-        log "❌ Échec de l'authentification Docker Hub"
-    fi
+# Authentification Docker Hub
+log "Authentification à Docker Hub avec l'utilisateur medsin"
+sudo docker login -u medsin
+if [ $? -eq 0 ]; then
+    log "✅ Authentification Docker Hub réussie"
 else
-    log "Aucun identifiant Docker Hub trouvé, les images publiques seront utilisées"
+    log "❌ Échec de l'authentification Docker Hub"
+    log "Tentative d'utilisation des images publiques"
 fi
+
+# Création des répertoires de données avec les bonnes permissions
+log "Création des répertoires de données avec les bonnes permissions"
+sudo mkdir -p /opt/monitoring/data/prometheus /opt/monitoring/data/grafana
+sudo chown -R 1000:1000 /opt/monitoring/data
+sudo chmod -R 755 /opt/monitoring/data
 
 # Démarrer les conteneurs Docker
 log "Démarrage des conteneurs Docker"
