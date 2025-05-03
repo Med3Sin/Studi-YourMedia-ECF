@@ -318,6 +318,19 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
+# Authentification Docker Hub si les identifiants sont disponibles
+if [ ! -z "${DOCKERHUB_USERNAME}" ] && [ ! -z "${DOCKERHUB_TOKEN}" ]; then
+    log "Authentification à Docker Hub avec l'utilisateur ${DOCKERHUB_USERNAME}"
+    echo "${DOCKERHUB_TOKEN}" | sudo docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "✅ Authentification Docker Hub réussie"
+    else
+        log "❌ Échec de l'authentification Docker Hub"
+    fi
+else
+    log "Aucun identifiant Docker Hub trouvé, les images publiques seront utilisées"
+fi
+
 # Démarrer les conteneurs Docker
 log "Démarrage des conteneurs Docker"
 cd /opt/monitoring

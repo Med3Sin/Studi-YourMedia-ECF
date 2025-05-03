@@ -1090,6 +1090,19 @@ export DOCKERHUB_REPO="${DOCKERHUB_REPO:-yourmedia-ecf}"
 export DOCKER_USERNAME="$DOCKERHUB_USERNAME"
 export DOCKER_REPO="$DOCKERHUB_REPO"
 
+# Authentification Docker Hub si les identifiants sont disponibles
+if [ ! -z "${DOCKERHUB_USERNAME}" ] && [ ! -z "${DOCKERHUB_TOKEN}" ]; then
+    log "Authentification à Docker Hub avec l'utilisateur ${DOCKERHUB_USERNAME}"
+    echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "✅ Authentification Docker Hub réussie"
+    else
+        log "❌ Échec de l'authentification Docker Hub"
+    fi
+else
+    log "Aucun identifiant Docker Hub trouvé, les images publiques seront utilisées"
+fi
+
 # Variables de compatibilité
 export DB_USERNAME="$RDS_USERNAME"
 export DB_PASSWORD="$RDS_PASSWORD"

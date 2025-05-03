@@ -2,7 +2,7 @@ version: '3'
 
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:prometheus-latest
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -27,7 +27,7 @@ services:
     cpu_shares: 512
 
   grafana:
-    image: grafana/grafana:latest
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest
     container_name: grafana
     ports:
       - "3000:3000"
