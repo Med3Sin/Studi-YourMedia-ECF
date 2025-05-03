@@ -212,6 +212,7 @@ module "ec2-monitoring" {
   # car nous utilisons maintenant des conteneurs Docker sur EC2 au lieu de ECS Fargate
   ami_id                       = "" # Laissez vide pour utiliser l'AMI la plus récente via data source
   use_latest_ami               = var.use_latest_ami
+  use_existing_sg              = true # Utiliser le groupe de sécurité existant
   monitoring_security_group_id = module.network.monitoring_security_group_id # ID du groupe de sécurité créé par le module network
   key_name                     = var.ec2_key_pair_name                       # Remplacé key_pair_name par key_name
   ssh_private_key_path         = var.ssh_private_key_path
