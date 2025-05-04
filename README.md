@@ -1,23 +1,28 @@
 # Projet YourMédia - Migration Cloud AWS
 
 Bienvenue dans la documentation du projet de migration vers le cloud AWS pour l'application YourMédia.
-Ce document a pour but de vous guider à travers l'architecture mise en place, les choix technologiques, et les procédures de déploiement et de gestion de l'infrastructure et des applications.
-Ce projet a été conçu pour être simple, utiliser les services gratuits (Free Tier) d'AWS autant que possible, et être entièrement automatisé via Terraform et GitHub Actions.
+Ce projet a été conçu pour être simple, utiliser les services gratuits (Free Tier) d'AWS, et être entièrement automatisé via Terraform et GitHub Actions.
 
-## Documentation Centralisée
+## Documentation
 
-Toute la documentation du projet est maintenant centralisée dans le dossier `docs/` :
+Toute la documentation du projet est centralisée dans le dossier `docs/` :
 
 ### Documentation principale
 
-- [Infrastructure AWS](docs/INFRASTRUCTURE.md) : Documentation complète de l'infrastructure AWS (VPC, EC2, RDS, S3, etc.)
-- [Applications](docs/APPLICATIONS.md) : Documentation des applications backend (Java) et frontend (React)
-- [Opérations](docs/OPERATIONS.md) : Documentation sur le déploiement, le monitoring et la maintenance
+- [Documentation](docs/DOCUMENTATION.md) : Point d'entrée principal pour toute la documentation
+- [Infrastructure](docs/INFRASTRUCTURE.md) : Infrastructure AWS (VPC, EC2, RDS, S3)
+- [Docker](docs/DOCKER.md) : Gestion des conteneurs Docker
+- [Variables](docs/VARIABLES.md) : Gestion des variables et secrets
+- [Optimisations](docs/OPTIMISATIONS.md) : Optimisations et améliorations
+- [Troubleshooting](docs/TROUBLESHOOTING.md) : Guide de dépannage
 
-### Documentation spécifique
+### Documentation thématique
 
-- [Architecture détaillée](docs/ARCHITECTURE.md) : Description détaillée de l'architecture technique
-- [Migration vers Amazon Linux 2023](docs/AMAZON-LINUX-2023-MIGRATION.md) : Documentation de la migration vers Amazon Linux 2023
+- [Migration](docs/MIGRATION.md) : Guide de migration (Amazon Linux 2023, Docker)
+- [Sécurité](docs/SECURITE.md) : Guide de sécurité (EC2, Docker, Scripts)
+- [Applications](docs/APPLICATIONS.md) : Documentation des applications (backend et frontend)
+- [Workflows](docs/WORKFLOWS.md) : Documentation des workflows GitHub Actions
+- [Opérations](docs/OPERATIONS.md) : Guide des opérations quotidiennes
 
 - [Initialisation des Instances EC2](docs/INSTANCE-INITIALIZATION.md) : Documentation du processus d'initialisation des instances EC2
 - [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud

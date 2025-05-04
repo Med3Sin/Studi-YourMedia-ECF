@@ -1,40 +1,24 @@
 # Documentation du Projet YourMedia
 
-Ce dossier contient toute la documentation du projet YourMedia.
+Ce dossier contient toute la documentation du projet YourMedia, simplifiée et organisée pour faciliter la navigation.
 
-## 📚 Documentation réorganisée
+## Documentation principale
 
-La documentation a été réorganisée pour la rendre plus accessible et plus facile à maintenir. Veuillez utiliser le document suivant comme point d'entrée :
+- [DOCUMENTATION.md](./DOCUMENTATION.md) - Point d'entrée principal pour toute la documentation
+- [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) - Infrastructure AWS (VPC, EC2, RDS, S3)
+- [DOCKER.md](./DOCKER.md) - Gestion des conteneurs Docker
+- [VARIABLES.md](./VARIABLES.md) - Gestion des variables et secrets
+- [OPTIMISATIONS.md](./OPTIMISATIONS.md) - Optimisations et améliorations
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Guide de dépannage
 
-- [GUIDE-PRINCIPAL.md](./GUIDE-PRINCIPAL.md) - Point d'entrée principal pour toute la documentation
+## Documentation thématique
 
-## Guides thématiques
-
-Ces guides regroupent les informations qui étaient auparavant dispersées dans plusieurs documents :
-
-- [GUIDE-DOCKER.md](./GUIDE-DOCKER.md) - Guide complet pour Docker
-- [GUIDE-VARIABLES.md](./GUIDE-VARIABLES.md) - Guide complet pour la gestion des variables
-- [GUIDE-TERRAFORM.md](./GUIDE-TERRAFORM.md) - Guide complet pour Terraform
-- [GUIDE-GITHUB-ACTIONS.md](./GUIDE-GITHUB-ACTIONS.md) - Guide complet pour les workflows GitHub Actions
-- [GUIDE-MONITORING.md](./GUIDE-MONITORING.md) - Guide complet pour le monitoring
-- [SECURITE.md](./SECURITE.md) - Guide complet de sécurité
-
-## Rapports consolidés
-
-Ces rapports regroupent les informations qui étaient auparavant dispersées dans plusieurs documents :
-
-- [RAPPORT-OPTIMISATIONS.md](./RAPPORT-OPTIMISATIONS.md) - Rapport sur les optimisations
-- [RAPPORT-STANDARDISATION.md](./RAPPORT-STANDARDISATION.md) - Rapport sur la standardisation des variables
-- [AMELIORATIONS-FUTURES.md](./AMELIORATIONS-FUTURES.md) - Liste des améliorations futures
-
-## Guide de dépannage
-
-- [TROUBLESHOOTING-COMPLET.md](./TROUBLESHOOTING-COMPLET.md) - Guide de dépannage complet
-
-## Diagrammes
-
-Les diagrammes d'architecture se trouvent dans le dossier [diagrams](./diagrams/).
+- [MIGRATION.md](./MIGRATION.md) - Guide de migration (Amazon Linux 2023, Docker)
+- [SECURITE.md](./SECURITE.md) - Guide de sécurité (EC2, Docker, Scripts)
+- [APPLICATIONS.md](./APPLICATIONS.md) - Documentation des applications (backend et frontend)
+- [WORKFLOWS.md](./WORKFLOWS.md) - Documentation des workflows GitHub Actions
+- [OPERATIONS.md](./OPERATIONS.md) - Guide des opérations quotidiennes
 
 ## Archives
 
-Les anciens documents ont été archivés dans le dossier [archive](./archive/) pour référence.
+Les anciens documents ont été archivés dans le dossier [archive](./archive/) pour référence. Vous pouvez exécuter le script `archive-docs.sh` à la racine du projet pour archiver automatiquement les documents obsolètes.
