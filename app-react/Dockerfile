@@ -49,6 +49,8 @@ EXPOSE 3000
 # Variables d'environnement (seront remplacées lors du déploiement)
 ENV API_URL=http://localhost:8080
 ENV NODE_ENV=production
+# Forcer l'écoute sur toutes les interfaces
+ENV HOST=0.0.0.0
 
 # Health check pour vérifier que l'application est en cours d'exécution
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
