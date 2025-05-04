@@ -134,24 +134,6 @@ resource "aws_security_group" "monitoring_sg" {
     description = "Allow Node Exporter access"
   }
 
-  # Règle entrante: MySQL Exporter
-  ingress {
-    from_port   = 9104
-    to_port     = 9104
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow MySQL Exporter access"
-  }
-
-  # Règle entrante: CloudWatch Exporter
-  ingress {
-    from_port   = 9106
-    to_port     = 9106
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow CloudWatch Exporter access"
-  }
-
   # Règle entrante: Application Mobile (React)
   ingress {
     from_port   = 8080

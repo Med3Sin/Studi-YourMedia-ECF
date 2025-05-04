@@ -306,19 +306,6 @@ jobs:
             ./docker-manager.sh deploy mobile
           fi
 
-          # Ouvrir le port 8080 dans le groupe de sécurité
-          echo "Ouverture du port 8080 dans le groupe de sécurité..."
-          if [ -f "./scripts/utils/run-open-port.sh" ]; then
-            chmod +x ./scripts/utils/run-open-port.sh
-            ./scripts/utils/run-open-port.sh ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }} ~/.ssh/id_rsa
-          else
-            # Télécharger le script depuis GitHub
-            echo "Script run-open-port.sh non trouvé, téléchargement depuis GitHub..."
-            curl -s -o ./run-open-port.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/utils/run-open-port.sh"
-            chmod +x ./run-open-port.sh
-            ./run-open-port.sh ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }} ~/.ssh/id_rsa
-          fi
-
       - name: Summary
         run: |
           echo "## Résumé du Déploiement (après construction)" >> $GITHUB_STEP_SUMMARY
