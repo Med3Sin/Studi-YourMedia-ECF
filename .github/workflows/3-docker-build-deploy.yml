@@ -291,7 +291,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
-          TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
+          TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
@@ -318,7 +318,7 @@ jobs:
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
-            echo "* **Mobile App URL:** http://${{ secrets.TF_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
+            echo "* **Mobile App URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:8080" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Job de déploiement uniquement (pour l'action 'deploy')
@@ -371,7 +371,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}
-          TF_EC2_PUBLIC_IP: ${{ secrets.TF_EC2_PUBLIC_IP }}
+          TF_MONITORING_EC2_PUBLIC_IP: ${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}
           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           # Vérifier si le script docker-manager.sh existe
@@ -398,5 +398,5 @@ jobs:
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
-            echo "* **Mobile App URL:** http://${{ secrets.TF_EC2_PUBLIC_IP }}:3000" >> $GITHUB_STEP_SUMMARY
+            echo "* **Mobile App URL:** http://${{ secrets.TF_MONITORING_EC2_PUBLIC_IP }}:8080" >> $GITHUB_STEP_SUMMARY
           fi

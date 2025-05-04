@@ -326,9 +326,10 @@ check_deploy_vars() {
 
     # Vérifier les variables spécifiques à la cible
     if [ "$TARGET" = "mobile" ] || [ "$TARGET" = "all" ]; then
-        if [ -z "$EC2_APP_IP" ]; then
+        # L'application mobile est maintenant déployée sur l'instance de monitoring
+        if [ -z "$EC2_MONITORING_IP" ]; then
             if [ "$ACTION" = "cleanup" ]; then
-                log_warning "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
+                log_warning "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Le nettoyage ne sera pas effectué pour cette cible."
                 # Si nous sommes en train de nettoyer et que la cible est 'all', on continue avec les autres cibles
                 if [ "$TARGET" = "all" ]; then
                     return 0
@@ -337,7 +338,7 @@ check_deploy_vars() {
                     return 1
                 fi
             else
-                log_error "L'adresse IP de l'instance EC2 de l'application n'est pas définie. Veuillez définir la variable TF_EC2_PUBLIC_IP ou EC2_PUBLIC_IP."
+                log_error "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP ou MONITORING_EC2_PUBLIC_IP."
             fi
         fi
     fi
@@ -508,40 +509,22 @@ services:
     mem_limit: 512m
     cpu_shares: 512
 
-  # Exportateur CloudWatch pour surveiller les services AWS
-  cloudwatch-exporter:
-    image: prom/cloudwatch-exporter:latest
-    container_name: cloudwatch-exporter
+  # Application React
+  app-mobile:
+    image: $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest
+    container_name: app-mobile
     ports:
-      - "9106:9106"
-    volumes:
-      - /opt/monitoring/config/cloudwatch-config.yml:/config/cloudwatch-config.yml
-    command: "--config.file=/config/cloudwatch-config.yml"
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 256m
-    cpu_shares: 256
-
-  # Exportateur MySQL pour surveiller RDS
-  mysql-exporter:
-    image: prom/mysqld-exporter:latest
-    container_name: mysql-exporter
-    ports:
-      - "9104:9104"
+      - "8080:3000"
     environment:
-      - DATA_SOURCE_NAME=$RDS_USERNAME:$RDS_PASSWORD@($RDS_ENDPOINT:3306)/
+      - NODE_ENV=production
     restart: always
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 256m
-    cpu_shares: 256
+    mem_limit: 512m
+    cpu_shares: 512
 
 
 
@@ -597,11 +580,11 @@ EOF
     log_success "Déploiement des conteneurs de monitoring terminé."
 }
 
-# Fonction pour déployer l'application mobile
+# Fonction pour déployer l'application mobile sur l'instance de monitoring
 deploy_mobile() {
     # Vérifier que les variables requises sont définies
-    if [ -z "$EC2_APP_IP" ]; then
-        log_error "La variable EC2_APP_IP n'est pas définie"
+    if [ -z "$EC2_MONITORING_IP" ]; then
+        log_error "La variable EC2_MONITORING_IP n'est pas définie"
         return 1
     fi
 
@@ -610,7 +593,7 @@ deploy_mobile() {
         return 1
     fi
 
-    log_info "Déploiement de l'application mobile sur $EC2_APP_IP..."
+    log_info "Déploiement de l'application mobile sur l'instance de monitoring ($EC2_MONITORING_IP)..."
 
     # Utiliser un fichier temporaire sécurisé pour la clé SSH avec un nom aléatoire
     # Supprimer les guillemets simples qui pourraient être présents dans la clé
@@ -622,57 +605,49 @@ deploy_mobile() {
     trap "rm -f $SSH_KEY_FILE" EXIT
 
     # Se connecter à l'instance EC2 et déployer les conteneurs
-    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_APP_IP << EOF
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
         echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-        # Créer les répertoires nécessaires
-        sudo mkdir -p /opt/yourmedia
+        # Vérifier si le répertoire de monitoring existe déjà
+        if [ ! -d "/opt/monitoring" ]; then
+            sudo mkdir -p /opt/monitoring
+        fi
 
-        # Créer le fichier docker-compose.yml
-        cat > /tmp/docker-compose.yml << 'EOFINNER'
-version: '3'
+        # Ajouter la configuration de l'application mobile au docker-compose.yml existant
+        if [ -f "/opt/monitoring/docker-compose.yml" ]; then
+            # Sauvegarder le fichier original
+            sudo cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak
 
-services:
-  # Application mobile React Native
-  app-mobile:
-    image: $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest
-    container_name: app-mobile
-    ports:
-      - "3000:3000"
-    environment:
-      - API_URL=http://$EC2_APP_IP:8080
-      - NODE_ENV=production
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-EOFINNER
+            # Vérifier si l'application mobile est déjà configurée
+            if ! grep -q "app-mobile:" /opt/monitoring/docker-compose.yml; then
+                # Ajouter la configuration de l'application mobile avant la dernière ligne
+                sudo sed -i '$ i\\n  # Application React\n  app-mobile:\n    image: $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest\n    container_name: app-mobile\n    ports:\n      - "8080:3000"\n    environment:\n      - NODE_ENV=production\n    restart: always\n    logging:\n      driver: "json-file"\n      options:\n        max-size: "10m"\n        max-file: "3"\n    mem_limit: 512m\n    cpu_shares: 512' /opt/monitoring/docker-compose.yml
 
-        # Remplacer les variables dans le fichier docker-compose.yml
-        sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /tmp/docker-compose.yml
-        sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /tmp/docker-compose.yml
-        sed -i "s/\$EC2_APP_IP/$EC2_APP_IP/g" /tmp/docker-compose.yml
-
-        # Déplacer le fichier docker-compose.yml
-        sudo mv /tmp/docker-compose.yml /opt/yourmedia/docker-compose.yml
+                # Remplacer les variables dans le fichier docker-compose.yml
+                sudo sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /opt/monitoring/docker-compose.yml
+                sudo sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /opt/monitoring/docker-compose.yml
+            else
+                echo "L'application mobile est déjà configurée dans le fichier docker-compose.yml"
+            fi
+        else
+            echo "Le fichier docker-compose.yml n'existe pas dans /opt/monitoring"
+            exit 1
+        fi
 
         # Démarrer les conteneurs
-        cd /opt/yourmedia
-        sudo docker-compose pull
-        sudo docker-compose up -d
+        cd /opt/monitoring
+        sudo docker-compose pull app-mobile
+        sudo docker-compose up -d app-mobile
 
         # Vérifier que les conteneurs sont en cours d'exécution
-        sudo docker ps
+        sudo docker ps | grep app-mobile
 EOF
 
     # Le fichier temporaire de la clé SSH sera supprimé automatiquement grâce au trap EXIT
 
-    log_success "Déploiement de l'application mobile terminé."
+    log_success "Déploiement de l'application mobile sur l'instance de monitoring terminé."
+    log_info "L'application est accessible à l'adresse: http://$EC2_MONITORING_IP:8080"
 }
 
 # Fonction pour sauvegarder les données des conteneurs
