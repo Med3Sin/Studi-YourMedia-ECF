@@ -364,7 +364,8 @@ log "Configuration de Loki et Promtail"
 
 # Création du fichier loki-config.yml
 log "Création du fichier loki-config.yml"
-sudo bash -c 'cat > /opt/monitoring/loki-config.yml << EOF
+sudo mkdir -p /opt/monitoring/config
+sudo bash -c 'cat > /opt/monitoring/config/loki-config.yml << EOF
 auth_enabled: false
 
 server:
@@ -406,7 +407,7 @@ EOF'
 
 # Création du fichier promtail-config.yml
 log "Création du fichier promtail-config.yml"
-sudo bash -c 'cat > /opt/monitoring/promtail-config.yml << EOF
+sudo bash -c 'cat > /opt/monitoring/config/promtail-config.yml << EOF
 server:
   http_listen_port: 9080
   grpc_listen_port: 0

@@ -67,7 +67,7 @@ services:
     restart: always
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - /opt/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - /opt/monitoring/config/loki-config.yml:/etc/loki/local-config.yaml
       - /opt/monitoring/loki:/loki
     user: "0"
     logging:
@@ -82,7 +82,7 @@ services:
     restart: always
     volumes:
       - /var/log:/var/log
-      - /opt/monitoring/promtail-config.yml:/etc/promtail/config.yml
+      - /opt/monitoring/config/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
