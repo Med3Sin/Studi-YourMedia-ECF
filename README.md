@@ -24,26 +24,7 @@ Toute la documentation du projet est centralisée dans le dossier `docs/` :
 - [Workflows](docs/WORKFLOWS.md) : Documentation des workflows GitHub Actions
 - [Opérations](docs/OPERATIONS.md) : Guide des opérations quotidiennes
 
-- [Initialisation des Instances EC2](docs/INSTANCE-INITIALIZATION.md) : Documentation du processus d'initialisation des instances EC2
-- [Guide des secrets Terraform](docs/TERRAFORM-SECRETS-GUIDE.md) : Guide d'utilisation des secrets GitHub avec Terraform Cloud
-- [Gestion de l'état Terraform](docs/TERRAFORM-CLOUD-TFSTATE.md) : Explication de l'utilisation du même tfstate pour les workflows apply et destroy
-- [Guide des variables sensibles](docs/SENSITIVE-VARIABLES.md) : Guide de gestion des variables sensibles
-- [Standardisation des variables Docker Hub](docs/DOCKER-VARIABLES-STANDARDISATION.md) : Guide de standardisation des variables Docker Hub
-- [Configuration des secrets GitHub](docs/GITHUB-SECRETS-CONFIGURATION.md) : Guide de configuration des secrets GitHub
-- [Téléchargement des scripts depuis GitHub](docs/SCRIPTS-GITHUB-APPROACH.md) : Nouvelle approche pour télécharger les scripts depuis GitHub
 
-- [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md) : Guide de déploiement d'applications WAR sur Tomcat
-- [Plan d'amélioration](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md) : Plan d'amélioration de l'architecture
-- [Améliorations pour un Environnement de Production](docs/AMELIORATIONS-SECURITE-PRODUCTION.md) : Recommandations pour adapter le projet à un environnement d'entreprise réel
-- [Améliorations futures](docs/FUTURE-IMPROVEMENTS.md) : Liste des améliorations potentielles pour le projet
-- [Guide de monitoring](docs/MONITORING-SETUP-GUIDE.md) : Guide de configuration du monitoring
-- [Guide de résolution des problèmes](docs/TROUBLESHOOTING.md) : Solutions aux problèmes courants
-- [Guide des conteneurs Docker](docs/DOCKER-MANAGEMENT.md) : Guide d'utilisation des conteneurs Docker
-- [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md) : Guide des bonnes pratiques de sécurité pour les images Docker
-- [Dépannage Docker](docs/DOCKER-TROUBLESHOOTING.md) : Guide de résolution des problèmes Docker
-
-- [Guide de nettoyage](docs/CLEANUP-GUIDE.md) : Guide de nettoyage complet de l'infrastructure
-- [Guide de gestion des clés SSH](docs/SSH-KEYS-MANAGEMENT.md) : Guide de gestion des clés SSH
 
 ## Table des Matières
 
@@ -63,19 +44,11 @@ Toute la documentation du projet est centralisée dans le dossier `docs/` :
     * [Workflows Disponibles](#workflows-disponibles)
     * [Configuration SSH](#configuration-ssh)
     * [Configuration des Secrets](#configuration-des-secrets)
-9.  [Utilisation des Secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md)
-10. [Gestion de l'état Terraform (tfstate)](docs/TERRAFORM-CLOUD-TFSTATE.md)
-
-11. [Déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md)
-12. [Guide de sécurité Docker](docs/DOCKER-SECURITY-GUIDE.md)
-13. [Dépannage Docker](docs/DOCKER-TROUBLESHOOTING.md)
-14. [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
-15. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
-16. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
+9.  [Résolution des problèmes courants](docs/TROUBLESHOOTING.md)
+10. [Configuration des sous-réseaux](#configuration-des-sous-réseaux)
+11. [Considérations sur les coûts AWS](#considérations-sur-les-coûts-aws)
     * [Coûts de transfert de données AWS](#coûts-de-transfert-de-données-aws)
-17. [Plan d'amélioration de l'architecture](docs/ARCHITECTURE-IMPROVEMENT-PLAN.md)
-18. [Améliorations pour un Environnement de Production](docs/AMELIORATIONS-SECURITE-PRODUCTION.md)
-19. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
+12. [Corrections et Améliorations Récentes](#corrections-et-améliorations-récentes)
 
 ## Architecture Globale
 
@@ -242,7 +215,7 @@ Pour déployer l'application backend, utilisez le workflow GitHub Actions `2-bac
 
 Une fois le déploiement terminé, l'application sera accessible à l'URL : `http://<IP_PUBLIQUE_EC2>:8080/yourmedia-backend/`
 
-**Gestion des permissions Tomcat :** Le déploiement utilise un script spécial (`/usr/local/bin/deploy-war.sh`) qui est automatiquement installé sur l'instance EC2 lors de son initialisation. Ce script résout les problèmes de permissions entre l'utilisateur `ec2-user` (utilisé pour la connexion SSH) et l'utilisateur `tomcat` (propriétaire du répertoire webapps). Pour plus de détails, consultez le [Guide de déploiement d'applications WAR sur Tomcat](docs/TOMCAT-DEPLOYMENT-GUIDE.md).
+**Gestion des permissions Tomcat :** Le déploiement utilise un script spécial (`/usr/local/bin/deploy-war.sh`) qui est automatiquement installé sur l'instance EC2 lors de son initialisation. Ce script résout les problèmes de permissions entre l'utilisateur `ec2-user` (utilisé pour la connexion SSH) et l'utilisateur `tomcat` (propriétaire du répertoire webapps).
 
 ## Application Mobile (React Native en conteneur Docker)
 
@@ -455,8 +428,6 @@ Pour que les workflows fonctionnent, vous devez configurer les secrets suivants 
 * `GF_SECURITY_ADMIN_PASSWORD`: Le mot de passe administrateur Grafana.
 * `GH_PAT`: Un Personal Access Token GitHub pour les intégrations.
 
-Pour plus de détails sur la standardisation des variables Docker Hub, consultez le [Guide de standardisation des variables Docker Hub](docs/DOCKER-VARIABLES-STANDARDISATION.md).
-
 **Important**: Les noms de secrets ne doivent pas commencer par `GITHUB_` car ce préfixe est réservé aux variables d'environnement intégrées de GitHub Actions.
 
 #### Secrets créés automatiquement par le workflow d'infrastructure
@@ -468,8 +439,6 @@ Les secrets suivants sont créés automatiquement lors de l'exécution du workfl
 * `MONITORING_EC2_PUBLIC_IP`: L'adresse IP publique de l'instance EC2 hébergeant Grafana et Prometheus.
 
 Ces secrets sont utilisés par les workflows de déploiement des applications pour accéder aux ressources d'infrastructure sans avoir à saisir manuellement ces informations.
-
-Pour plus de détails sur la configuration et l'utilisation des secrets GitHub avec Terraform, consultez le [Guide d'utilisation des secrets GitHub avec Terraform](docs/TERRAFORM-SECRETS-GUIDE.md).
 
 #### Instructions détaillées pour créer un GH_PAT
 
