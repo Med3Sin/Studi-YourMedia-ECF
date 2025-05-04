@@ -75,6 +75,15 @@ resource "aws_security_group" "monitoring_sg" {
     description = "CloudWatch Exporter access"
   }
 
+  # Application Mobile (React)
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_cidr_blocks
+    description = "Mobile App access"
+  }
+
   # Autoriser tout le trafic sortant
   egress {
     from_port   = 0

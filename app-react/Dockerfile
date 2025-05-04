@@ -53,5 +53,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 # Utiliser tini comme point d'entrée pour une meilleure gestion des signaux
 ENTRYPOINT ["/sbin/tini", "--"]
 
-# Commande de démarrage
-CMD ["serve", "-s", "build", "-l", "3000"]
+# Commande de démarrage (écoute sur toutes les interfaces réseau)
+CMD ["serve", "-s", "build", "-l", "3000", "--listen", "0.0.0.0"]
