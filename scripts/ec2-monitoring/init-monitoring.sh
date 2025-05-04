@@ -488,11 +488,19 @@ fi
 
 # Authentification Docker Hub
 log "Authentification à Docker Hub avec l'utilisateur medsin"
-sudo docker login -u medsin
-if [ $? -eq 0 ]; then
-    log "✅ Authentification Docker Hub réussie"
+# Vérifier si les fichiers d'authentification Docker Hub existent
+if [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
+    DOCKER_TOKEN=$(cat /opt/monitoring/secure/dockerhub-token.txt)
+    DOCKER_USERNAME=$(cat /opt/monitoring/secure/dockerhub-username.txt)
+    echo "$DOCKER_TOKEN" | sudo docker login --username "$DOCKER_USERNAME" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "✅ Authentification Docker Hub réussie avec le token"
+    else
+        log "❌ Échec de l'authentification Docker Hub avec le token"
+        log "Tentative d'utilisation des images publiques"
+    fi
 else
-    log "❌ Échec de l'authentification Docker Hub"
+    log "❌ Fichiers d'authentification Docker Hub non trouvés"
     log "Tentative d'utilisation des images publiques"
 fi
 

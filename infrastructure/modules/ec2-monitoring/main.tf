@@ -284,8 +284,12 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires pour les fichiers de configuration"
 sudo mkdir -p /opt/monitoring/prometheus-rules
 sudo mkdir -p /opt/monitoring/config/prometheus
+sudo mkdir -p /opt/monitoring/config/grafana/datasources
+sudo mkdir -p /opt/monitoring/config/grafana/dashboards
 sudo mkdir -p /opt/monitoring/data/prometheus
 sudo mkdir -p /opt/monitoring/data/grafana
+sudo mkdir -p /opt/monitoring/loki/chunks
+sudo mkdir -p /opt/monitoring/loki/index
 sudo mkdir -p /config
 
 # Utiliser wget avec plus de verbosité pour télécharger le script d'initialisation
@@ -337,6 +341,14 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des fichiers de configurat
 sudo wget -q -O /opt/monitoring/config/prometheus/prometheus.yml "$GITHUB_RAW_URL/scripts/config/prometheus/prometheus.yml"
 sudo wget -q -O /opt/monitoring/prometheus-rules/container-alerts.yml "$GITHUB_RAW_URL/scripts/config/prometheus/container-alerts.yml"
 sudo wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$GITHUB_RAW_URL/scripts/config/cloudwatch-config.yml"
+sudo wget -q -O /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
+sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
+
+# Télécharger les fichiers de configuration Grafana
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des fichiers de configuration Grafana"
+sudo wget -q -O /opt/monitoring/config/grafana/datasources/prometheus.yml "$GITHUB_RAW_URL/scripts/config/grafana/datasources/prometheus.yml"
+sudo wget -q -O /opt/monitoring/config/grafana/datasources/loki.yml "$GITHUB_RAW_URL/scripts/config/grafana/datasources/loki.yml"
+sudo wget -q -O /opt/monitoring/config/grafana/dashboards/default.yml "$GITHUB_RAW_URL/scripts/config/grafana/dashboards/default.yml"
 
 # Créer un lien symbolique pour le fichier cloudwatch-config.yml
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un lien symbolique pour le fichier cloudwatch-config.yml"
@@ -352,6 +364,26 @@ host=localhost
 port=3306
 EOF"
 sudo chmod 600 /opt/monitoring/.my.cnf
+
+# Créer le répertoire secure pour les tokens
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du répertoire secure pour les tokens"
+sudo mkdir -p /opt/monitoring/secure
+sudo chmod 700 /opt/monitoring/secure
+
+# Créer un fichier de token Docker Hub (à remplacer par le vrai token dans les variables d'environnement)
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier de token Docker Hub"
+# Utiliser une variable d'environnement ou un placeholder
+DOCKERHUB_TOKEN="${var.dockerhub_token}"
+if [ -z "$DOCKERHUB_TOKEN" ]; then
+  DOCKERHUB_TOKEN="placeholder_token"
+fi
+echo "$DOCKERHUB_TOKEN" | sudo tee /opt/monitoring/secure/dockerhub-token.txt > /dev/null
+sudo chmod 600 /opt/monitoring/secure/dockerhub-token.txt
+
+# Créer un fichier avec le nom d'utilisateur Docker Hub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier avec le nom d'utilisateur Docker Hub"
+echo "medsin" | sudo tee /opt/monitoring/secure/dockerhub-username.txt > /dev/null
+sudo chmod 600 /opt/monitoring/secure/dockerhub-username.txt
 
 # S'assurer que tous les scripts sont exécutables
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"

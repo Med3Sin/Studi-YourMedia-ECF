@@ -226,6 +226,9 @@ module "ec2-monitoring" {
   repo_owner = var.repo_owner
   repo_name  = var.repo_name
 
+  # Variables pour Docker Hub
+  dockerhub_token = var.dockerhub_token
+
   # Dépendances explicites
   depends_on = [
     module.s3,
