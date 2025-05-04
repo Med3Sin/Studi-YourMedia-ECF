@@ -60,14 +60,12 @@ services:
         max-file: "3"
 
   loki:
-    image: grafana/loki:2.9.2
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:loki-latest
     container_name: loki
     ports:
       - "3100:3100"
     restart: always
-    command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - /opt/monitoring/config/loki-config.yml:/etc/loki/local-config.yaml
       - /opt/monitoring/loki:/loki
     user: "0"
     logging:
@@ -77,13 +75,11 @@ services:
         max-file: "3"
 
   promtail:
-    image: grafana/promtail:2.9.2
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:promtail-latest
     container_name: promtail
     restart: always
     volumes:
       - /var/log:/var/log
-      - /opt/monitoring/config/promtail-config.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
     logging:

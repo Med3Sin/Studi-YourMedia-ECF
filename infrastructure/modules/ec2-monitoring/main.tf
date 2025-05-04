@@ -385,6 +385,11 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier avec le nom d'utilisat
 echo "medsin" | sudo tee /opt/monitoring/secure/dockerhub-username.txt > /dev/null
 sudo chmod 600 /opt/monitoring/secure/dockerhub-username.txt
 
+# Créer un fichier avec le nom du dépôt Docker Hub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier avec le nom du dépôt Docker Hub"
+echo "yourmedia-ecf" | sudo tee /opt/monitoring/secure/dockerhub-repo.txt > /dev/null
+sudo chmod 600 /opt/monitoring/secure/dockerhub-repo.txt
+
 # S'assurer que tous les scripts sont exécutables
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
 sudo chmod +x /opt/monitoring/*.sh 2>/dev/null || true

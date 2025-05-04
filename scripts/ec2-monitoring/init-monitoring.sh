@@ -514,8 +514,21 @@ sudo chmod -R 777 /opt/monitoring/loki
 
 # Démarrer les conteneurs Docker
 log "Démarrage des conteneurs Docker"
+# Exporter les variables d'environnement pour Docker Compose
+if [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
+    export DOCKERHUB_USERNAME=$(cat /opt/monitoring/secure/dockerhub-username.txt)
+else
+    export DOCKERHUB_USERNAME="medsin"
+fi
+
+if [ -f "/opt/monitoring/secure/dockerhub-repo.txt" ]; then
+    export DOCKERHUB_REPO=$(cat /opt/monitoring/secure/dockerhub-repo.txt)
+else
+    export DOCKERHUB_REPO="yourmedia-ecf"
+fi
+
 cd /opt/monitoring
-sudo docker-compose up -d
+sudo -E docker-compose up -d
 
 # Vérifier que les conteneurs sont bien démarrés
 log "Vérification du démarrage des conteneurs"

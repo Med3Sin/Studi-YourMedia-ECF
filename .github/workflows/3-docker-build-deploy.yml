@@ -86,6 +86,32 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Build and push Loki image
+      - name: Build and push Loki image
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/config/loki
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:loki-${{ env.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:loki-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build and push Promtail image
+      - name: Build and push Promtail image
+        if: ${{ github.event.inputs.target == 'all' || github.event.inputs.target == 'monitoring' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./scripts/config/promtail
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:promtail-${{ env.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:promtail-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
 
 
       # Install Trivy scanner for security scanning
