@@ -34,6 +34,10 @@ WORKDIR /app
 # Copier les fichiers de build depuis l'étape précédente
 COPY --from=builder /app/dist /app/build
 
+# Copier le script d'entrée
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Créer un utilisateur non-root pour des raisons de sécurité
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
@@ -51,7 +55,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/ || exit 1
 
 # Utiliser tini comme point d'entrée pour une meilleure gestion des signaux
-ENTRYPOINT ["/sbin/tini", "--"]
-
-# Commande de démarrage (écoute sur toutes les interfaces réseau)
-CMD ["serve", "-s", "build", "-l", "0.0.0.0:3000"]
+ENTRYPOINT ["/sbin/tini", "--", "/app/docker-entrypoint.sh"]
