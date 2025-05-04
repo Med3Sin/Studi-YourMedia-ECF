@@ -341,6 +341,11 @@ check_deploy_vars() {
                 log_error "L'adresse IP de l'instance EC2 de monitoring n'est pas définie. Veuillez définir la variable TF_MONITORING_EC2_PUBLIC_IP ou MONITORING_EC2_PUBLIC_IP."
             fi
         fi
+
+        # Avertissement si EC2_APP_IP est défini mais pas utilisé
+        if [ -n "$EC2_APP_IP" ]; then
+            log_warning "La variable EC2_APP_IP est définie mais n'est plus utilisée. L'application mobile est maintenant déployée sur l'instance de monitoring (EC2_MONITORING_IP)."
+        fi
     fi
 
     if [ "$TARGET" = "monitoring" ] || [ "$TARGET" = "all" ]; then
@@ -454,7 +459,7 @@ deploy_monitoring() {
         echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
         # Créer les répertoires nécessaires
-        sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/cloudwatch-config /opt/monitoring/prometheus-rules
+        sudo mkdir -p /opt/monitoring/prometheus-data /opt/monitoring/grafana-data /opt/monitoring/prometheus-rules
 
         # Configurer les permissions
         sudo chown -R 1000:1000 /opt/monitoring/grafana-data
@@ -463,14 +468,19 @@ deploy_monitoring() {
         echo "fs.file-max=4096" | sudo tee -a /etc/sysctl.conf
         sudo sysctl -p
 
-        # Créer le fichier docker-compose.yml
-        cat > /tmp/docker-compose.yml << 'EOFINNER'
+        # Créer des fichiers de configuration pour les variables
+        echo "$DOCKERHUB_USERNAME" | sudo tee /opt/monitoring/dockerhub_username.txt > /dev/null
+        echo "$DOCKERHUB_REPO" | sudo tee /opt/monitoring/dockerhub_repo.txt > /dev/null
+        echo "$GRAFANA_ADMIN_PASSWORD" | sudo tee /opt/monitoring/grafana_admin_password.txt > /dev/null
+
+        # Créer le fichier docker-compose.yml avec les variables déjà remplacées
+        cat > /tmp/docker-compose.yml << EOF_COMPOSE
 version: '3'
 
 services:
   # Prometheus pour la surveillance
   prometheus:
-    image: $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:prometheus-latest
+    image: $(cat /opt/monitoring/dockerhub_username.txt)/$(cat /opt/monitoring/dockerhub_repo.txt):prometheus-latest
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -487,14 +497,14 @@ services:
 
   # Grafana pour la visualisation
   grafana:
-    image: $DOCKERHUB_USERNAME/$DOCKERHUB_REPO:grafana-latest
+    image: $(cat /opt/monitoring/dockerhub_username.txt)/$(cat /opt/monitoring/dockerhub_repo.txt):grafana-latest
     container_name: grafana
     ports:
       - "3000:3000"
     volumes:
       - /opt/monitoring/grafana-data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=$GRAFANA_ADMIN_PASSWORD
+      - GF_SECURITY_ADMIN_PASSWORD=$(cat /opt/monitoring/grafana_admin_password.txt)
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -511,7 +521,7 @@ services:
 
   # Application React
   app-mobile:
-    image: $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest
+    image: $(cat /opt/monitoring/dockerhub_username.txt)/$(cat /opt/monitoring/dockerhub_repo.txt):mobile-latest
     container_name: app-mobile
     ports:
       - "8080:3000"
@@ -525,9 +535,6 @@ services:
         max-file: "3"
     mem_limit: 512m
     cpu_shares: 512
-
-
-
 
   # Node Exporter pour la surveillance du système
   node-exporter:
@@ -551,17 +558,7 @@ services:
         max-file: "3"
     mem_limit: 256m
     cpu_shares: 256
-EOFINNER
-
-        # Remplacer les variables dans le fichier docker-compose.yml
-        sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /tmp/docker-compose.yml
-        sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /tmp/docker-compose.yml
-        sed -i "s/\$GF_SECURITY_ADMIN_PASSWORD/$GRAFANA_ADMIN_PASSWORD/g" /tmp/docker-compose.yml
-        sed -i "s/\$DB_USERNAME/$RDS_USERNAME/g" /tmp/docker-compose.yml
-        sed -i "s/\$DB_PASSWORD/$RDS_PASSWORD/g" /tmp/docker-compose.yml
-        sed -i "s/\$RDS_ENDPOINT/$RDS_ENDPOINT/g" /tmp/docker-compose.yml
-        sed -i "s/\$GITHUB_CLIENT_ID/$GITHUB_CLIENT_ID/g" /tmp/docker-compose.yml
-        sed -i "s/\$GITHUB_CLIENT_SECRET/$GITHUB_CLIENT_SECRET/g" /tmp/docker-compose.yml
+EOF_COMPOSE
 
         # Déplacer le fichier docker-compose.yml
         sudo mv /tmp/docker-compose.yml /opt/monitoring/docker-compose.yml
@@ -607,12 +604,16 @@ deploy_mobile() {
     # Se connecter à l'instance EC2 et déployer les conteneurs
     ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
         # Connexion à Docker Hub
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
         # Vérifier si le répertoire de monitoring existe déjà
         if [ ! -d "/opt/monitoring" ]; then
             sudo mkdir -p /opt/monitoring
         fi
+
+        # Créer des fichiers de configuration pour les variables
+        echo "$DOCKERHUB_USERNAME" | sudo tee /opt/monitoring/dockerhub_username.txt > /dev/null
+        echo "$DOCKERHUB_REPO" | sudo tee /opt/monitoring/dockerhub_repo.txt > /dev/null
 
         # Ajouter la configuration de l'application mobile au docker-compose.yml existant
         if [ -f "/opt/monitoring/docker-compose.yml" ]; then
@@ -621,12 +622,31 @@ deploy_mobile() {
 
             # Vérifier si l'application mobile est déjà configurée
             if ! grep -q "app-mobile:" /opt/monitoring/docker-compose.yml; then
-                # Ajouter la configuration de l'application mobile avant la dernière ligne
-                sudo sed -i '$ i\\n  # Application React\n  app-mobile:\n    image: $DOCKER_USERNAME/$DOCKER_REPO:mobile-latest\n    container_name: app-mobile\n    ports:\n      - "8080:3000"\n    environment:\n      - NODE_ENV=production\n    restart: always\n    logging:\n      driver: "json-file"\n      options:\n        max-size: "10m"\n        max-file: "3"\n    mem_limit: 512m\n    cpu_shares: 512' /opt/monitoring/docker-compose.yml
+                # Créer un fichier temporaire avec la configuration de l'application mobile
+                cat > /tmp/app-mobile-config.yml << EOFAPP
+  # Application React
+  app-mobile:
+    image: $(cat /opt/monitoring/dockerhub_username.txt)/$(cat /opt/monitoring/dockerhub_repo.txt):mobile-latest
+    container_name: app-mobile
+    ports:
+      - "8080:3000"
+    environment:
+      - NODE_ENV=production
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
+EOFAPP
 
-                # Remplacer les variables dans le fichier docker-compose.yml
-                sudo sed -i "s/\$DOCKER_USERNAME/$DOCKER_USERNAME/g" /opt/monitoring/docker-compose.yml
-                sudo sed -i "s/\$DOCKER_REPO/$DOCKER_REPO/g" /opt/monitoring/docker-compose.yml
+                # Ajouter la configuration au fichier docker-compose.yml
+                sudo bash -c "cat /opt/monitoring/docker-compose.yml | grep -v '^}' > /tmp/docker-compose-temp.yml"
+                sudo bash -c "cat /tmp/app-mobile-config.yml >> /tmp/docker-compose-temp.yml"
+                sudo bash -c "echo '}' >> /tmp/docker-compose-temp.yml"
+                sudo mv /tmp/docker-compose-temp.yml /opt/monitoring/docker-compose.yml
             else
                 echo "L'application mobile est déjà configurée dans le fichier docker-compose.yml"
             fi
