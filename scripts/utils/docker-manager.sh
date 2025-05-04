@@ -611,27 +611,20 @@ deploy_mobile() {
             sudo mkdir -p /opt/monitoring
         fi
 
-        # Créer des fichiers de configuration pour les variables
-        echo "$DOCKERHUB_USERNAME" | sudo tee /opt/monitoring/dockerhub_username.txt > /dev/null
-        echo "$DOCKERHUB_REPO" | sudo tee /opt/monitoring/dockerhub_repo.txt > /dev/null
+        # Créer un fichier docker-compose.yml spécifique pour l'application mobile
+        cat > /tmp/app-mobile-compose.yml << EOFAPP
+version: '3'
 
-        # Ajouter la configuration de l'application mobile au docker-compose.yml existant
-        if [ -f "/opt/monitoring/docker-compose.yml" ]; then
-            # Sauvegarder le fichier original
-            sudo cp /opt/monitoring/docker-compose.yml /opt/monitoring/docker-compose.yml.bak
-
-            # Vérifier si l'application mobile est déjà configurée
-            if ! grep -q "app-mobile:" /opt/monitoring/docker-compose.yml; then
-                # Créer un fichier temporaire avec la configuration de l'application mobile
-                cat > /tmp/app-mobile-config.yml << EOFAPP
+services:
   # Application React
   app-mobile:
-    image: $(cat /opt/monitoring/dockerhub_username.txt)/$(cat /opt/monitoring/dockerhub_repo.txt):mobile-latest
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:mobile-latest
     container_name: app-mobile
     ports:
       - "8080:3000"
     environment:
       - NODE_ENV=production
+      - HOST=0.0.0.0
     restart: always
     logging:
       driver: "json-file"
@@ -642,29 +635,54 @@ deploy_mobile() {
     cpu_shares: 512
 EOFAPP
 
-                # Ajouter la configuration au fichier docker-compose.yml
-                sudo bash -c "cat /opt/monitoring/docker-compose.yml | grep -v '^}' > /tmp/docker-compose-temp.yml"
-                sudo bash -c "cat /tmp/app-mobile-config.yml >> /tmp/docker-compose-temp.yml"
-                sudo bash -c "echo '}' >> /tmp/docker-compose-temp.yml"
-                sudo mv /tmp/docker-compose-temp.yml /opt/monitoring/docker-compose.yml
-            else
-                echo "L'application mobile est déjà configurée dans le fichier docker-compose.yml"
-            fi
-        else
-            echo "Le fichier docker-compose.yml n'existe pas dans /opt/monitoring"
-            exit 1
-        fi
+        # Déplacer le fichier vers le répertoire de monitoring
+        sudo mv /tmp/app-mobile-compose.yml /opt/monitoring/app-mobile-compose.yml
 
-        # Démarrer les conteneurs
+        # Démarrer le conteneur avec le fichier spécifique
         cd /opt/monitoring
-        sudo docker-compose pull app-mobile
-        sudo docker-compose up -d app-mobile
+        echo "Pulling the latest mobile app image..."
+        sudo docker pull ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:mobile-latest
 
-        # Vérifier que les conteneurs sont en cours d'exécution
+        echo "Stopping any existing app-mobile container..."
+        sudo docker stop app-mobile 2>/dev/null || true
+        sudo docker rm app-mobile 2>/dev/null || true
+
+        echo "Starting the app-mobile container..."
+        sudo docker-compose -f app-mobile-compose.yml up -d
+
+        # Vérifier que le conteneur est en cours d'exécution
+        echo "Checking if the container is running..."
         sudo docker ps | grep app-mobile
+
+        # Afficher les logs du conteneur
+        echo "Container logs:"
+        sudo docker logs app-mobile
 EOF
 
     # Le fichier temporaire de la clé SSH sera supprimé automatiquement grâce au trap EXIT
+
+    # Vérifier l'état du conteneur après le déploiement
+    sleep 5
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
+        echo "Vérification de l'état du conteneur app-mobile..."
+        if sudo docker ps | grep -q app-mobile; then
+            echo "✅ Le conteneur app-mobile est en cours d'exécution"
+
+            # Vérifier si l'application est accessible
+            echo "Vérification de l'accessibilité de l'application..."
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080; then
+                echo "✅ L'application est accessible localement"
+            else
+                echo "⚠️ L'application n'est pas accessible localement"
+                echo "Logs du conteneur:"
+                sudo docker logs app-mobile
+            fi
+        else
+            echo "❌ Le conteneur app-mobile n'est pas en cours d'exécution"
+            echo "Logs du conteneur (s'il existe):"
+            sudo docker logs app-mobile 2>/dev/null || echo "Aucun log disponible"
+        fi
+EOF
 
     log_success "Déploiement de l'application mobile sur l'instance de monitoring terminé."
     log_info "L'application est accessible à l'adresse: http://$EC2_MONITORING_IP:8080"
