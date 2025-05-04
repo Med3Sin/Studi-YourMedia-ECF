@@ -208,7 +208,39 @@ jobs:
           echo "Déploiement terminé."
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
-      # Étape 9: Résumé du déploiement
+      # Étape 9: Extraction du nom de l'application à partir du nom du WAR
+      - name: Extract App Name
+        run: |
+          # Extraire le nom de l'application à partir du nom du WAR (sans l'extension .war)
+          APP_NAME=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+          echo "Nom de l'application extrait: $APP_NAME"
+
+      # Étape 10: Vérification de l'application déployée
+      - name: Verify Deployment
+        run: |
+          echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
+          # Attendre que l'application soit disponible
+          echo "Attente de la disponibilité de l'application..."
+          sleep 10
+
+          # Vérifier si l'application est accessible
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }})
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ L'application est accessible (HTTP 200)"
+          else
+            echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
+            echo "Tentative d'accès à l'URL avec /index.html..."
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/index.html)
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ L'application est accessible via /index.html (HTTP 200)"
+            else
+              echo "⚠️ L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
+            fi
+          fi
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 11: Résumé du déploiement
       - name: Summary
         run: |
           echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
@@ -216,6 +248,7 @@ jobs:
           echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          # Utiliser le contexte configuré dans application.properties
-          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/hello-world/" >> $GITHUB_STEP_SUMMARY
+          # Utiliser le nom du WAR sans l'extension
+          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'API Health:** http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
