@@ -54,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # Commande de démarrage (écoute sur toutes les interfaces réseau)
-CMD ["serve", "-s", "build", "-l", "3000", "--listen", "0.0.0.0"]
+CMD ["serve", "-s", "build", "-l", "0.0.0.0:3000"]

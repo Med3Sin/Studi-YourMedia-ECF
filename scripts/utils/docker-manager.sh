@@ -624,7 +624,6 @@ services:
       - "8080:3000"
     environment:
       - NODE_ENV=production
-      - HOST=0.0.0.0
     restart: always
     logging:
       driver: "json-file"
