@@ -38,6 +38,27 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8081:8080"
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -80,6 +101,8 @@ services:
     restart: always
     volumes:
       - /var/log:/var/log
+      - /mnt/ec2-java-tomcat-logs:/mnt/ec2-java-tomcat-logs
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     depends_on:
       - loki
     logging:

@@ -486,6 +486,39 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
+# Téléchargement et installation du script de synchronisation des logs Tomcat
+log "Téléchargement et installation du script de synchronisation des logs Tomcat"
+sudo mkdir -p /opt/monitoring/scripts
+sudo wget -q -O /opt/monitoring/scripts/sync-tomcat-logs.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.sh"
+sudo chmod +x /opt/monitoring/scripts/sync-tomcat-logs.sh
+
+# Création du répertoire pour les logs Tomcat
+log "Création du répertoire pour les logs Tomcat"
+sudo mkdir -p /mnt/ec2-java-tomcat-logs
+
+# Installation du service de synchronisation des logs Tomcat
+log "Installation du service de synchronisation des logs Tomcat"
+sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.service"
+sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.timer"
+sudo systemctl daemon-reload
+sudo systemctl enable sync-tomcat-logs.timer
+sudo systemctl start sync-tomcat-logs.timer
+log "Service sync-tomcat-logs installé et activé"
+
+# Téléchargement et installation du script de mise à jour des cibles Prometheus
+log "Téléchargement et installation du script de mise à jour des cibles Prometheus"
+sudo wget -q -O /opt/monitoring/scripts/update-prometheus-targets.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.sh"
+sudo chmod +x /opt/monitoring/scripts/update-prometheus-targets.sh
+
+# Installation du service de mise à jour des cibles Prometheus
+log "Installation du service de mise à jour des cibles Prometheus"
+sudo wget -q -O /etc/systemd/system/update-prometheus-targets.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.service"
+sudo wget -q -O /etc/systemd/system/update-prometheus-targets.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.timer"
+sudo systemctl daemon-reload
+sudo systemctl enable update-prometheus-targets.timer
+sudo systemctl start update-prometheus-targets.timer
+log "Service update-prometheus-targets installé et activé"
+
 # Authentification Docker Hub
 log "Authentification à Docker Hub avec l'utilisateur medsin"
 # Vérifier si les fichiers d'authentification Docker Hub existent

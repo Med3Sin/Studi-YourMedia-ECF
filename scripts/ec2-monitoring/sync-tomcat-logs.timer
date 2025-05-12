@@ -1,0 +1,11 @@
+[Unit]
+Description=Exécute la synchronisation des logs de Tomcat toutes les 5 minutes
+Requires=sync-tomcat-logs.service
+
+[Timer]
+Unit=sync-tomcat-logs.service
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
