@@ -492,6 +492,47 @@ sudo mkdir -p /opt/monitoring/scripts
 sudo wget -q -O /opt/monitoring/scripts/sync-tomcat-logs.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.sh"
 sudo chmod +x /opt/monitoring/scripts/sync-tomcat-logs.sh
 
+# Téléchargement et installation du script de mise à jour des cibles Prometheus
+log "Téléchargement et installation du script de mise à jour des cibles Prometheus"
+sudo wget -q -O /opt/monitoring/scripts/update-prometheus-targets.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.sh"
+sudo chmod +x /opt/monitoring/scripts/update-prometheus-targets.sh
+
+# Téléchargement et installation du script de configuration des clés SSH
+log "Téléchargement et installation du script de configuration des clés SSH"
+sudo mkdir -p /opt/scripts/utils
+sudo wget -q -O /opt/scripts/utils/setup-ssh-keys.sh "$GITHUB_RAW_URL/scripts/utils/setup-ssh-keys.sh"
+sudo wget -q -O /opt/scripts/utils/fix-ssh-keys.sh "$GITHUB_RAW_URL/scripts/utils/fix-ssh-keys.sh"
+sudo chmod +x /opt/scripts/utils/setup-ssh-keys.sh
+sudo chmod +x /opt/scripts/utils/fix-ssh-keys.sh
+
+# Création du répertoire pour les secrets
+log "Création du répertoire pour les secrets"
+sudo mkdir -p /opt/secrets
+
+# Récupération des secrets GitHub depuis les variables d'environnement
+log "Récupération des secrets GitHub depuis les variables d'environnement"
+if [ -n "$EC2_SSH_PRIVATE_KEY" ]; then
+    log "Stockage de la clé privée SSH"
+    echo "$EC2_SSH_PRIVATE_KEY" > /opt/secrets/EC2_SSH_PRIVATE_KEY
+    chmod 600 /opt/secrets/EC2_SSH_PRIVATE_KEY
+fi
+
+if [ -n "$EC2_SSH_PUBLIC_KEY" ]; then
+    log "Stockage de la clé publique SSH"
+    echo "$EC2_SSH_PUBLIC_KEY" > /opt/secrets/EC2_SSH_PUBLIC_KEY
+    chmod 644 /opt/secrets/EC2_SSH_PUBLIC_KEY
+fi
+
+if [ -n "$EC2_KEY_PAIR_NAME" ]; then
+    log "Stockage du nom de la paire de clés"
+    echo "$EC2_KEY_PAIR_NAME" > /opt/secrets/EC2_KEY_PAIR_NAME
+    chmod 644 /opt/secrets/EC2_KEY_PAIR_NAME
+fi
+
+# Configuration des clés SSH
+log "Configuration des clés SSH"
+sudo /opt/scripts/utils/setup-ssh-keys.sh
+
 # Création du répertoire pour les logs Tomcat
 log "Création du répertoire pour les logs Tomcat"
 sudo mkdir -p /mnt/ec2-java-tomcat-logs
@@ -500,15 +541,54 @@ sudo mkdir -p /mnt/ec2-java-tomcat-logs
 log "Installation du service de synchronisation des logs Tomcat"
 sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.service"
 sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.timer"
+
+# Téléchargement et installation du script de génération de logs de test
+log "Téléchargement et installation du script de génération de logs de test"
+sudo wget -q -O /opt/monitoring/scripts/generate-test-logs.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/generate-test-logs.sh"
+sudo chmod +x /opt/monitoring/scripts/generate-test-logs.sh
+
+# Installation du service de génération de logs de test
+log "Installation du service de génération de logs de test"
+sudo wget -q -O /etc/systemd/system/generate-test-logs.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/generate-test-logs.service"
+sudo wget -q -O /etc/systemd/system/generate-test-logs.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/generate-test-logs.timer"
 sudo systemctl daemon-reload
 sudo systemctl enable sync-tomcat-logs.timer
 sudo systemctl start sync-tomcat-logs.timer
 log "Service sync-tomcat-logs installé et activé"
 
+sudo systemctl enable generate-test-logs.timer
+sudo systemctl start generate-test-logs.timer
+log "Service generate-test-logs installé et activé"
+
 # Téléchargement et installation du script de mise à jour des cibles Prometheus
 log "Téléchargement et installation du script de mise à jour des cibles Prometheus"
 sudo wget -q -O /opt/monitoring/scripts/update-prometheus-targets.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.sh"
 sudo chmod +x /opt/monitoring/scripts/update-prometheus-targets.sh
+
+# Copie des fichiers de configuration depuis le répertoire local
+log "Copie des fichiers de configuration depuis le répertoire local"
+if [ -d "/scripts/config" ]; then
+    log "Utilisation des fichiers locaux pour la configuration"
+    sudo mkdir -p /opt/monitoring/config
+    sudo cp -r /scripts/config/* /opt/monitoring/config/
+
+    # Copie des fichiers de configuration spécifiques
+    if [ -f "/scripts/config/prometheus/prometheus.yml" ]; then
+        sudo cp /scripts/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+    fi
+
+    if [ -f "/scripts/config/loki/loki-config.yml" ]; then
+        sudo cp /scripts/config/loki/loki-config.yml /opt/monitoring/loki-config.yml
+    fi
+
+    if [ -f "/scripts/config/promtail/promtail-config.yml" ]; then
+        sudo cp /scripts/config/promtail/promtail-config.yml /opt/monitoring/promtail-config.yml
+    fi
+
+    log "Fichiers de configuration copiés avec succès"
+else
+    log "Le répertoire local de configuration n'existe pas, utilisation des fichiers téléchargés"
+fi
 
 # Installation du service de mise à jour des cibles Prometheus
 log "Installation du service de mise à jour des cibles Prometheus"

@@ -41,14 +41,9 @@ if [ ! -d "/mnt/ec2-java-tomcat-logs" ]; then
     fi
 fi
 
-# Récupérer l'adresse IP privée de l'instance EC2 Java Tomcat
-# Nous utilisons les tags AWS pour identifier l'instance
-log_info "Récupération de l'adresse IP privée de l'instance EC2 Java Tomcat"
-JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=yourmedia-dev-app-server" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
-
-if [ -z "$JAVA_TOMCAT_IP" ]; then
-    log_error "Impossible de récupérer l'adresse IP privée de l'instance EC2 Java Tomcat"
-fi
+# Utiliser l'adresse IP privée statique de l'instance EC2 Java Tomcat
+log_info "Utilisation de l'adresse IP privée statique de l'instance EC2 Java Tomcat"
+JAVA_TOMCAT_IP="10.0.1.135"  # Adresse IP privée statique de l'instance EC2 Java Tomcat
 
 log_info "Adresse IP privée de l'instance EC2 Java Tomcat : $JAVA_TOMCAT_IP"
 

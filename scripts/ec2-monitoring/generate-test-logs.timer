@@ -1,0 +1,11 @@
+[Unit]
+Description=Exécute la génération de logs de test toutes les 5 minutes
+Requires=generate-test-logs.service
+
+[Timer]
+Unit=generate-test-logs.service
+OnBootSec=1min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

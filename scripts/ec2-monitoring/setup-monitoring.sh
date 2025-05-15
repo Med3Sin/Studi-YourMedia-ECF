@@ -403,11 +403,30 @@ EOF'
 create_grafana_dashboards() {
     log "Création des dashboards Grafana"
     sudo mkdir -p /opt/monitoring/config/grafana/dashboards
-    sudo mkdir -p /var/lib/grafana/dashboards
+
+    # Créer le répertoire pour stocker les tableaux de bord
+    log "Création du répertoire des dashboards Grafana"
+    sudo mkdir -p /opt/monitoring/config/grafana/dashboards/dashboards
+    sudo chmod -R 755 /opt/monitoring/config/grafana/dashboards
 
     # Vérifier si le fichier existe déjà
     if [ -f "/opt/monitoring/config/grafana/dashboards/default.yml" ]; then
         log "Le fichier de configuration des dashboards Grafana existe déjà"
+        # Mettre à jour le fichier pour pointer vers le bon répertoire
+        sudo bash -c 'cat > /opt/monitoring/config/grafana/dashboards/default.yml << "EOF"
+apiVersion: 1
+
+providers:
+  - name: "Default"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards
+EOF'
+        log "Fichier de configuration des dashboards Grafana mis à jour avec succès"
     else
         # Créer le fichier de configuration des dashboards
         sudo bash -c 'cat > /opt/monitoring/config/grafana/dashboards/default.yml << "EOF"
@@ -421,34 +440,69 @@ providers:
     disableDeletion: false
     editable: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /etc/grafana/dashboards
 EOF'
         log "Fichier de configuration des dashboards Grafana créé avec succès"
     fi
 
-    # Télécharger les tableaux de bord depuis GitHub
-    log "Téléchargement des tableaux de bord Grafana depuis GitHub"
-    GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
+    # Modifier le docker-compose.yml pour monter le répertoire des tableaux de bord
+    log "Modification du docker-compose.yml pour monter le répertoire des tableaux de bord"
+    if ! grep -q "/opt/monitoring/config/grafana/dashboards/dashboards:/etc/grafana/dashboards" /opt/monitoring/docker-compose.yml; then
+        sudo sed -i 's|- /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards|- /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards\n      - /opt/monitoring/config/grafana/dashboards/dashboards:/etc/grafana/dashboards|g' /opt/monitoring/docker-compose.yml
+        log "docker-compose.yml modifié avec succès"
+    else
+        log "Le volume pour les tableaux de bord est déjà configuré dans docker-compose.yml"
+    fi
 
-    # Télécharger le tableau de bord des logs de l'application Java
-    log "Téléchargement du tableau de bord des logs de l'application Java"
-    sudo wget -q -O /var/lib/grafana/dashboards/java-app-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/java-app-logs-dashboard.json"
+    # Copier les tableaux de bord depuis le répertoire local
+    log "Copie des tableaux de bord Grafana depuis le répertoire local"
 
-    # Télécharger le tableau de bord des logs des conteneurs
-    log "Téléchargement du tableau de bord des logs des conteneurs"
-    sudo wget -q -O /var/lib/grafana/dashboards/container-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/logs-dashboard.json"
+    # Vérifier si les fichiers existent dans le répertoire local
+    if [ -f "/scripts/config/grafana/java-app-logs-dashboard.json" ] && [ -f "/scripts/config/grafana/logs-dashboard.json" ] && [ -f "/scripts/config/grafana/system-overview.json" ] && [ -f "/scripts/config/grafana/react-app-dashboard.json" ]; then
+        log "Utilisation des fichiers locaux pour les tableaux de bord"
+        sudo cp /scripts/config/grafana/java-app-logs-dashboard.json /opt/monitoring/config/grafana/dashboards/dashboards/java-app-logs.json
+        sudo cp /scripts/config/grafana/logs-dashboard.json /opt/monitoring/config/grafana/dashboards/dashboards/container-logs.json
+        sudo cp /scripts/config/grafana/system-overview.json /opt/monitoring/config/grafana/dashboards/dashboards/system-overview.json
+        sudo cp /scripts/config/grafana/react-app-dashboard.json /opt/monitoring/config/grafana/dashboards/dashboards/react-app-dashboard.json
+    else
+        # Si les fichiers locaux n'existent pas, télécharger depuis GitHub
+        log "Les fichiers locaux n'existent pas, téléchargement depuis GitHub"
+        GITHUB_RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER:-Med3Sin}/${REPO_NAME:-Studi-YourMedia-ECF}/main"
 
-    # Télécharger le tableau de bord de l'aperçu du système
-    log "Téléchargement du tableau de bord de l'aperçu du système"
-    sudo wget -q -O /var/lib/grafana/dashboards/system-overview.json "$GITHUB_RAW_URL/scripts/config/grafana/system-overview.json"
+        # Télécharger le tableau de bord des logs de l'application Java
+        log "Téléchargement du tableau de bord des logs de l'application Java"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/java-app-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/java-app-logs-dashboard.json"
 
-    # Télécharger le tableau de bord de l'application React
-    log "Téléchargement du tableau de bord de l'application React"
-    sudo wget -q -O /var/lib/grafana/dashboards/react-app-dashboard.json "$GITHUB_RAW_URL/scripts/config/grafana/react-app-dashboard.json"
+        # Télécharger le tableau de bord des logs des conteneurs
+        log "Téléchargement du tableau de bord des logs des conteneurs"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/container-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/logs-dashboard.json"
+
+        # Télécharger le tableau de bord de l'aperçu du système
+        log "Téléchargement du tableau de bord de l'aperçu du système"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/system-overview.json "$GITHUB_RAW_URL/scripts/config/grafana/system-overview.json"
+
+        # Télécharger le tableau de bord de l'application React
+        log "Téléchargement du tableau de bord de l'application React"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/react-app-dashboard.json "$GITHUB_RAW_URL/scripts/config/grafana/react-app-dashboard.json"
+    fi
+
+    # Vérifier que les fichiers ont été téléchargés correctement
+    log "Vérification des fichiers de tableaux de bord"
+    if [ ! -f "/opt/monitoring/config/grafana/dashboards/dashboards/java-app-logs.json" ] || [ ! -f "/opt/monitoring/config/grafana/dashboards/dashboards/container-logs.json" ] || [ ! -f "/opt/monitoring/config/grafana/dashboards/dashboards/system-overview.json" ] || [ ! -f "/opt/monitoring/config/grafana/dashboards/dashboards/react-app-dashboard.json" ]; then
+        log "Certains fichiers de tableaux de bord n'ont pas été téléchargés correctement. Nouvelle tentative..."
+        sudo mkdir -p /opt/monitoring/config/grafana/dashboards/dashboards
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/java-app-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/java-app-logs-dashboard.json"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/container-logs.json "$GITHUB_RAW_URL/scripts/config/grafana/logs-dashboard.json"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/system-overview.json "$GITHUB_RAW_URL/scripts/config/grafana/system-overview.json"
+        sudo wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/react-app-dashboard.json "$GITHUB_RAW_URL/scripts/config/grafana/react-app-dashboard.json"
+    fi
 
     # Définir les permissions appropriées
-    sudo chown -R 472:472 /var/lib/grafana/dashboards
-    sudo chmod -R 755 /var/lib/grafana/dashboards
+    sudo chmod -R 755 /opt/monitoring/config/grafana/dashboards/dashboards
+
+    # Redémarrer Grafana pour prendre en compte les nouveaux tableaux de bord
+    log "Redémarrage de Grafana pour prendre en compte les nouveaux tableaux de bord"
+    sudo docker restart grafana
 
     log "Tableaux de bord Grafana téléchargés avec succès"
     return 0

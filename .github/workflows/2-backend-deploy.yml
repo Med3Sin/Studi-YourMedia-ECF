@@ -222,21 +222,60 @@ jobs:
           echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
           # Attendre que l'application soit disponible
           echo "Attente de la disponibilité de l'application..."
-          sleep 10
+          sleep 30  # Augmenter le temps d'attente à 30 secondes
 
-          # Vérifier si l'application est accessible
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }})
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ L'application est accessible (HTTP 200)"
-          else
-            echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
-            echo "Tentative d'accès à l'URL avec /index.html..."
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/index.html)
+          # Vérification plus robuste
+          echo "Vérification de l'application..."
+          MAX_ATTEMPTS=10
+          ATTEMPT=1
+          SUCCESS=false
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
+
+            # Vérifier l'accès direct à l'application
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }})
             if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ L'application est accessible via /index.html (HTTP 200)"
+              echo "✅ L'application est accessible (HTTP 200)"
+              SUCCESS=true
+              break
             else
-              echo "⚠️ L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
+              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
+
+              # Vérifier l'accès via index.html
+              echo "Tentative d'accès à l'URL avec /index.html..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/index.html)
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ L'application est accessible via /index.html (HTTP 200)"
+                SUCCESS=true
+                break
+              else
+                echo "⚠️ L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
+
+                # Vérifier l'accès à l'API health
+                echo "Tentative d'accès à l'API health..."
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health)
+                if [ "$HTTP_CODE" = "200" ]; then
+                  echo "✅ L'API health est accessible (HTTP 200)"
+                  SUCCESS=true
+                  break
+                else
+                  echo "⚠️ L'API health n'est pas accessible (HTTP $HTTP_CODE)"
+                fi
+              fi
             fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            if [ $ATTEMPT -le $MAX_ATTEMPTS ]; then
+              echo "Attente avant la prochaine tentative..."
+              sleep 10
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo "❌ L'application n'est pas accessible après $MAX_ATTEMPTS tentatives"
+            # Ne pas faire échouer le workflow pour le moment
+            # exit 1
           fi
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 

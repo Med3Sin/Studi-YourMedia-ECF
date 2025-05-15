@@ -70,7 +70,14 @@ fi
 
 # Attendre que Tomcat extraie le WAR
 log_info "Attente de l'extraction du WAR par Tomcat..."
-sleep 5
+sleep 10  # Augmenter le temps d'attente à 10 secondes
+
+# Vérifier si Tomcat est en cours d'exécution
+if ! sudo systemctl is-active --quiet tomcat; then
+  log_info "Tomcat n'est pas en cours d'exécution, démarrage de Tomcat..."
+  sudo systemctl start tomcat
+  sleep 5
+fi
 
 # Vérifier si le répertoire a été créé
 if [ -d "/opt/tomcat/webapps/$APP_NAME" ]; then
@@ -110,6 +117,18 @@ if [ -d "/opt/tomcat/webapps/$APP_NAME" ]; then
             color: #34495e;
             line-height: 1.6;
         }
+        .api-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+        }
+        .api-link:hover {
+            background-color: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -118,6 +137,9 @@ if [ -d "/opt/tomcat/webapps/$APP_NAME" ]; then
         <p>This is a simple Hello World application deployed on Tomcat.</p>
         <p>Application: $APP_NAME</p>
         <p>Deployment time: $(date)</p>
+        <h2>API Endpoints</h2>
+        <p>You can check the health of the application by visiting:</p>
+        <a href='api/health' class='api-link'>Health Check API</a>
     </div>
 </body>
 </html>
@@ -169,6 +191,62 @@ else
   log_error "Le port 8080 n'est pas ouvert"
 fi
 
-log_success "Déploiement terminé avec succès"
-log_info "L'application est accessible à l'adresse: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080/$APP_NAME/"
+# Vérifier si l'application est accessible
+log_info "Vérification de l'accès à l'application..."
+MAX_ATTEMPTS=5
+ATTEMPT=1
+SUCCESS=false
+
+while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+  log_info "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
+
+  # Vérifier l'accès direct à l'application
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$APP_NAME)
+  if [ "$HTTP_CODE" = "200" ]; then
+    log_success "L'application est accessible (HTTP 200)"
+    SUCCESS=true
+    break
+  else
+    log_info "L'application n'est pas accessible (HTTP $HTTP_CODE)"
+
+    # Vérifier l'accès via index.html
+    log_info "Tentative d'accès à l'URL avec /index.html..."
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$APP_NAME/index.html)
+    if [ "$HTTP_CODE" = "200" ]; then
+      log_success "L'application est accessible via /index.html (HTTP 200)"
+      SUCCESS=true
+      break
+    else
+      log_info "L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
+
+      # Vérifier l'accès à l'API health
+      log_info "Tentative d'accès à l'API health..."
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$APP_NAME/api/health)
+      if [ "$HTTP_CODE" = "200" ]; then
+        log_success "L'API health est accessible (HTTP 200)"
+        SUCCESS=true
+        break
+      else
+        log_info "L'API health n'est pas accessible (HTTP $HTTP_CODE)"
+      fi
+    fi
+  fi
+
+  ATTEMPT=$((ATTEMPT+1))
+  if [ $ATTEMPT -le $MAX_ATTEMPTS ]; then
+    log_info "Attente avant la prochaine tentative..."
+    sleep 5
+  fi
+done
+
+if [ "$SUCCESS" = "false" ]; then
+  log_info "L'application n'est pas accessible après $MAX_ATTEMPTS tentatives"
+  log_info "Vérifiez les logs de Tomcat pour plus d'informations: /opt/tomcat/logs/catalina.out"
+else
+  log_success "Déploiement terminé avec succès"
+fi
+
+# Obtenir l'adresse IP publique
+PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+log_info "L'application est accessible à l'adresse: http://$PUBLIC_IP:8080/$APP_NAME/"
 exit 0
