@@ -46,15 +46,15 @@ resource "aws_security_group_rule" "ec2_ingress_tomcat" {
   description       = "Allow Tomcat traffic (API)"
 }
 
-# Règle entrante: Prometheus Actuator Endpoint (depuis le SG ECS)
+# Règle entrante: Prometheus Actuator Endpoint (depuis le SG Monitoring)
 resource "aws_security_group_rule" "ec2_ingress_prometheus_actuator" {
   type                     = "ingress"
   from_port                = 8080 # Le port de l'API Spring Boot
   to_port                  = 8080
   protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring_sg.id # Autorise depuis le SG ECS
+  source_security_group_id = aws_security_group.monitoring_sg.id # Autorise depuis le SG Monitoring
   security_group_id        = aws_security_group.ec2_sg.id
-  description              = "Allow Prometheus scrape from ECS SG"
+  description              = "Allow Prometheus scrape from EC2 Monitoring SG"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
@@ -108,11 +108,11 @@ resource "aws_security_group_rule" "rds_egress_all" {
 
 
 # -----------------------------------------------------------------------------
-# Security Group pour les tâches ECS Fargate (ecs-monitoring)
+# Security Group pour l'instance EC2 Docker Monitoring
 # -----------------------------------------------------------------------------
 resource "aws_security_group" "monitoring_sg" {
   name        = "${var.project_name}-${var.environment}-monitoring-sg"
-  description = "Allows inbound traffic for Grafana and outbound for Prometheus"
+  description = "Allows inbound traffic for Grafana, Prometheus, cAdvisor and other monitoring tools"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -153,6 +153,28 @@ resource "aws_security_group_rule" "monitoring_ingress_prometheus" {
   cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
   security_group_id = aws_security_group.monitoring_sg.id
   description       = "Allow Prometheus access from anywhere"
+}
+
+# Règle entrante: cAdvisor (depuis n'importe où)
+resource "aws_security_group_rule" "monitoring_ingress_cadvisor" {
+  type              = "ingress"
+  from_port         = 8081 # Port cAdvisor modifié
+  to_port           = 8081
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
+  security_group_id = aws_security_group.monitoring_sg.id
+  description       = "Allow cAdvisor access from anywhere"
+}
+
+# Règle entrante: Application React (depuis n'importe où)
+resource "aws_security_group_rule" "monitoring_ingress_react_app" {
+  type              = "ingress"
+  from_port         = 8080 # Port de l'application React
+  to_port           = 8080
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"] # Ouvert à tous
+  security_group_id = aws_security_group.monitoring_sg.id
+  description       = "Allow React application access from anywhere"
 }
 
 # Règle sortante: Autorise tout le trafic sortant
