@@ -145,28 +145,38 @@ jobs:
           echo "Déploiement du WAR sur l'instance EC2..."
 
           # Connexion SSH à l'EC2 et utilisation d'AWS CLI pour copier depuis S3 vers Tomcat webapps
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} << EOF
+          # Exporter les variables AWS pour le script SSH
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          export AWS_REGION="${{ env.AWS_REGION }}"
+          export S3_BUCKET="${{ env.S3_BUCKET }}"
+          export DEPLOY_WAR_NAME="${{ env.DEPLOY_WAR_NAME }}"
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} << 'EOSSH'
             # Configuration d'AWS CLI avec les informations d'identification temporaires
             mkdir -p ~/.aws
-            cat > ~/.aws/credentials << EOC
-            [default]
-            aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            region=${{ env.AWS_REGION }}
-            EOC
 
-            cat > ~/.aws/config << EOC
-            [default]
-            region=${{ env.AWS_REGION }}
-            output=json
-            EOC
+            # Créer le fichier credentials
+            cat > ~/.aws/credentials << 'EOCRED'
+[default]
+aws_access_key_id=${AWS_ACCESS_KEY_ID}
+aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
+region=${AWS_REGION}
+EOCRED
+
+            # Créer le fichier config
+            cat > ~/.aws/config << 'EOCONF'
+[default]
+region=${AWS_REGION}
+output=json
+EOCONF
 
             # Télécharger le WAR depuis S3
             echo "Téléchargement du WAR depuis S3..."
-            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
+            sudo aws s3 cp s3://${S3_BUCKET}/builds/backend/${DEPLOY_WAR_NAME} /tmp/${DEPLOY_WAR_NAME}
 
             # Vérifier que le fichier a été téléchargé
-            if [ ! -f "/tmp/${{ env.DEPLOY_WAR_NAME }}" ]; then
+            if [ ! -f "/tmp/${DEPLOY_WAR_NAME}" ]; then
                 echo "ERREUR: Le fichier WAR n'a pas été téléchargé depuis S3"
                 exit 1
             fi
@@ -176,22 +186,22 @@ jobs:
             if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
                 # Utiliser le script dans /opt/yourmedia
                 echo "Utilisation du script deploy-war.sh dans /opt/yourmedia..."
-                sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+                sudo /opt/yourmedia/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
             elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
                 # Utiliser le script dans /usr/local/bin
                 echo "Utilisation du script deploy-war.sh dans /usr/local/bin..."
-                sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+                sudo /usr/local/bin/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
             else
                 # Télécharger le script depuis GitHub
                 echo "Script deploy-war.sh non trouvé, téléchargement depuis GitHub..."
                 sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
                 sudo chmod +x /tmp/deploy-war.sh
-                sudo /tmp/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+                sudo /tmp/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
                 sudo rm /tmp/deploy-war.sh
             fi
 
             # Supprimer le fichier temporaire
-            sudo rm /tmp/${{ env.DEPLOY_WAR_NAME }}
+            sudo rm /tmp/${DEPLOY_WAR_NAME}
 
             # Vérifier l'état de Tomcat
             echo "Vérification de l'état de Tomcat..."
@@ -203,7 +213,7 @@ jobs:
 
             # Nettoyer les informations d'identification AWS
             rm -rf ~/.aws
-          EOF
+          EOSSH
 
           echo "Déploiement terminé."
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
