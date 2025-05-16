@@ -1,7 +1,7 @@
-name: 2 - Déploiement Backend (Java WAR)
+name: Déploiement Backend Java
 
 # -----------------------------------------------------------------------
-# Ce workflow gère la compilation et le déploiement de l'application Hello World Java.
+# Ce workflow gère la compilation et le déploiement de l'application Java.
 # Il compile le code Java avec Maven, télécharge le WAR sur S3, puis le déploie
 # sur l'instance EC2 exécutant Tomcat via SSH.
 # -----------------------------------------------------------------------
@@ -35,9 +35,13 @@ env:
   APP_DIR: app-java          # Répertoire de l'application Java (sans ./ pour éviter les problèmes de chemin)
   WAR_NAME: hello-world.war  # Nom du fichier WAR (sera modifié pour inclure l'environnement)
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build-and-deploy:
-    name: Compilation du WAR et Déploiement sur EC2 Tomcat
+    name: Compilation et Déploiement
     runs-on: ubuntu-latest
 
     steps:
