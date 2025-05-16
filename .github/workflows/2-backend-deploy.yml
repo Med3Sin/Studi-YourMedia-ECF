@@ -152,9 +152,9 @@ jobs:
           echo "Copie du WAR vers l'instance EC2..."
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa /tmp/${{ env.DEPLOY_WAR_NAME }} ec2-user@${{ env.EC2_IP }}:/tmp/${{ env.DEPLOY_WAR_NAME }}
 
-          # Enfin, déplacer le WAR vers le répertoire webapps de Tomcat
-          echo "Déplacement du WAR vers le répertoire webapps de Tomcat..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} "sudo mv /tmp/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/"
+          # Utiliser le script deploy-war.sh pour déployer le WAR
+          echo "Déploiement du WAR avec le script deploy-war.sh..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} "sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}"
 
           echo "Déploiement terminé."
           echo "endgroup" >> $GITHUB_STEP_SUMMARY

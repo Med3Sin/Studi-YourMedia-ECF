@@ -6,8 +6,8 @@
 #                 change le propriétaire, crée un fichier index.html si nécessaire,
 #                 et redémarre Tomcat.
 # Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.1
-# Date          : 2025-05-04
+# Version       : 1.2
+# Date          : 2023-05-04
 #==============================================================================
 # Utilisation   : sudo ./deploy-war.sh <chemin_vers_war>
 #
@@ -76,7 +76,33 @@ sleep 10  # Augmenter le temps d'attente à 10 secondes
 if ! sudo systemctl is-active --quiet tomcat; then
   log_info "Tomcat n'est pas en cours d'exécution, démarrage de Tomcat..."
   sudo systemctl start tomcat
-  sleep 5
+  sleep 10
+
+  # Vérifier à nouveau si Tomcat est en cours d'exécution
+  if ! sudo systemctl is-active --quiet tomcat; then
+    log_info "Tomcat n'a pas démarré, tentative de réparation..."
+
+    # Vérifier si le répertoire webapps existe
+    if [ ! -d "/opt/tomcat/webapps" ]; then
+      log_info "Le répertoire webapps n'existe pas, création..."
+      sudo mkdir -p /opt/tomcat/webapps
+      sudo chown tomcat:tomcat /opt/tomcat/webapps
+      sudo chmod 755 /opt/tomcat/webapps
+    fi
+
+    # Vérifier si le répertoire temp existe
+    if [ ! -d "/opt/tomcat/temp" ]; then
+      log_info "Le répertoire temp n'existe pas, création..."
+      sudo mkdir -p /opt/tomcat/temp
+      sudo chown tomcat:tomcat /opt/tomcat/temp
+      sudo chmod 755 /opt/tomcat/temp
+    fi
+
+    # Redémarrer Tomcat
+    sudo systemctl daemon-reload
+    sudo systemctl restart tomcat
+    sleep 10
+  fi
 fi
 
 # Vérifier si le répertoire a été créé
