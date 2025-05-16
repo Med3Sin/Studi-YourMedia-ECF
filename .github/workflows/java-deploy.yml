@@ -1,0 +1,112 @@
+name: Java Backend Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - pre-prod
+          - prod
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+  AWS_REGION: eu-west-3
+  APP_DIR: app-java
+  WAR_NAME: hello-world.war
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+      
+      - name: Build with Maven
+        run: |
+          cd ${{ env.APP_DIR }}
+          mvn -B package
+      
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Set environment variables
+        run: |
+          echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP }}" >> $GITHUB_ENV
+          echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME }}" >> $GITHUB_ENV
+          echo "DEPLOY_WAR_NAME=hello-world-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
+      
+      - name: Upload to S3
+        run: |
+          aws s3 cp ${{ env.APP_DIR }}/target/hello-world.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
+      
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} << EOF
+            # Setup AWS credentials
+            mkdir -p ~/.aws
+            cat > ~/.aws/credentials << EOC
+[default]
+aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+region=${{ env.AWS_REGION }}
+EOC
+            
+            cat > ~/.aws/config << EOC
+[default]
+region=${{ env.AWS_REGION }}
+output=json
+EOC
+            
+            # Download WAR from S3
+            sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
+            
+            # Deploy WAR
+            if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+                sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
+                sudo /usr/local/bin/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            else
+                sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+                sudo chmod +x /tmp/deploy-war.sh
+                sudo /tmp/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}
+            fi
+            
+            # Cleanup
+            sudo rm -f /tmp/${{ env.DEPLOY_WAR_NAME }}
+            rm -rf ~/.aws
+          EOF
+      
+      - name: Verify deployment
+        run: |
+          APP_NAME=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+          
+          echo "Waiting for application to start..."
+          sleep 30
+          
+          curl -v http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/
