@@ -61,29 +61,6 @@ scrape_configs:
           format: RFC3339Nano
       - output:
           source: output
-
-  - job_name: tomcat
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: tomcat
-          instance: "ec2-java-tomcat"
-          app: "java-app"
-          __path__: /mnt/ec2-java-tomcat-logs/catalina.out
-    pipeline_stages:
-      - regex:
-          expression: '(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{3}) (?P<level>[A-Z]+) (?P<thread>\[.*?\]) (?P<logger>.*?) - (?P<message>.*)'
-      - labels:
-          level:
-          thread:
-          logger:
-      - timestamp:
-          source: timestamp
-          format: '2006-01-02 15:04:05.000'
-      - output:
-          source: message
-
   - job_name: react-app
     static_configs:
       - targets:
@@ -91,7 +68,7 @@ scrape_configs:
         labels:
           job: react-app
           app: "react-app"
-          __path__: /var/lib/docker/containers/*app-mobile*/*-json.log
+          __path__: /var/lib/docker/containers/*/*-json.log
     pipeline_stages:
       - json:
           expressions:
@@ -99,8 +76,13 @@ scrape_configs:
             stream: stream
             attrs: attrs
             time: time
-      - labels:
-          container_name: app-mobile
+            container_name: attrs.container_name
+      - match:
+          selector: '{container_name=~".*react.*|.*app-mobile.*"}'
+          stages:
+            - labels:
+                container_name:
+                app: react-app
       - timestamp:
           source: time
           format: RFC3339Nano

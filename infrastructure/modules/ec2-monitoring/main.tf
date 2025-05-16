@@ -353,6 +353,15 @@ sudo wget -q -O /opt/monitoring/config/cloudwatch-config.yml "$GITHUB_RAW_URL/sc
 sudo wget -q -O /opt/monitoring/config/loki-config.yml "$GITHUB_RAW_URL/scripts/config/loki-config.yml"
 sudo wget -q -O /opt/monitoring/config/promtail-config.yml "$GITHUB_RAW_URL/scripts/config/promtail-config.yml"
 
+# Télécharger le script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat"
+sudo wget -q -O /opt/monitoring/scripts/init-java-tomcat-ip.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-java-tomcat-ip.sh"
+sudo chmod +x /opt/monitoring/scripts/init-java-tomcat-ip.sh
+
+# Initialiser l'adresse IP de l'instance EC2 Java Tomcat
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Initialisation de l'adresse IP de l'instance EC2 Java Tomcat"
+sudo /opt/monitoring/scripts/init-java-tomcat-ip.sh "${var.ec2_instance_private_ip}"
+
 # Télécharger les fichiers de configuration Grafana
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des fichiers de configuration Grafana"
 sudo wget -q -O /opt/monitoring/config/grafana/datasources/prometheus.yml "$GITHUB_RAW_URL/scripts/config/grafana/datasources/prometheus.yml"

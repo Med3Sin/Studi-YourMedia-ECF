@@ -41,9 +41,27 @@ if [ ! -d "/mnt/ec2-java-tomcat-logs" ]; then
     fi
 fi
 
-# Utiliser l'adresse IP privée statique de l'instance EC2 Java Tomcat
-log_info "Utilisation de l'adresse IP privée statique de l'instance EC2 Java Tomcat"
-JAVA_TOMCAT_IP="10.0.1.135"  # Adresse IP privée statique de l'instance EC2 Java Tomcat
+# Récupérer l'adresse IP privée de l'instance EC2 Java Tomcat depuis le fichier de configuration
+log_info "Récupération de l'adresse IP privée de l'instance EC2 Java Tomcat"
+
+# Vérifier si le fichier de configuration existe
+if [ -f "/opt/monitoring/secure/java_tomcat_ip.txt" ]; then
+    JAVA_TOMCAT_IP=$(cat /opt/monitoring/secure/java_tomcat_ip.txt)
+    log_info "Adresse IP privée récupérée depuis le fichier de configuration : $JAVA_TOMCAT_IP"
+else
+    # Essayer de récupérer l'adresse IP via AWS CLI en recherchant l'instance avec le tag Name contenant "java-tomcat"
+    log_info "Tentative de récupération de l'adresse IP via AWS CLI"
+    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=*java*tomcat*" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
+
+    if [ -z "$JAVA_TOMCAT_IP" ] || [ "$JAVA_TOMCAT_IP" == "None" ]; then
+        log_info "Impossible de récupérer l'adresse IP via AWS CLI, utilisation de l'adresse par défaut"
+        JAVA_TOMCAT_IP="10.0.1.10"  # Adresse IP par défaut si la récupération échoue
+    else
+        # Sauvegarder l'adresse IP pour les prochaines exécutions
+        mkdir -p /opt/monitoring/secure
+        echo "$JAVA_TOMCAT_IP" > /opt/monitoring/secure/java_tomcat_ip.txt
+    fi
+fi
 
 log_info "Adresse IP privée de l'instance EC2 Java Tomcat : $JAVA_TOMCAT_IP"
 
