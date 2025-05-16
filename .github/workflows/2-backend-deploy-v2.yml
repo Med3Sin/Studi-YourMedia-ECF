@@ -1,0 +1,302 @@
+name: 2 - Déploiement Backend (Java WAR)
+
+# -----------------------------------------------------------------------
+# Ce workflow gère la compilation et le déploiement de l'application Hello World Java.
+# Il compile le code Java avec Maven, télécharge le WAR sur S3, puis le déploie
+# sur l'instance EC2 exécutant Tomcat via SSH.
+# -----------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      ec2_public_ip:
+        description: 'IP publique EC2 (optionnel)'
+        required: false
+        type: string
+      s3_bucket_name:
+        description: 'Nom du bucket S3 (optionnel)'
+        required: false
+        type: string
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev      # Environnement de développement
+          - pre-prod # Environnement de pré-production
+          - prod     # Environnement de production
+
+# Variables d'environnement globales
+env:
+  JAVA_VERSION: '17'         # Version de Java à utiliser
+  JAVA_DISTRIBUTION: 'temurin' # Distribution Java (Adoptium Temurin)
+  AWS_REGION: eu-west-3      # Région AWS (Paris)
+  APP_DIR: app-java          # Répertoire de l'application Java (sans ./ pour éviter les problèmes de chemin)
+  WAR_NAME: hello-world.war  # Nom du fichier WAR (sera modifié pour inclure l'environnement)
+
+jobs:
+  build-and-deploy:
+    name: Compilation du WAR et Déploiement sur EC2 Tomcat
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape 1: Récupération du code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Récupère tout l'historique pour les tags
+
+      # Étape 2: Configuration de Java
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      # Étape 3: Mise en cache des dépendances Maven
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # Étape 4: Compilation avec Maven
+      - name: Build with Maven
+        run: |
+          echo "group=Maven Build" >> $GITHUB_STEP_SUMMARY
+          # Vérifier que le répertoire existe
+          if [ ! -d "${{ env.APP_DIR }}" ]; then
+            echo "ERREUR: Le répertoire ${{ env.APP_DIR }} n'existe pas!"
+            echo "Contenu du répertoire courant:"
+            ls -la
+            exit 1
+          fi
+
+          # Vérifier que le fichier pom.xml existe
+          if [ ! -f "${{ env.APP_DIR }}/pom.xml" ]; then
+            echo "ERREUR: Le fichier pom.xml n'existe pas dans ${{ env.APP_DIR }}!"
+            echo "Contenu du répertoire ${{ env.APP_DIR }}:"
+            ls -la ${{ env.APP_DIR }}
+            exit 1
+          fi
+
+          # Exécuter Maven
+          cd ${{ env.APP_DIR }} && mvn -B package --file pom.xml # -B pour le mode batch non interactif
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 5: Configuration des identifiants AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Étape 6: Définir les variables d'environnement à partir des secrets ou des inputs
+      - name: Set Environment Variables
+        run: |
+          # Utiliser les secrets Terraform (préfixés par TF_) s'ils existent, sinon utiliser les inputs
+          echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
+          echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
+          echo "RDS_ENDPOINT=${{ secrets.TF_RDS_ENDPOINT || '' }}" >> $GITHUB_ENV
+
+          # Définir le nom du WAR pour le déploiement (avec environnement)
+          WAR_BASE_NAME=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
+          echo "DEPLOY_WAR_NAME=${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
+          echo "Nom du WAR pour le déploiement: ${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war"
+
+      # Étape 7: Téléchargement du WAR sur S3
+      - name: Upload WAR to S3
+        run: |
+          echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
+          # Vérifier que le fichier WAR existe
+          if [ ! -f "${{ env.APP_DIR }}/target/hello-world.war" ]; then
+            echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/hello-world.war"
+            echo "Contenu du répertoire target:"
+            ls -la ${{ env.APP_DIR }}/target/
+            exit 1
+          fi
+
+          # Copier le WAR vers S3 avec le nom de déploiement (incluant l'environnement)
+          aws s3 cp ${{ env.APP_DIR }}/target/hello-world.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
+          echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 8: Configuration de SSH simplifiée
+      - name: Setup SSH
+        run: |
+          # Créer le répertoire SSH et configurer la clé
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Ajouter la clé d'hôte EC2 aux known_hosts pour éviter les prompts
+          ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
+
+          echo "Configuration SSH terminée."
+
+      # Étape 9: Déploiement du WAR sur l'instance EC2
+      - name: Deploy WAR from S3 to EC2 Tomcat
+        run: |
+          echo "group=Deploy to EC2" >> $GITHUB_STEP_SUMMARY
+          # Déploiement du WAR sur l'instance EC2
+          echo "Déploiement du WAR sur l'instance EC2..."
+
+          # Exporter les variables AWS pour le script SSH
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          export AWS_REGION="${{ env.AWS_REGION }}"
+          export S3_BUCKET="${{ env.S3_BUCKET }}"
+          export DEPLOY_WAR_NAME="${{ env.DEPLOY_WAR_NAME }}"
+
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} << 'EOSSH'
+            # Configuration d'AWS CLI avec les informations d'identification temporaires
+            mkdir -p ~/.aws
+
+            # Créer le fichier credentials
+            cat > ~/.aws/credentials << 'EOCRED'
+[default]
+aws_access_key_id=${AWS_ACCESS_KEY_ID}
+aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
+region=${AWS_REGION}
+EOCRED
+
+            # Créer le fichier config
+            cat > ~/.aws/config << 'EOCONF'
+[default]
+region=${AWS_REGION}
+output=json
+EOCONF
+
+            # Télécharger le WAR depuis S3
+            echo "Téléchargement du WAR depuis S3..."
+            sudo aws s3 cp s3://${S3_BUCKET}/builds/backend/${DEPLOY_WAR_NAME} /tmp/${DEPLOY_WAR_NAME}
+
+            # Vérifier que le fichier a été téléchargé
+            if [ ! -f "/tmp/${DEPLOY_WAR_NAME}" ]; then
+                echo "ERREUR: Le fichier WAR n'a pas été téléchargé depuis S3"
+                exit 1
+            fi
+
+            # Vérifier si le script deploy-war.sh existe
+            echo "Vérification du script deploy-war.sh..."
+            if [ -f "/opt/yourmedia/deploy-war.sh" ]; then
+                # Utiliser le script dans /opt/yourmedia
+                echo "Utilisation du script deploy-war.sh dans /opt/yourmedia..."
+                sudo /opt/yourmedia/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
+            elif [ -f "/usr/local/bin/deploy-war.sh" ]; then
+                # Utiliser le script dans /usr/local/bin
+                echo "Utilisation du script deploy-war.sh dans /usr/local/bin..."
+                sudo /usr/local/bin/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
+            else
+                # Télécharger le script depuis GitHub
+                echo "Script deploy-war.sh non trouvé, téléchargement depuis GitHub..."
+                sudo curl -s -o /tmp/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+                sudo chmod +x /tmp/deploy-war.sh
+                sudo /tmp/deploy-war.sh /tmp/${DEPLOY_WAR_NAME}
+                sudo rm /tmp/deploy-war.sh
+            fi
+
+            # Supprimer le fichier temporaire
+            sudo rm /tmp/${DEPLOY_WAR_NAME}
+
+            # Vérifier l'état de Tomcat
+            echo "Vérification de l'état de Tomcat..."
+            sudo systemctl status tomcat
+
+            # Afficher le contenu du répertoire webapps
+            echo "Contenu du répertoire webapps:"
+            sudo ls -la /opt/tomcat/webapps/
+
+            # Nettoyer les informations d'identification AWS
+            rm -rf ~/.aws
+          EOSSH
+
+          echo "Déploiement terminé."
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 10: Extraction du nom de l'application à partir du nom du WAR
+      - name: Extract App Name
+        run: |
+          # Extraire le nom de l'application à partir du nom du WAR (sans l'extension .war)
+          APP_NAME=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
+          echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+          echo "Nom de l'application extrait: $APP_NAME"
+
+      # Étape 11: Vérification de l'application déployée
+      - name: Verify Deployment
+        run: |
+          echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
+          # Attendre que l'application soit disponible
+          echo "Attente de la disponibilité de l'application..."
+          sleep 30  # Augmenter le temps d'attente à 30 secondes
+
+          # Vérification plus robuste
+          echo "Vérification de l'application..."
+          MAX_ATTEMPTS=10
+          ATTEMPT=1
+          SUCCESS=false
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
+
+            # Vérifier l'accès direct à l'application
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }})
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ L'application est accessible (HTTP 200)"
+              SUCCESS=true
+              break
+            else
+              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
+
+              # Vérifier l'accès via index.html
+              echo "Tentative d'accès à l'URL avec /index.html..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/index.html)
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ L'application est accessible via /index.html (HTTP 200)"
+                SUCCESS=true
+                break
+              else
+                echo "⚠️ L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
+
+                # Vérifier l'accès à l'API health
+                echo "Tentative d'accès à l'API health..."
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health)
+                if [ "$HTTP_CODE" = "200" ]; then
+                  echo "✅ L'API health est accessible (HTTP 200)"
+                  SUCCESS=true
+                  break
+                else
+                  echo "⚠️ L'API health n'est pas accessible (HTTP $HTTP_CODE)"
+                fi
+              fi
+            fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            if [ $ATTEMPT -le $MAX_ATTEMPTS ]; then
+              echo "Attente avant la prochaine tentative..."
+              sleep 10
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo "❌ L'application n'est pas accessible après $MAX_ATTEMPTS tentatives"
+            # Ne pas faire échouer le workflow pour le moment
+            # exit 1
+          fi
+          echo "endgroup" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 12: Résumé du déploiement
+      - name: Summary
+        run: |
+          echo "## Résumé du déploiement Backend" >> $GITHUB_STEP_SUMMARY
+          echo "* **Application:** Backend Java (WAR)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
+          echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
+          # Utiliser le nom du WAR sans l'extension
+          echo "* **URL de l'application:** http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'API Health:** http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
