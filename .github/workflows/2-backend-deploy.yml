@@ -144,8 +144,17 @@ jobs:
           # Déploiement du WAR sur l'instance EC2
           echo "Déploiement du WAR sur l'instance EC2..."
 
-          # Méthode simplifiée : copier directement le WAR dans le répertoire webapps de Tomcat
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} "sudo aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/"
+          # Télécharger d'abord le WAR localement
+          echo "Téléchargement du WAR depuis S3..."
+          aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
+
+          # Puis le copier sur l'instance EC2 via SCP
+          echo "Copie du WAR vers l'instance EC2..."
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa /tmp/${{ env.DEPLOY_WAR_NAME }} ec2-user@${{ env.EC2_IP }}:/tmp/${{ env.DEPLOY_WAR_NAME }}
+
+          # Enfin, déplacer le WAR vers le répertoire webapps de Tomcat
+          echo "Déplacement du WAR vers le répertoire webapps de Tomcat..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} "sudo mv /tmp/${{ env.DEPLOY_WAR_NAME }} /opt/tomcat/webapps/"
 
           echo "Déploiement terminé."
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
