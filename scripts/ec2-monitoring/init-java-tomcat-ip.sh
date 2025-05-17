@@ -30,17 +30,27 @@ log_success() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - [SUCCESS] $1"
 }
 
-# Vérifier si l'adresse IP a été fournie en argument
-if [ $# -ne 1 ]; then
-    log_error "Usage: $0 <adresse_ip>"
-fi
+# Récupérer l'adresse IP privée de l'instance EC2 Java Tomcat
+# Vérifier si une adresse IP a été fournie en argument
+if [ $# -eq 1 ]; then
+    # Utiliser l'adresse IP fournie en argument
+    JAVA_TOMCAT_IP="$1"
+    log_info "Utilisation de l'adresse IP fournie en argument: $JAVA_TOMCAT_IP"
+else
+    # Essayer de récupérer l'adresse IP à partir des tags AWS
+    log_info "Tentative de récupération de l'adresse IP privée de l'instance EC2 Java Tomcat à partir des tags AWS"
 
-# Récupérer l'adresse IP fournie en argument
-JAVA_TOMCAT_IP="$1"
+    # Récupérer l'adresse IP privée de l'instance EC2 Java Tomcat à partir des tags AWS
+    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=yourmedia-dev-app-server" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
 
-# Vérifier si l'adresse IP est valide
-if [[ ! $JAVA_TOMCAT_IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    log_error "L'adresse IP fournie n'est pas valide : $JAVA_TOMCAT_IP"
+    # Vérifier si l'adresse IP a été récupérée avec succès
+    if [ -z "$JAVA_TOMCAT_IP" ] || [ "$JAVA_TOMCAT_IP" == "None" ]; then
+        # Si l'adresse IP n'a pas été récupérée, utiliser une adresse IP statique
+        log_info "Impossible de récupérer l'adresse IP privée de l'instance EC2 Java Tomcat, utilisation de l'adresse IP statique"
+        JAVA_TOMCAT_IP="10.0.1.135"
+    else
+        log_info "Adresse IP privée de l'instance EC2 Java Tomcat récupérée avec succès: $JAVA_TOMCAT_IP"
+    fi
 fi
 
 log_info "Adresse IP de l'instance EC2 Java Tomcat : $JAVA_TOMCAT_IP"

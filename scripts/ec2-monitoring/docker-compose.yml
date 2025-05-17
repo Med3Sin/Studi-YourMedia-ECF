@@ -60,20 +60,24 @@ services:
         max-file: "3"
 
   grafana:
-    image: grafana/grafana:latest
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest
     container_name: grafana
     ports:
       - "3000:3000"
     restart: always
     volumes:
-      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
       - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - /var/lib/grafana:/var/lib/grafana
+      - /opt/monitoring/config/grafana/dashboards/dashboards:/var/lib/grafana/dashboards
+      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_DOMAIN=localhost
       - GF_SMTP_ENABLED=false
+      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=5s
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     logging:
       driver: "json-file"
       options:

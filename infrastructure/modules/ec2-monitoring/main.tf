@@ -388,25 +388,69 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du répertoire secure pour les to
 sudo mkdir -p /opt/monitoring/secure
 sudo chmod 700 /opt/monitoring/secure
 
-# Créer un fichier de token Docker Hub (à remplacer par le vrai token dans les variables d'environnement)
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier de token Docker Hub"
-# Utiliser une variable d'environnement ou un placeholder
-DOCKERHUB_TOKEN="${var.dockerhub_token}"
-if [ -z "$DOCKERHUB_TOKEN" ]; then
-  DOCKERHUB_TOKEN="placeholder_token"
+# Créer un fichier de token Docker Hub avec le token fourni dans les variables d'environnement
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de l'authentification Docker Hub"
+sudo mkdir -p /opt/monitoring/secure
+sudo chmod 700 /opt/monitoring/secure
+
+# Récupérer les secrets GitHub pour l'authentification Docker Hub
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Récupération des secrets GitHub pour l'authentification Docker Hub"
+
+# Vérifier si les secrets sont disponibles dans les variables d'environnement
+if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ] && [ -n "$DOCKERHUB_REPO" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Secrets Docker Hub trouvés dans les variables d'environnement"
+else
+  # Utiliser les variables Terraform comme fallback
+  DOCKERHUB_USERNAME="${var.docker_username}"
+  DOCKERHUB_TOKEN="${var.dockerhub_token}"
+  DOCKERHUB_REPO="${var.docker_repo}"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Utilisation des variables Terraform pour l'authentification Docker Hub"
 fi
-echo "$DOCKERHUB_TOKEN" | sudo tee /opt/monitoring/secure/dockerhub-token.txt > /dev/null
-sudo chmod 600 /opt/monitoring/secure/dockerhub-token.txt
 
-# Créer un fichier avec le nom d'utilisateur Docker Hub
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier avec le nom d'utilisateur Docker Hub"
-echo "medsin" | sudo tee /opt/monitoring/secure/dockerhub-username.txt > /dev/null
-sudo chmod 600 /opt/monitoring/secure/dockerhub-username.txt
+# Vérifier si les variables d'environnement sont définies
+if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Authentification Docker Hub avec les variables d'environnement"
+  echo "$DOCKERHUB_USERNAME" | sudo tee /opt/monitoring/secure/dockerhub-username.txt > /dev/null
+  echo "$DOCKERHUB_TOKEN" | sudo tee /opt/monitoring/secure/dockerhub-token.txt > /dev/null
+  echo "$DOCKERHUB_REPO" | sudo tee /opt/monitoring/secure/dockerhub-repo.txt > /dev/null
 
-# Créer un fichier avec le nom du dépôt Docker Hub
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Création du fichier avec le nom du dépôt Docker Hub"
-echo "yourmedia-ecf" | sudo tee /opt/monitoring/secure/dockerhub-repo.txt > /dev/null
-sudo chmod 600 /opt/monitoring/secure/dockerhub-repo.txt
+  sudo chmod 600 /opt/monitoring/secure/dockerhub-username.txt
+  sudo chmod 600 /opt/monitoring/secure/dockerhub-token.txt
+  sudo chmod 600 /opt/monitoring/secure/dockerhub-repo.txt
+
+  # Authentification Docker Hub
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative d'authentification Docker Hub"
+  echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+
+  if [ $? -eq 0 ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Authentification Docker Hub réussie"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec de l'authentification Docker Hub"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Utilisation des images publiques comme fallback"
+
+    # Définir les valeurs par défaut pour les images publiques
+    echo "grafana/grafana:latest" | sudo tee /opt/monitoring/secure/grafana-image.txt > /dev/null
+    echo "grafana/loki:latest" | sudo tee /opt/monitoring/secure/loki-image.txt > /dev/null
+    echo "grafana/promtail:latest" | sudo tee /opt/monitoring/secure/promtail-image.txt > /dev/null
+  fi
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Variables d'environnement Docker Hub non définies"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Utilisation des images publiques comme fallback"
+
+  # Définir les valeurs par défaut pour les images publiques
+  echo "medsin" | sudo tee /opt/monitoring/secure/dockerhub-username.txt > /dev/null
+  echo "yourmedia-ecf" | sudo tee /opt/monitoring/secure/dockerhub-repo.txt > /dev/null
+
+  echo "grafana/grafana:latest" | sudo tee /opt/monitoring/secure/grafana-image.txt > /dev/null
+  echo "grafana/loki:latest" | sudo tee /opt/monitoring/secure/loki-image.txt > /dev/null
+  echo "grafana/promtail:latest" | sudo tee /opt/monitoring/secure/promtail-image.txt > /dev/null
+
+  sudo chmod 600 /opt/monitoring/secure/dockerhub-username.txt
+  sudo chmod 600 /opt/monitoring/secure/dockerhub-repo.txt
+  sudo chmod 600 /opt/monitoring/secure/grafana-image.txt
+  sudo chmod 600 /opt/monitoring/secure/loki-image.txt
+  sudo chmod 600 /opt/monitoring/secure/promtail-image.txt
+fi
 
 # S'assurer que tous les scripts sont exécutables
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Attribution des permissions d'exécution aux scripts"
@@ -417,9 +461,37 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Définition des bonnes permissions pour les
 sudo chown -R 1000:1000 /opt/monitoring/data
 sudo chmod -R 755 /opt/monitoring/data
 
-# Exécuter le script d'initialisation
+# Passer les variables d'environnement Docker Hub au script d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Passage des variables d'environnement Docker Hub au script d'initialisation"
+export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+export DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN"
+export DOCKERHUB_REPO="$DOCKERHUB_REPO"
+
+# Exécuter le script d'initialisation avec les variables d'environnement
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
-sudo /opt/monitoring/init-monitoring.sh 2>&1 | tee -a /var/log/user-data-init.log
+sudo -E /opt/monitoring/init-monitoring.sh 2>&1 | tee -a /var/log/user-data-init.log
+
+# Vérifier que Docker est en cours d'exécution
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification que Docker est en cours d'exécution"
+if ! systemctl is-active --quiet docker; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Docker n'est pas en cours d'exécution, démarrage de Docker..."
+    systemctl start docker
+    sleep 5
+    if ! systemctl is-active --quiet docker; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage de Docker"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des logs Docker..."
+        journalctl -u docker --no-pager -n 50
+    fi
+fi
+
+# Vérifier que docker-compose est installé
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification que docker-compose est installé"
+if ! command -v docker-compose &> /dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - docker-compose n'est pas installé, installation de docker-compose..."
+    wget -q -O /usr/local/bin/docker-compose "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)"
+    chmod +x /usr/local/bin/docker-compose
+    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+fi
 
 # Vérifier si les conteneurs Docker sont en cours d'exécution
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des conteneurs Docker"
@@ -429,17 +501,174 @@ if [ "$CONTAINER_COUNT" -gt 0 ]; then
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Aucun conteneur Docker n'est en cours d'exécution. Démarrage manuel..."
     cd /opt/monitoring
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des logs Docker..."
+    sudo docker-compose logs
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Arrêt des conteneurs existants..."
     sudo docker-compose down
     sleep 5
-    sudo docker-compose up -d
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des images Docker..."
+    sudo docker images
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de pull des images Docker..."
+    sudo docker pull prom/prometheus:latest
+    sudo docker pull prom/node-exporter:latest
+    sudo docker pull gcr.io/cadvisor/cadvisor:latest
+
+    # Vérifier si les fichiers d'images personnalisées existent
+    if [ -f "/opt/monitoring/secure/grafana-image.txt" ]; then
+        GRAFANA_IMAGE=$(cat /opt/monitoring/secure/grafana-image.txt)
+    else
+        GRAFANA_IMAGE="grafana/grafana:latest"
+    fi
+
+    if [ -f "/opt/monitoring/secure/loki-image.txt" ]; then
+        LOKI_IMAGE=$(cat /opt/monitoring/secure/loki-image.txt)
+    else
+        LOKI_IMAGE="grafana/loki:latest"
+    fi
+
+    if [ -f "/opt/monitoring/secure/promtail-image.txt" ]; then
+        PROMTAIL_IMAGE=$(cat /opt/monitoring/secure/promtail-image.txt)
+    else
+        PROMTAIL_IMAGE="grafana/promtail:latest"
+    fi
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Utilisation des images suivantes:"
+    echo "Grafana: $GRAFANA_IMAGE"
+    echo "Loki: $LOKI_IMAGE"
+    echo "Promtail: $PROMTAIL_IMAGE"
+
+    sudo docker pull $GRAFANA_IMAGE
+    sudo docker pull $LOKI_IMAGE
+    sudo docker pull $PROMTAIL_IMAGE
+
+    # Vérifier si le fichier docker-compose.yml existe
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification du fichier docker-compose.yml"
+    if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Le fichier docker-compose.yml n'existe pas, téléchargement du fichier..."
+        sudo wget -q -O /opt/monitoring/docker-compose.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/docker-compose.yml"
+        if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement du fichier docker-compose.yml"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - Création d'un fichier docker-compose.yml minimal"
+            sudo bash -c 'cat > /opt/monitoring/docker-compose.yml << EOF
+version: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: always
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: always
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - /opt/monitoring/loki:/loki
+    restart: always
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    restart: always
+EOF'
+        fi
+    fi
+
+    # Modifier le fichier docker-compose.yml pour utiliser les images publiques
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Modification du fichier docker-compose.yml pour utiliser les images publiques"
+    sudo sed -i "s|image: \$${DOCKERHUB_USERNAME:-medsin}/\$${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest|image: $GRAFANA_IMAGE|g" /opt/monitoring/docker-compose.yml
+    sudo sed -i "s|image: \$${DOCKERHUB_USERNAME:-medsin}/\$${DOCKERHUB_REPO:-yourmedia-ecf}:loki-latest|image: $LOKI_IMAGE|g" /opt/monitoring/docker-compose.yml
+    sudo sed -i "s|image: \$${DOCKERHUB_USERNAME:-medsin}/\$${DOCKERHUB_REPO:-yourmedia-ecf}:promtail-latest|image: $PROMTAIL_IMAGE|g" /opt/monitoring/docker-compose.yml
+
+    # Vérifier si les remplacements ont été effectués
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des remplacements dans le fichier docker-compose.yml"
+    if grep -q "medsin/yourmedia-ecf" /opt/monitoring/docker-compose.yml; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Des références à medsin/yourmedia-ecf sont toujours présentes dans le fichier docker-compose.yml"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Remplacement direct des images dans le fichier docker-compose.yml"
+        sudo sed -i "s|image: .*medsin/yourmedia-ecf:grafana-latest.*|image: $GRAFANA_IMAGE|g" /opt/monitoring/docker-compose.yml
+        sudo sed -i "s|image: .*medsin/yourmedia-ecf:loki-latest.*|image: $LOKI_IMAGE|g" /opt/monitoring/docker-compose.yml
+        sudo sed -i "s|image: .*medsin/yourmedia-ecf:promtail-latest.*|image: $PROMTAIL_IMAGE|g" /opt/monitoring/docker-compose.yml
+    fi
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Nouvelle tentative de démarrage des conteneurs..."
+    sudo -E docker-compose up -d
     sleep 10
     CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
     if [ "$CONTAINER_COUNT" -gt 0 ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Les conteneurs Docker ont été démarrés avec succès"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Les conteneurs Docker ont été démarrés avec succès après une nouvelle tentative"
     else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage des conteneurs Docker"
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des logs Docker..."
         sudo docker-compose logs
+
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de démarrage des conteneurs un par un..."
+        sudo -E docker-compose up -d prometheus
+        sleep 5
+        sudo -E docker-compose up -d node-exporter
+        sleep 5
+        sudo -E docker-compose up -d cadvisor
+        sleep 5
+        sudo -E docker-compose up -d loki
+        sleep 5
+        sudo -E docker-compose up -d promtail
+        sleep 5
+        sudo -E docker-compose up -d grafana
+        sleep 5
+
+        CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+        if [ "$CONTAINER_COUNT" -gt 0 ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Certains conteneurs Docker ont été démarrés avec succès"
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du démarrage des conteneurs Docker"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification des logs Docker..."
+            sudo docker-compose logs
+        fi
     fi
 fi
 

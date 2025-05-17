@@ -1,11 +1,17 @@
 FROM grafana/grafana:latest
 
+# Créer les répertoires nécessaires
+RUN mkdir -p /etc/grafana/provisioning/dashboards /var/lib/grafana/dashboards
+
 # Copier les fichiers de configuration
-COPY ./dashboards /etc/grafana/dashboards
 COPY ./datasources /etc/grafana/provisioning/datasources
 COPY ./dashboards/default.yml /etc/grafana/provisioning/dashboards/default.yml
+
+# Copier les tableaux de bord
 COPY ./logs-dashboard.json /var/lib/grafana/dashboards/logs-dashboard.json
 COPY ./system-overview.json /var/lib/grafana/dashboards/system-overview.json
+COPY ./java-app-logs-dashboard.json /var/lib/grafana/dashboards/java-app-logs.json
+COPY ./react-app-dashboard.json /var/lib/grafana/dashboards/react-app-dashboard.json
 
 # Définir les variables d'environnement
 # Le mot de passe administrateur sera fourni lors du déploiement via la variable d'environnement

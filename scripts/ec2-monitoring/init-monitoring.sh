@@ -486,11 +486,19 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
+# Création du répertoire scripts
+log "Création du répertoire scripts"
+sudo mkdir -p /opt/monitoring/scripts
+
 # Téléchargement et installation du script de synchronisation des logs Tomcat
 log "Téléchargement et installation du script de synchronisation des logs Tomcat"
-sudo mkdir -p /opt/monitoring/scripts
 sudo wget -q -O /opt/monitoring/scripts/sync-tomcat-logs.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.sh"
 sudo chmod +x /opt/monitoring/scripts/sync-tomcat-logs.sh
+
+# Téléchargement et installation du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat
+log "Téléchargement et installation du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat"
+sudo wget -q -O /opt/monitoring/scripts/init-java-tomcat-ip.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-java-tomcat-ip.sh"
+sudo chmod +x /opt/monitoring/scripts/init-java-tomcat-ip.sh
 
 # Téléchargement et installation du script de mise à jour des cibles Prometheus
 log "Téléchargement et installation du script de mise à jour des cibles Prometheus"
@@ -551,6 +559,11 @@ sudo chmod +x /opt/monitoring/scripts/generate-test-logs.sh
 log "Installation du service de génération de logs de test"
 sudo wget -q -O /etc/systemd/system/generate-test-logs.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/generate-test-logs.service"
 sudo wget -q -O /etc/systemd/system/generate-test-logs.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/generate-test-logs.timer"
+
+# Téléchargement et installation du script de copie des tableaux de bord
+log "Téléchargement et installation du script de copie des tableaux de bord"
+sudo wget -q -O /opt/monitoring/scripts/copy-dashboards.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/copy-dashboards.sh"
+sudo chmod +x /opt/monitoring/scripts/copy-dashboards.sh
 sudo systemctl daemon-reload
 sudo systemctl enable sync-tomcat-logs.timer
 sudo systemctl start sync-tomcat-logs.timer
@@ -559,6 +572,14 @@ log "Service sync-tomcat-logs installé et activé"
 sudo systemctl enable generate-test-logs.timer
 sudo systemctl start generate-test-logs.timer
 log "Service generate-test-logs installé et activé"
+
+# Exécution du script de copie des tableaux de bord
+log "Exécution du script de copie des tableaux de bord"
+sudo /opt/monitoring/scripts/copy-dashboards.sh
+
+# Exécution du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat
+log "Exécution du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat"
+sudo /opt/monitoring/scripts/init-java-tomcat-ip.sh
 
 # Téléchargement et installation du script de mise à jour des cibles Prometheus
 log "Téléchargement et installation du script de mise à jour des cibles Prometheus"
@@ -600,9 +621,21 @@ sudo systemctl start update-prometheus-targets.timer
 log "Service update-prometheus-targets installé et activé"
 
 # Authentification Docker Hub
-log "Authentification à Docker Hub avec l'utilisateur medsin"
+log "Authentification à Docker Hub"
+
+# Vérifier si les variables d'environnement Docker Hub sont définies
+if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+    log "Utilisation des variables d'environnement pour l'authentification Docker Hub"
+    echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+    if [ $? -eq 0 ]; then
+        log "✅ Authentification Docker Hub réussie avec les variables d'environnement"
+    else
+        log "❌ Échec de l'authentification Docker Hub avec les variables d'environnement"
+        log "Tentative d'utilisation des fichiers d'authentification"
+    fi
 # Vérifier si les fichiers d'authentification Docker Hub existent
-if [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
+elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
+    log "Utilisation des fichiers d'authentification pour l'authentification Docker Hub"
     DOCKER_TOKEN=$(cat /opt/monitoring/secure/dockerhub-token.txt)
     DOCKER_USERNAME=$(cat /opt/monitoring/secure/dockerhub-username.txt)
     echo "$DOCKER_TOKEN" | sudo docker login --username "$DOCKER_USERNAME" --password-stdin
@@ -613,7 +646,7 @@ if [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitoring/
         log "Tentative d'utilisation des images publiques"
     fi
 else
-    log "❌ Fichiers d'authentification Docker Hub non trouvés"
+    log "❌ Aucune information d'authentification Docker Hub trouvée"
     log "Tentative d'utilisation des images publiques"
 fi
 
@@ -628,31 +661,116 @@ sudo chmod -R 777 /opt/monitoring/loki
 # Démarrer les conteneurs Docker
 log "Démarrage des conteneurs Docker"
 # Exporter les variables d'environnement pour Docker Compose
-if [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
-    export DOCKERHUB_USERNAME=$(cat /opt/monitoring/secure/dockerhub-username.txt)
-else
-    export DOCKERHUB_USERNAME="medsin"
+# Vérifier si les variables d'environnement sont déjà définies
+if [ -z "$DOCKERHUB_USERNAME" ]; then
+    if [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
+        export DOCKERHUB_USERNAME=$(cat /opt/monitoring/secure/dockerhub-username.txt)
+    else
+        export DOCKERHUB_USERNAME="medsin"
+    fi
 fi
 
-if [ -f "/opt/monitoring/secure/dockerhub-repo.txt" ]; then
-    export DOCKERHUB_REPO=$(cat /opt/monitoring/secure/dockerhub-repo.txt)
-else
-    export DOCKERHUB_REPO="yourmedia-ecf"
+if [ -z "$DOCKERHUB_REPO" ]; then
+    if [ -f "/opt/monitoring/secure/dockerhub-repo.txt" ]; then
+        export DOCKERHUB_REPO=$(cat /opt/monitoring/secure/dockerhub-repo.txt)
+    else
+        export DOCKERHUB_REPO="yourmedia-ecf"
+    fi
 fi
 
+# Afficher les variables d'environnement Docker Hub
+log "Variables d'environnement Docker Hub:"
+log "DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME"
+log "DOCKERHUB_REPO: $DOCKERHUB_REPO"
+
+# Vérifier que Docker est en cours d'exécution
+log "Vérification que Docker est en cours d'exécution"
+if ! systemctl is-active --quiet docker; then
+    log "Docker n'est pas en cours d'exécution, démarrage de Docker..."
+    systemctl start docker
+    sleep 5
+    if ! systemctl is-active --quiet docker; then
+        log "❌ Échec du démarrage de Docker"
+        log "Vérification des logs Docker..."
+        journalctl -u docker --no-pager -n 50
+        exit 1
+    fi
+fi
+
+# Vérifier que docker-compose est installé
+log "Vérification que docker-compose est installé"
+if ! command -v docker-compose &> /dev/null; then
+    log "docker-compose n'est pas installé, installation de docker-compose..."
+    wget -q -O /usr/local/bin/docker-compose "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)"
+    chmod +x /usr/local/bin/docker-compose
+    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+    if ! command -v docker-compose &> /dev/null; then
+        log "❌ Échec de l'installation de docker-compose"
+        exit 1
+    fi
+fi
+
+# Vérifier que le fichier docker-compose.yml existe
+log "Vérification que le fichier docker-compose.yml existe"
+if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+    log "Le fichier docker-compose.yml n'existe pas, téléchargement du fichier..."
+    wget -q -O /opt/monitoring/docker-compose.yml "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/docker-compose.yml"
+    if [ ! -f "/opt/monitoring/docker-compose.yml" ]; then
+        log "❌ Échec du téléchargement du fichier docker-compose.yml"
+        exit 1
+    fi
+fi
+
+# Démarrer les conteneurs Docker
 cd /opt/monitoring
+log "Exécution de docker-compose up -d"
 sudo -E docker-compose up -d
 
 # Vérifier que les conteneurs sont bien démarrés
 log "Vérification du démarrage des conteneurs"
+sleep 5
 CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
 if [ "$CONTAINER_COUNT" -gt 0 ]; then
     log "✅ Les conteneurs Docker ont été démarrés avec succès"
 else
     log "❌ Aucun conteneur Docker n'est en cours d'exécution. Tentative de démarrage..."
+    log "Vérification des logs Docker..."
+    sudo docker-compose logs
+
+    log "Arrêt des conteneurs existants..."
     sudo docker-compose down
     sleep 5
-    sudo docker-compose up -d
+
+    log "Vérification des images Docker..."
+    sudo docker images
+
+    log "Tentative de pull des images Docker..."
+    sudo docker pull prom/prometheus:latest
+    sudo docker pull prom/node-exporter:latest
+    sudo docker pull gcr.io/cadvisor/cadvisor:latest
+
+    # Vérifier si l'authentification Docker Hub a réussi
+    if sudo docker info | grep -q "Username: $DOCKERHUB_USERNAME"; then
+        log "Utilisation des images Docker Hub privées"
+        sudo docker pull ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:grafana-latest
+        sudo docker pull ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:loki-latest
+        sudo docker pull ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:promtail-latest
+    else
+        log "Utilisation des images Docker Hub publiques"
+        # Modifier le fichier docker-compose.yml pour utiliser des images publiques
+        log "Modification du fichier docker-compose.yml pour utiliser des images publiques"
+        sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest|image: grafana/grafana:latest|g" /opt/monitoring/docker-compose.yml
+        sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:loki-latest|image: grafana/loki:latest|g" /opt/monitoring/docker-compose.yml
+        sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:promtail-latest|image: grafana/promtail:latest|g" /opt/monitoring/docker-compose.yml
+
+        # Pull des images publiques
+        sudo docker pull grafana/grafana:latest
+        sudo docker pull grafana/loki:latest
+        sudo docker pull grafana/promtail:latest
+    fi
+
+    log "Nouvelle tentative de démarrage des conteneurs..."
+    sudo -E docker-compose up -d
     sleep 10
     CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
     if [ "$CONTAINER_COUNT" -gt 0 ]; then
@@ -661,6 +779,29 @@ else
         log "❌ Échec du démarrage des conteneurs Docker"
         log "Vérification des logs Docker..."
         sudo docker-compose logs
+
+        log "Tentative de démarrage des conteneurs un par un..."
+        sudo -E docker-compose up -d prometheus
+        sleep 5
+        sudo -E docker-compose up -d node-exporter
+        sleep 5
+        sudo -E docker-compose up -d cadvisor
+        sleep 5
+        sudo -E docker-compose up -d loki
+        sleep 5
+        sudo -E docker-compose up -d promtail
+        sleep 5
+        sudo -E docker-compose up -d grafana
+        sleep 5
+
+        CONTAINER_COUNT=$(sudo docker ps -q | wc -l)
+        if [ "$CONTAINER_COUNT" -gt 0 ]; then
+            log "✅ Certains conteneurs Docker ont été démarrés avec succès"
+        else
+            log "❌ Échec du démarrage des conteneurs Docker"
+            log "Vérification des logs Docker..."
+            sudo docker-compose logs
+        fi
     fi
 fi
 

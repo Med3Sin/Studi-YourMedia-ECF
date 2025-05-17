@@ -46,7 +46,7 @@ else
 
     if [ -z "$JAVA_TOMCAT_IP" ] || [ "$JAVA_TOMCAT_IP" == "None" ]; then
         log_info "Impossible de récupérer l'adresse IP via AWS CLI, utilisation de l'adresse par défaut"
-        JAVA_TOMCAT_IP="10.0.1.10"  # Adresse IP par défaut si la récupération échoue
+        JAVA_TOMCAT_IP="10.0.1.135"  # Adresse IP par défaut si la récupération échoue
     else
         # Sauvegarder l'adresse IP pour les prochaines exécutions
         mkdir -p /opt/monitoring/secure
