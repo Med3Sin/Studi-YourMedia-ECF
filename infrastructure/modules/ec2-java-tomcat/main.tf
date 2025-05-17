@@ -279,7 +279,19 @@ sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
 
 # Télécharger et installer Tomcat
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de Tomcat"
-TOMCAT_VERSION=9.0.105  # Version mise à jour
+
+# Détection automatique de la dernière version de Tomcat 9
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Détection de la dernière version de Tomcat 9"
+TOMCAT_VERSION_PAGE=$(curl -s https://dlcdn.apache.org/tomcat/tomcat-9/)
+LATEST_VERSION=$(echo "$TOMCAT_VERSION_PAGE" | grep -o 'v9\.[0-9]\+\.[0-9]\+' | sort -V | tail -n 1 | sed 's/v//')
+
+if [ -n "$LATEST_VERSION" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Dernière version de Tomcat 9 détectée: $LATEST_VERSION"
+  TOMCAT_VERSION=$LATEST_VERSION
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Impossible de détecter la dernière version, utilisation de la version par défaut"
+  TOMCAT_VERSION=9.0.105  # Version par défaut en cas d'échec de la détection
+fi
 cd /tmp
 
 # Liste des URLs alternatives pour télécharger Tomcat
