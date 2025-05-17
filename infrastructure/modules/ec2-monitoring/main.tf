@@ -245,10 +245,17 @@ exec > >(tee /var/log/user-data-init.log) 2>&1
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation minimal"
 
+# Créer un fichier de marqueur pour indiquer que le script a démarré
+sudo touch /var/log/user-data-started
+
 # Mettre à jour le système et installer les dépendances essentielles
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances essentielles"
 sudo dnf update -y
-sudo dnf install -y wget curl jq docker
+sudo dnf install -y wget curl jq
+
+# Installation de Docker
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de Docker"
+sudo dnf install -y docker
 
 # Démarrer et activer Docker
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de Docker"
@@ -286,10 +293,10 @@ fi
 
 # Configuration des variables d'environnement Docker Hub
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des variables d'environnement Docker Hub"
-# Utiliser les variables Terraform
-DOCKERHUB_USERNAME="${var.docker_username}"
-DOCKERHUB_TOKEN="${var.dockerhub_token}"
-DOCKERHUB_REPO="${var.docker_repo}"
+# Utiliser des valeurs codées en dur pour le moment
+DOCKERHUB_USERNAME="medsin"
+DOCKERHUB_TOKEN=""
+DOCKERHUB_REPO="yourmedia-ecf"
 
 # Stocker les variables dans des fichiers sécurisés
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Stockage des variables Docker Hub"
@@ -319,6 +326,9 @@ export DOCKERHUB_REPO="$DOCKERHUB_REPO"
 # Exécuter le script d'initialisation avec les variables d'environnement
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
 sudo -E /opt/monitoring/init-monitoring.sh
+
+# Créer un fichier de marqueur pour indiquer que le script a terminé
+sudo touch /var/log/user-data-completed
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation minimal terminé"
 EOF
