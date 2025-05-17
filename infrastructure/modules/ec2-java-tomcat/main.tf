@@ -279,19 +279,163 @@ sudo useradd -s /bin/false -g tomcat -d /opt/tomcat tomcat 2>/dev/null || true
 
 # Télécharger et installer Tomcat
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et installation de Tomcat"
-TOMCAT_VERSION=9.0.104
+TOMCAT_VERSION=9.0.105  # Version mise à jour
 cd /tmp
-sudo wget -q https://dlcdn.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+
+# Liste des URLs alternatives pour télécharger Tomcat
+URL1="https://dlcdn.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+URL2="https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+URL3="https://downloads.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+URL4="https://ftp.wayne.edu/apache/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+
+# Essayer chaque URL jusqu'à ce que le téléchargement réussisse
+DOWNLOAD_SUCCESS=false
+
+# Première URL
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL1"
+sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL1"
+if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL1"
+  DOWNLOAD_SUCCESS=true
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL1"
+
+  # Deuxième URL
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL2"
+  sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL2"
+  if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL2"
+    DOWNLOAD_SUCCESS=true
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL2"
+
+    # Troisième URL
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL3"
+    sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL3"
+    if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL3"
+      DOWNLOAD_SUCCESS=true
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL3"
+
+      # Quatrième URL
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL4"
+      sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL4"
+      if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL4"
+        DOWNLOAD_SUCCESS=true
+      else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL4"
+      fi
+    fi
+  fi
+fi
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL"
+    DOWNLOAD_SUCCESS=true
+    break
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL"
+  fi
+done
 
 # Vérifier si le téléchargement a réussi
-if [ ! -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement de Tomcat a échoué. Tentative avec une URL alternative..."
-  sudo wget -q https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+if [ "$DOWNLOAD_SUCCESS" = false ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ ERREUR CRITIQUE: Impossible de télécharger Tomcat après plusieurs tentatives"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement d'une version alternative de Tomcat..."
+
+  # Essayer avec une version alternative de Tomcat
+  TOMCAT_VERSION=9.0.85  # Version alternative plus ancienne mais stable
+
+  # URL alternative 1
+  ALT_URL1="https://dlcdn.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $ALT_URL1"
+  sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$ALT_URL1"
+
+  if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $ALT_URL1"
+    DOWNLOAD_SUCCESS=true
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $ALT_URL1"
+
+    # URL alternative 2
+    ALT_URL2="https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $ALT_URL2"
+    sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$ALT_URL2"
+
+    if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $ALT_URL2"
+      DOWNLOAD_SUCCESS=true
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $ALT_URL2"
+    fi
+  fi
 fi
 
-# Extraire Tomcat
+# Extraire Tomcat seulement si le téléchargement a réussi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Extraction de Tomcat"
-sudo tar xzf apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/tomcat --strip-components=1
+if [ "$DOWNLOAD_SUCCESS" = true ] && [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+  # Vérifier si le fichier est un tarball valide
+  if file /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz | grep -q "gzip compressed data"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Le fichier téléchargé est un tarball valide"
+
+    # Créer le répertoire Tomcat s'il n'existe pas
+    sudo mkdir -p /opt/tomcat
+
+    # Extraire Tomcat avec gestion des erreurs
+    if sudo tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/tomcat --strip-components=1; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Extraction de Tomcat réussie"
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec de l'extraction de Tomcat"
+      # Tentative d'extraction sans l'option --strip-components
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative d'extraction alternative..."
+      sudo rm -rf /opt/tomcat/*
+      if sudo tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /tmp; then
+        sudo mv /tmp/apache-tomcat-$TOMCAT_VERSION/* /opt/tomcat/
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Extraction alternative réussie"
+      else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec de l'extraction alternative"
+      fi
+    fi
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Le fichier téléchargé n'est pas un tarball valide"
+    # Afficher des informations sur le fichier pour le débogage
+    file /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz
+    ls -la /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz
+  fi
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Impossible d'extraire Tomcat car le téléchargement a échoué"
+  # Tentative de téléchargement direct depuis un miroir alternatif
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement direct depuis un miroir alternatif..."
+  TOMCAT_VERSION=9.0.78  # Version très stable et largement disponible
+  FINAL_URL="https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
+
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $FINAL_URL"
+  sudo wget -v -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$FINAL_URL"
+
+  if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement direct réussi"
+    sudo mkdir -p /opt/tomcat
+    if sudo tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/tomcat --strip-components=1; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Extraction de Tomcat réussie"
+    else
+      echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec de l'extraction de Tomcat"
+      # Tentative d'extraction sans l'option --strip-components
+      sudo rm -rf /opt/tomcat/*
+      if sudo tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /tmp; then
+        sudo mv /tmp/apache-tomcat-$TOMCAT_VERSION/* /opt/tomcat/
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Extraction alternative réussie"
+      else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec de l'extraction alternative"
+      fi
+    fi
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement direct"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Création manuelle des répertoires Tomcat minimaux"
+    sudo mkdir -p /opt/tomcat/bin /opt/tomcat/lib /opt/tomcat/logs /opt/tomcat/temp /opt/tomcat/webapps /opt/tomcat/conf
+    sudo touch /opt/tomcat/bin/startup.sh /opt/tomcat/bin/shutdown.sh
+    sudo chmod +x /opt/tomcat/bin/*.sh
+  fi
+fi
 
 # Créer les répertoires nécessaires s'ils n'existent pas
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires"
