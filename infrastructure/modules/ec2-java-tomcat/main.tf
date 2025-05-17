@@ -147,12 +147,11 @@ set -e
 # Rediriger stdout et stderr vers un fichier log
 exec > >(tee /var/log/user-data-init.log) 2>&1
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation minimal"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage du script d'initialisation"
 
-# Mettre à jour le système et installer les dépendances de base
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Mise à jour du système et installation des dépendances de base"
-sudo dnf update -y
-sudo dnf install -y wget curl
+# Installer wget pour télécharger les scripts
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de wget"
+sudo dnf install -y wget
 
 # Configurer la clé SSH
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de la clé SSH"
@@ -163,14 +162,10 @@ sudo chmod 600 /home/ec2-user/.ssh/authorized_keys
 sudo chown -R ec2-user:ec2-user /home/ec2-user/.ssh
 
 # Télécharger et exécuter le script d'installation complet
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'installation complet"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et exécution du script d'installation"
 sudo wget -q -O /tmp/install-all.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/install-all.sh"
 sudo chmod +x /tmp/install-all.sh
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'installation complet"
 sudo /tmp/install-all.sh
-
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 }
 
