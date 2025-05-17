@@ -146,13 +146,13 @@ jobs:
           # Test de santé pour l'application mobile
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "Démarrage du conteneur mobile pour les tests..."
-            docker run -d --name mobile-test -p 3000:3000 ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}
+            docker run -d --name mobile-test -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}
 
             echo "Attente de 15 secondes pour le démarrage du conteneur..."
             sleep 15
 
             echo "Vérification de l'état de santé de l'application mobile..."
-            if curl -s -f http://localhost:3000/ > /dev/null; then
+            if curl -s -f http://localhost:8080/ > /dev/null; then
                 echo "✅ Le test de santé de l'application mobile a réussi"
             else
                 echo "❌ Le test de santé de l'application mobile a échoué"
@@ -221,7 +221,9 @@ jobs:
             echo "* **Mobile App Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Mobile App Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            cat mobile-scan.txt >> $GITHUB_STEP_SUMMARY
+            # Limiter la taille des résultats de scan à 100 lignes
+            head -n 100 mobile-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo "... (résultats tronqués pour limiter la taille)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -229,14 +231,13 @@ jobs:
             echo "* **Grafana Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
             echo "* **Prometheus Image:** ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }}" >> $GITHUB_STEP_SUMMARY
 
-
             echo "* **Monitoring Images Scan Results:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "=== Grafana Scan ===" >> $GITHUB_STEP_SUMMARY
-            cat grafana-scan.txt >> $GITHUB_STEP_SUMMARY
-            echo "\n=== Prometheus Scan ===" >> $GITHUB_STEP_SUMMARY
-            cat prometheus-scan.txt >> $GITHUB_STEP_SUMMARY
-
+            echo "=== Grafana Scan (premières 50 lignes) ===" >> $GITHUB_STEP_SUMMARY
+            head -n 50 grafana-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo "\n=== Prometheus Scan (premières 50 lignes) ===" >> $GITHUB_STEP_SUMMARY
+            head -n 50 prometheus-scan.txt >> $GITHUB_STEP_SUMMARY
+            echo "\n... (résultats tronqués pour limiter la taille)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
