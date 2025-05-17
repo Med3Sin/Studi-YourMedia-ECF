@@ -114,3 +114,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  app-mobile:
+    image: yourmedia-mobile-app:latest
+    container_name: app-mobile
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

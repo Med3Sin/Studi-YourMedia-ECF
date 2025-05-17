@@ -1,60 +1,41 @@
-FROM node:20-alpine AS builder
+FROM node:16-alpine
 
-# Installer les dépendances nécessaires pour React Native
-RUN apk add --no-cache bash git openssh curl
+# Installer les dépendances nécessaires
+RUN apk add --no-cache bash curl tini
 
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier les fichiers de configuration
-COPY package.json package-lock.json ./
+# Installer un serveur web léger
+RUN npm install -g serve
 
-# Installer les dépendances en mode production pour réduire la taille
-RUN npm ci --only=production
+# Créer une application React simple
+RUN npx create-react-app my-app --template minimal
 
-# Copier le reste du code source
-COPY . .
+# Aller dans le répertoire de l'application
+WORKDIR /app/my-app
 
-# Installer Expo CLI globalement
-RUN npm install -g expo-cli
+# Modifier le fichier App.js pour afficher un message personnalisé
+RUN sed -i 's|<p>Edit <code>src/App.js</code> and save to reload.</p>|<h1>YourMedia Mobile App</h1><p>Application mobile pour YourMedia</p>|g' src/App.js
 
-# Construire l'application pour le web (version mobile-responsive)
+# Construire l'application
 RUN npm run build
-
-# Étape finale pour réduire la taille de l'image
-FROM node:20-alpine
-
-# Installer un serveur web léger et les outils de diagnostic
-RUN npm install -g serve && \
-    apk add --no-cache curl tini
-
-# Définir le répertoire de travail
-WORKDIR /app
-
-# Copier les fichiers de build depuis l'étape précédente
-COPY --from=builder /app/dist /app/build
-
-# Copier le script d'entrée
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
 
 # Créer un utilisateur non-root pour des raisons de sécurité
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
 USER appuser
 
-# Exposer le port
-EXPOSE 3000
+# Exposer le port 8080
+EXPOSE 8080
 
-# Variables d'environnement (seront remplacées lors du déploiement)
-ENV API_URL=http://localhost:8080
+# Variables d'environnement
 ENV NODE_ENV=production
-# Forcer l'écoute sur toutes les interfaces
 ENV HOST=0.0.0.0
 
 # Health check pour vérifier que l'application est en cours d'exécution
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
+  CMD curl -f http://localhost:8080/ || exit 1
 
-# Utiliser tini comme point d'entrée pour une meilleure gestion des signaux
-ENTRYPOINT ["/sbin/tini", "--", "/app/docker-entrypoint.sh"]
+# Démarrer le serveur sur le port 8080
+CMD ["serve", "-s", "build", "-l", "8080"]

@@ -39,6 +39,28 @@ scrape_configs:
       - output:
           source: message
 
+  - job_name: java-app-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: java-app
+          instance: "ec2-java-tomcat"
+          app: "java-app"
+          __path__: /mnt/ec2-java-tomcat-logs/*.log
+    pipeline_stages:
+      - regex:
+          expression: '(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{3}) (?P<level>[A-Z]+) (?P<thread>\[.*?\]) (?P<logger>.*?) - (?P<message>.*)'
+      - labels:
+          level:
+          thread:
+          logger:
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05.000'
+      - output:
+          source: message
+
   - job_name: docker
     static_configs:
       - targets:

@@ -67,11 +67,23 @@ log_info "Adresse IP privée de l'instance EC2 Java Tomcat : $JAVA_TOMCAT_IP"
 
 # Synchroniser les logs de Tomcat
 log_info "Synchronisation des logs de Tomcat"
-sudo rsync -avz -e "ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/id_rsa" ec2-user@$JAVA_TOMCAT_IP:/opt/tomcat/logs/catalina.out /mnt/ec2-java-tomcat-logs/
+sudo rsync -avz -e "ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/id_rsa" ec2-user@$JAVA_TOMCAT_IP:/opt/tomcat/logs/ /mnt/ec2-java-tomcat-logs/
 
 if [ $? -ne 0 ]; then
     log_error "Échec de la synchronisation des logs de Tomcat"
 fi
+
+# Vérifier si les logs ont été synchronisés
+log_info "Vérification des logs synchronisés"
+if [ -f "/mnt/ec2-java-tomcat-logs/catalina.out" ]; then
+    log_success "Le fichier catalina.out a été synchronisé avec succès"
+else
+    log_error "Le fichier catalina.out n'a pas été synchronisé"
+fi
+
+# Afficher les logs disponibles
+log_info "Logs Tomcat disponibles:"
+ls -la /mnt/ec2-java-tomcat-logs/
 
 log_success "Synchronisation des logs de Tomcat terminée avec succès"
 exit 0

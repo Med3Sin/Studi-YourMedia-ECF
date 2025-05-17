@@ -15,7 +15,7 @@ scrape_configs:
       - targets: ['node-exporter:9100']
 
   - job_name: 'java-tomcat'
-    metrics_path: '/actuator/prometheus'
+    metrics_path: '/hello-world-dev/actuator/prometheus'
     static_configs:
       - targets: ['10.0.1.135:8080']
         labels:

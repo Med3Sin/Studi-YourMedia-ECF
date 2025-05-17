@@ -601,64 +601,77 @@ deploy_mobile() {
     # Ajouter le fichier à la liste des fichiers à supprimer à la fin
     trap "rm -f $SSH_KEY_FILE" EXIT
 
-    # Se connecter à l'instance EC2 et déployer les conteneurs
-    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP << EOF
-        # Connexion à Docker Hub
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    # Créer un script de déploiement pour l'application mobile
+    cat > /tmp/deploy-mobile-app.sh << 'EOL'
+#!/bin/bash
+set -e
 
-        # Vérifier si le répertoire de monitoring existe déjà
-        if [ ! -d "/opt/monitoring" ]; then
-            sudo mkdir -p /opt/monitoring
-        fi
+echo "Création du répertoire pour l'application mobile..."
+sudo mkdir -p /opt/mobile-app
 
-        # Créer un fichier docker-compose.yml spécifique pour l'application mobile
-        cat > /tmp/app-mobile-compose.yml << EOFAPP
-version: '3'
+echo "Création du Dockerfile pour l'application mobile..."
+cat > /tmp/Dockerfile << 'EOF'
+FROM node:16-alpine
 
-services:
-  # Application React
-  app-mobile:
-    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:mobile-latest
-    container_name: app-mobile
-    ports:
-      - "8080:3000"
-    environment:
-      - NODE_ENV=production
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
-EOFAPP
+# Installer les dépendances nécessaires
+RUN apk add --no-cache bash curl
 
-        # Déplacer le fichier vers le répertoire de monitoring
-        sudo mv /tmp/app-mobile-compose.yml /opt/monitoring/app-mobile-compose.yml
+# Définir le répertoire de travail
+WORKDIR /app
 
-        # Démarrer le conteneur avec le fichier spécifique
-        cd /opt/monitoring
-        echo "Pulling the latest mobile app image..."
-        sudo docker pull ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO}:mobile-latest
+# Installer un serveur web léger
+RUN npm install -g serve
 
-        echo "Stopping any existing app-mobile container..."
-        sudo docker stop app-mobile 2>/dev/null || true
-        sudo docker rm app-mobile 2>/dev/null || true
+# Créer une application React simple
+RUN npx create-react-app my-app --template minimal
 
-        echo "Starting the app-mobile container..."
-        sudo docker-compose -f app-mobile-compose.yml up -d
+# Aller dans le répertoire de l'application
+WORKDIR /app/my-app
 
-        # Vérifier que le conteneur est en cours d'exécution
-        echo "Checking if the container is running..."
-        sudo docker ps | grep app-mobile
+# Modifier le fichier App.js pour afficher un message personnalisé
+RUN sed -i 's|<p>Edit <code>src/App.js</code> and save to reload.</p>|<h1>YourMedia Mobile App</h1><p>Application mobile pour YourMedia</p>|g' src/App.js
 
-        # Afficher les logs du conteneur
-        echo "Container logs:"
-        sudo docker logs app-mobile
+# Construire l'application
+RUN npm run build
+
+# Exposer le port 8080
+EXPOSE 8080
+
+# Démarrer le serveur sur le port 8080
+CMD ["serve", "-s", "build", "-l", "8080"]
 EOF
 
-    # Le fichier temporaire de la clé SSH sera supprimé automatiquement grâce au trap EXIT
+echo "Copie du Dockerfile dans le répertoire de l'application mobile..."
+sudo cp /tmp/Dockerfile /opt/mobile-app/Dockerfile
+
+echo "Construction de l'image Docker localement..."
+cd /opt/mobile-app
+sudo docker build -t yourmedia-mobile-app:latest .
+
+echo "Arrêt et suppression du conteneur existant s'il existe..."
+sudo docker stop app-mobile 2>/dev/null || true
+sudo docker rm app-mobile 2>/dev/null || true
+
+echo "Démarrage du conteneur avec la nouvelle image..."
+sudo docker run -d --name app-mobile -p 8080:8080 yourmedia-mobile-app:latest
+
+echo "Vérification de l'état du conteneur..."
+if sudo docker ps | grep app-mobile; then
+    echo "✅ Le conteneur app-mobile est en cours d'exécution"
+else
+    echo "❌ Le conteneur app-mobile n'est pas en cours d'exécution"
+    echo "Logs du conteneur:"
+    sudo docker logs app-mobile
+fi
+EOL
+
+    # Copier le script sur l'instance de monitoring
+    log_info "Copie du script de déploiement sur l'instance de monitoring..."
+    scp -o StrictHostKeyChecking=no -i "$SSH_KEY_FILE" /tmp/deploy-mobile-app.sh ec2-user@$EC2_MONITORING_IP:/tmp/deploy-mobile-app.sh
+
+    # Exécuter le script sur l'instance de monitoring
+    log_info "Exécution du script de déploiement sur l'instance de monitoring..."
+    ssh -i "$SSH_KEY_FILE" -o StrictHostKeyChecking=no ec2-user@$EC2_MONITORING_IP "chmod +x /tmp/deploy-mobile-app.sh && /tmp/deploy-mobile-app.sh"
 
     # Vérifier l'état du conteneur après le déploiement
     sleep 5
