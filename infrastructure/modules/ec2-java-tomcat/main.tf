@@ -1,57 +1,3 @@
-variable "project_name" {
-  description = "Nom du projet"
-  type        = string
-}
-
-variable "environment" {
-  description = "Environnement (dev, staging, prod)"
-  type        = string
-}
-
-variable "vpc_id" {
-  description = "ID du VPC"
-  type        = string
-}
-
-variable "subnet_id" {
-  description = "ID du sous-réseau"
-  type        = string
-}
-
-variable "ec2_security_group_id" {
-  description = "ID du groupe de sécurité EC2"
-  type        = string
-}
-
-variable "ami_id" {
-  description = "ID de l'AMI à utiliser"
-  type        = string
-  default     = ""
-}
-
-variable "use_latest_ami" {
-  description = "Utiliser la dernière AMI Amazon Linux 2023"
-  type        = bool
-  default     = true
-}
-
-variable "instance_type_ec2" {
-  description = "Type d'instance EC2"
-  type        = string
-  default     = "t2.micro"
-}
-
-variable "key_pair_name" {
-  description = "Nom de la paire de clés SSH"
-  type        = string
-}
-
-variable "ssh_public_key" {
-  description = "Clé publique SSH"
-  type        = string
-  default     = ""
-}
-
 # Récupérer la dernière AMI Amazon Linux 2023
 data "aws_ami" "amazon_linux_2023" {
   most_recent = true
@@ -189,24 +135,4 @@ resource "aws_instance" "app_server" {
     Environment = var.environment
     AppType     = "HelloWorld"
   }
-}
-
-output "instance_id" {
-  description = "ID de l'instance EC2"
-  value       = aws_instance.app_server.id
-}
-
-output "private_ip" {
-  description = "Adresse IP privée de l'instance EC2"
-  value       = aws_instance.app_server.private_ip
-}
-
-output "public_ip" {
-  description = "Adresse IP publique de l'instance EC2"
-  value       = aws_instance.app_server.public_ip
-}
-
-output "public_dns" {
-  description = "Nom DNS public de l'instance EC2"
-  value       = aws_instance.app_server.public_dns
 }
