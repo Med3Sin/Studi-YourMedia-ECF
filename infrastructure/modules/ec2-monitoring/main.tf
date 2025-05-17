@@ -251,17 +251,72 @@ sudo touch /var/log/user-data-started
 # Mettre à jour le système et installer les dépendances essentielles
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances essentielles"
 sudo dnf update -y
-sudo dnf install -y wget curl jq
+sudo dnf install -y wget jq
 
-# Installation de Docker
+# Installation de Docker avec gestion des conflits de paquets
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de Docker"
-sudo dnf install -y docker
+# Méthode 1: Utiliser --allowerasing pour résoudre les conflits de paquets
+sudo dnf install -y --allowerasing docker
+
+# En cas d'échec, essayer la méthode alternative
+if [ $? -ne 0 ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Première méthode d'installation de Docker échouée, tentative alternative..."
+  # Méthode 2: Installer Docker via le référentiel Amazon Extras
+  sudo dnf install -y amazon-linux-extras
+  sudo amazon-linux-extras install -y docker
+fi
+
+# Vérifier si Docker est installé
+if ! command -v docker &> /dev/null; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Méthodes précédentes échouées, tentative avec le référentiel Docker officiel..."
+  # Méthode 3: Installer Docker via le référentiel officiel
+  sudo dnf install -y yum-utils
+  sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  sudo dnf install -y docker-ce docker-ce-cli containerd.io
+fi
 
 # Démarrer et activer Docker
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration de Docker"
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker ec2-user
+
+# Vérifier que Docker fonctionne correctement
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Vérification de l'installation de Docker"
+if sudo docker --version &> /dev/null; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Docker est correctement installé: $(sudo docker --version)"
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ ERREUR: Docker n'est pas correctement installé"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative d'installation de Docker via le gestionnaire de paquets snap"
+  sudo dnf install -y snapd
+  sudo systemctl enable --now snapd.socket
+  sudo ln -s /var/lib/snapd/snap /snap
+  sudo snap install docker
+fi
+
+# Vérifier à nouveau que Docker fonctionne
+if ! sudo docker --version &> /dev/null; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ ERREUR CRITIQUE: Impossible d'installer Docker après plusieurs tentatives"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Le script continuera mais la configuration du monitoring pourrait échouer"
+fi
+
+# Installation de Docker Compose
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de Docker Compose"
+if ! command -v docker-compose &> /dev/null; then
+  sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+  sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+  # Vérifier l'installation de Docker Compose
+  if docker-compose --version &> /dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Docker Compose est correctement installé: $(docker-compose --version)"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ ERREUR: Docker Compose n'est pas correctement installé"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative alternative d'installation de Docker Compose via pip"
+    sudo dnf install -y python3-pip
+    sudo pip3 install docker-compose
+  fi
+fi
 
 # Créer les répertoires nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires"
