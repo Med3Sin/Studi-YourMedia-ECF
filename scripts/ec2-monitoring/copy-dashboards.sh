@@ -61,6 +61,10 @@ wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/system-overview.
 log_info "Téléchargement du tableau de bord de l'application React"
 wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/react-app-dashboard.json "$GITHUB_RAW_URL/scripts/config/grafana/react-app-dashboard.json"
 
+# Télécharger le tableau de bord cAdvisor
+log_info "Téléchargement du tableau de bord cAdvisor"
+wget -q -O /opt/monitoring/config/grafana/dashboards/dashboards/cadvisor-dashboard.json "$GITHUB_RAW_URL/scripts/config/grafana/cadvisor-dashboard.json"
+
 # Définir les permissions appropriées
 log_info "Définition des permissions appropriées"
 chmod -R 755 /opt/monitoring/config/grafana/dashboards/dashboards

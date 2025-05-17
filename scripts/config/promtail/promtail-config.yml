@@ -53,9 +53,16 @@ scrape_configs:
             stream: stream
             attrs: attrs
             time: time
+            container_id: attrs.container_id
             container_name: attrs.container_name
+            image: attrs.image
+      - regex:
+          expression: '(?P<container_name>([a-zA-Z0-9][a-zA-Z0-9_.-]*))'
+          source: container_name
       - labels:
           container_name:
+          container_id:
+          image:
       - timestamp:
           source: time
           format: RFC3339Nano
