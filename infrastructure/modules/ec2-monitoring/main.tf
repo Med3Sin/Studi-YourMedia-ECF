@@ -378,6 +378,63 @@ export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
 export DOCKERHUB_TOKEN="$DOCKERHUB_TOKEN"
 export DOCKERHUB_REPO="$DOCKERHUB_REPO"
 
+# Télécharger le script de configuration Prometheus
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de configuration Prometheus"
+sudo wget -q -O /opt/monitoring/create-prometheus-config.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/create-prometheus-config.sh"
+
+# Vérifier si le téléchargement a réussi
+if [ -s /opt/monitoring/create-prometheus-config.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script de configuration Prometheus téléchargé avec succès"
+  sudo chmod +x /opt/monitoring/create-prometheus-config.sh
+
+  # Exécuter le script de configuration Prometheus
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script de configuration Prometheus"
+  sudo /opt/monitoring/create-prometheus-config.sh
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Échec du téléchargement du script de configuration Prometheus"
+
+  # Créer manuellement le fichier de configuration Prometheus
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Création manuelle du fichier de configuration Prometheus"
+  sudo mkdir -p /opt/monitoring/config/prometheus
+  sudo bash -c 'cat > /opt/monitoring/config/prometheus/prometheus.yml << EOF
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  - job_name: "java-tomcat"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["10.0.1.100:9100"]
+        labels:
+          instance: "java-tomcat"
+EOF'
+
+  # Créer un lien symbolique vers le fichier de configuration
+  sudo ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
+fi
+
 # Exécuter le script d'initialisation avec les variables d'environnement
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
 sudo -E /opt/monitoring/init-monitoring.sh

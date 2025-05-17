@@ -534,6 +534,69 @@ sudo chmod +x /usr/local/bin/deploy-war.sh
 sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
 sudo chmod 440 /etc/sudoers.d/deploy-war
 
+# Installation de node_exporter pour la surveillance Prometheus
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de node_exporter pour la surveillance Prometheus"
+
+# Télécharger le script d'installation de node_exporter
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'installation de node_exporter"
+sudo wget -q -O /tmp/install-node-exporter.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/install-node-exporter.sh"
+
+# Vérifier si le téléchargement a réussi
+if [ -s /tmp/install-node-exporter.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'installation de node_exporter téléchargé avec succès"
+  sudo chmod +x /tmp/install-node-exporter.sh
+  sudo /tmp/install-node-exporter.sh
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Échec du téléchargement du script d'installation de node_exporter"
+
+  # Installation manuelle de node_exporter
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation manuelle de node_exporter"
+
+  # Télécharger node_exporter
+  NODE_EXPORTER_VERSION="1.7.0"
+  sudo wget -q -O /tmp/node_exporter.tar.gz "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
+
+  # Extraire l'archive
+  sudo tar xzf /tmp/node_exporter.tar.gz -C /tmp
+
+  # Déplacer le binaire
+  sudo mv /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+
+  # Créer un utilisateur pour node_exporter
+  sudo useradd -rs /bin/false node_exporter || true
+
+  # Créer un service systemd
+  sudo bash -c 'cat > /etc/systemd/system/node_exporter.service << EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+  # Démarrer et activer le service
+  sudo systemctl daemon-reload
+  sudo systemctl start node_exporter
+  sudo systemctl enable node_exporter
+
+  # Nettoyer les fichiers temporaires
+  sudo rm -rf /tmp/node_exporter.tar.gz /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64
+fi
+
+# Ouvrir le port 9100 pour node_exporter dans le pare-feu
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Ouverture du port 9100 pour node_exporter"
+if command -v firewall-cmd &> /dev/null; then
+  sudo firewall-cmd --permanent --add-port=9100/tcp
+  sudo firewall-cmd --reload
+fi
+
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 }
