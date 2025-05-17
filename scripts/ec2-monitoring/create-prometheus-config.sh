@@ -15,8 +15,8 @@ sudo mkdir -p /opt/monitoring/prometheus/rules
 
 # Vérifier si l'adresse IP de l'instance Java Tomcat est disponible
 JAVA_TOMCAT_IP=""
-if [ -f "/opt/monitoring/secure/java-tomcat-ip.txt" ]; then
-  JAVA_TOMCAT_IP=$(cat /opt/monitoring/secure/java-tomcat-ip.txt)
+if [ -f "/opt/monitoring/secure/java_tomcat_ip.txt" ]; then
+  JAVA_TOMCAT_IP=$(cat /opt/monitoring/secure/java_tomcat_ip.txt)
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Adresse IP de l'instance Java Tomcat trouvée: $JAVA_TOMCAT_IP"
 else
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Adresse IP de l'instance Java Tomcat non trouvée, utilisation de la valeur par défaut"
@@ -24,10 +24,10 @@ else
   if command -v aws &> /dev/null; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de détection de l'adresse IP de l'instance Java Tomcat via AWS CLI"
     # Rechercher l'instance EC2 avec le tag Name=yourmedia-dev-app-server
-    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=yourmedia-dev-app-server" --query "Reservations[].Instances[].PrivateIpAddress" --output text)
+    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=yourmedia-dev-app-server" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
     if [ -n "$JAVA_TOMCAT_IP" ]; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') - Adresse IP de l'instance Java Tomcat détectée: $JAVA_TOMCAT_IP"
-      echo "$JAVA_TOMCAT_IP" | sudo tee /opt/monitoring/secure/java-tomcat-ip.txt > /dev/null
+      echo "$JAVA_TOMCAT_IP" | sudo tee /opt/monitoring/secure/java_tomcat_ip.txt > /dev/null
     else
       echo "$(date '+%Y-%m-%d %H:%M:%S') - Impossible de détecter l'adresse IP de l'instance Java Tomcat via AWS CLI"
       JAVA_TOMCAT_IP="10.0.1.100"  # Valeur par défaut

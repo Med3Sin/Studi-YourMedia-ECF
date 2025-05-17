@@ -40,9 +40,9 @@ if [ -f "/opt/monitoring/secure/java_tomcat_ip.txt" ]; then
     JAVA_TOMCAT_IP=$(cat /opt/monitoring/secure/java_tomcat_ip.txt)
     log_info "Adresse IP privée récupérée depuis le fichier de configuration : $JAVA_TOMCAT_IP"
 else
-    # Essayer de récupérer l'adresse IP via AWS CLI en recherchant l'instance avec le tag Name contenant "java-tomcat"
+    # Essayer de récupérer l'adresse IP via AWS CLI en recherchant l'instance avec le tag Name contenant "yourmedia-dev-app-server"
     log_info "Tentative de récupération de l'adresse IP via AWS CLI"
-    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=*java*tomcat*" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
+    JAVA_TOMCAT_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=yourmedia-dev-app-server" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
 
     if [ -z "$JAVA_TOMCAT_IP" ] || [ "$JAVA_TOMCAT_IP" == "None" ]; then
         log_info "Impossible de récupérer l'adresse IP via AWS CLI, utilisation de l'adresse par défaut"

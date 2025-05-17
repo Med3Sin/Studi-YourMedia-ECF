@@ -180,10 +180,11 @@ resource "aws_iam_policy" "monitoring_policy" {
       },
       {
         Action = [
-          "ec2:DescribeTags"
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances"
         ]
         Effect = "Allow"
-        # Permission pour décrire les tags EC2 (nécessite "*" comme ressource)
+        # Permission pour décrire les tags EC2 et les instances (nécessite "*" comme ressource)
         Resource = "*"
       },
     ]

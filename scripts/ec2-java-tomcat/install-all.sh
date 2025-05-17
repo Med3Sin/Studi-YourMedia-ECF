@@ -15,7 +15,34 @@ sudo dnf update -y
 
 # Installer les dépendances nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des dépendances"
-sudo dnf install -y jq wget curl aws-cli java-17-amazon-corretto-devel net-tools
+
+# Vérifier si curl-minimal est installé
+if rpm -q curl-minimal > /dev/null; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - curl-minimal est installé, résolution du conflit de packages"
+
+  # Tenter d'installer curl avec --allowerasing pour résoudre le conflit
+  sudo dnf install -y --allowerasing curl
+
+  # Vérifier si l'installation a réussi
+  if ! rpm -q curl > /dev/null; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Échec de l'installation de curl avec --allowerasing, tentative alternative"
+
+    # Tenter de supprimer curl-minimal d'abord
+    sudo dnf remove -y curl-minimal
+    sudo dnf install -y curl
+  fi
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - curl-minimal n'est pas installé, installation normale de curl"
+  sudo dnf install -y curl
+fi
+
+# Installer les autres dépendances
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation des autres dépendances"
+sudo dnf install -y jq wget aws-cli net-tools
+
+# Installer Java avec --allowerasing pour éviter les conflits
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Installation de Java"
+sudo dnf install -y --allowerasing java-17-amazon-corretto-devel
 
 # Créer les répertoires nécessaires
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Création des répertoires nécessaires"
@@ -100,7 +127,7 @@ TOMCAT_URLS=(
 for URL in "${TOMCAT_URLS[@]}"; do
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL"
   wget -q -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL"
-  
+
   if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL"
     DOWNLOAD_SUCCESS=true
@@ -115,10 +142,10 @@ if [ "$DOWNLOAD_SUCCESS" = false ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement de Tomcat $TOMCAT_VERSION, tentative avec une version alternative"
   TOMCAT_VERSION=9.0.78
   URL="https://archive.apache.org/dist/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz"
-  
+
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Tentative de téléchargement depuis: $URL"
   wget -q -O /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz "$URL"
-  
+
   if [ -s /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL"
     DOWNLOAD_SUCCESS=true
@@ -132,16 +159,16 @@ if [ "$DOWNLOAD_SUCCESS" = true ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Extraction de Tomcat"
   sudo mkdir -p /opt/tomcat
   sudo tar xzf /tmp/apache-tomcat-$TOMCAT_VERSION.tar.gz -C /opt/tomcat --strip-components=1
-  
+
   # Créer un utilisateur Tomcat
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Création de l'utilisateur Tomcat"
   sudo useradd -r -m -d /opt/tomcat -s /bin/false tomcat || true
-  
+
   # Configuration des permissions
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration des permissions"
   sudo chown -R tomcat:tomcat /opt/tomcat
   sudo chmod +x /opt/tomcat/bin/*.sh
-  
+
   # Démarrer Tomcat
   echo "$(date '+%Y-%m-%d %H:%M:%S') - Démarrage de Tomcat"
   sudo systemctl daemon-reload
