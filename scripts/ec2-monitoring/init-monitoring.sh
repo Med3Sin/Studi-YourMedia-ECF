@@ -626,9 +626,19 @@ log "Authentification à Docker Hub"
 # Vérifier si les variables d'environnement Docker Hub sont définies
 if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
     log "Utilisation des variables d'environnement pour l'authentification Docker Hub"
+    # Sauvegarder les variables dans des fichiers pour une utilisation ultérieure
+    echo "$DOCKERHUB_USERNAME" > /opt/monitoring/secure/dockerhub-username.txt
+    echo "$DOCKERHUB_TOKEN" > /opt/monitoring/secure/dockerhub-token.txt
+    chmod 600 /opt/monitoring/secure/dockerhub-token.txt
+    chmod 600 /opt/monitoring/secure/dockerhub-username.txt
+
+    # Authentification avec Docker Hub
     echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin
     if [ $? -eq 0 ]; then
         log "✅ Authentification Docker Hub réussie avec les variables d'environnement"
+        # Exporter les variables pour docker-compose
+        export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+        export DOCKERHUB_REPO="${DOCKERHUB_REPO:-yourmedia-ecf}"
     else
         log "❌ Échec de l'authentification Docker Hub avec les variables d'environnement"
         log "Tentative d'utilisation des fichiers d'authentification"
@@ -641,6 +651,9 @@ elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitorin
     echo "$DOCKER_TOKEN" | sudo docker login --username "$DOCKER_USERNAME" --password-stdin
     if [ $? -eq 0 ]; then
         log "✅ Authentification Docker Hub réussie avec le token"
+        # Exporter les variables pour docker-compose
+        export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
+        export DOCKERHUB_REPO="${DOCKERHUB_REPO:-yourmedia-ecf}"
     else
         log "❌ Échec de l'authentification Docker Hub avec le token"
         log "Tentative d'utilisation des images publiques"
@@ -648,6 +661,12 @@ elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitorin
 else
     log "❌ Aucune information d'authentification Docker Hub trouvée"
     log "Tentative d'utilisation des images publiques"
+
+    # Modifier le fichier docker-compose.yml pour utiliser des images publiques
+    log "Modification du fichier docker-compose.yml pour utiliser des images publiques"
+    sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest|image: grafana/grafana:latest|g" /opt/monitoring/docker-compose.yml
+    sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:loki-latest|image: grafana/loki:latest|g" /opt/monitoring/docker-compose.yml
+    sudo sed -i "s|image: \${DOCKERHUB_USERNAME:-medsin}/\${DOCKERHUB_REPO:-yourmedia-ecf}:promtail-latest|image: grafana/promtail:latest|g" /opt/monitoring/docker-compose.yml
 fi
 
 # Création des répertoires de données avec les bonnes permissions
@@ -678,10 +697,26 @@ if [ -z "$DOCKERHUB_REPO" ]; then
     fi
 fi
 
+# Vérifier si le token Docker Hub est défini
+if [ -z "$DOCKERHUB_TOKEN" ] && [ -f "/opt/monitoring/secure/dockerhub-token.txt" ]; then
+    export DOCKERHUB_TOKEN=$(cat /opt/monitoring/secure/dockerhub-token.txt)
+    # Réessayer l'authentification si elle n'a pas été faite précédemment
+    if ! sudo docker info | grep -q "Username: $DOCKERHUB_USERNAME"; then
+        log "Tentative d'authentification Docker Hub avec le token récupéré"
+        echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        if [ $? -eq 0 ]; then
+            log "✅ Authentification Docker Hub réussie avec le token récupéré"
+        else
+            log "❌ Échec de l'authentification Docker Hub avec le token récupéré"
+        fi
+    fi
+fi
+
 # Afficher les variables d'environnement Docker Hub
 log "Variables d'environnement Docker Hub:"
 log "DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME"
 log "DOCKERHUB_REPO: $DOCKERHUB_REPO"
+log "DOCKERHUB_TOKEN: $(if [ -n "$DOCKERHUB_TOKEN" ]; then echo "défini"; else echo "non défini"; fi)"
 
 # Vérifier que Docker est en cours d'exécution
 log "Vérification que Docker est en cours d'exécution"
@@ -723,7 +758,17 @@ fi
 
 # Démarrer les conteneurs Docker
 cd /opt/monitoring
-log "Exécution de docker-compose up -d"
+log "Exécution de docker-compose up -d avec les variables d'environnement suivantes:"
+log "DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME"
+log "DOCKERHUB_REPO=$DOCKERHUB_REPO"
+
+# Créer un fichier .env pour Docker Compose
+cat > /opt/monitoring/.env << EOF
+DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
+DOCKERHUB_REPO=$DOCKERHUB_REPO
+EOF
+
+# Exécuter docker-compose avec les variables d'environnement
 sudo -E docker-compose up -d
 
 # Vérifier que les conteneurs sont bien démarrés
