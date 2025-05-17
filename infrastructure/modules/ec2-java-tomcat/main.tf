@@ -223,49 +223,8 @@ sudo wget -q -O /opt/yourmedia/deploy-war.sh "$GITHUB_RAW_URL/scripts/ec2-java-t
 
 # Vérifier si le téléchargement a réussi
 if [ ! -s /opt/yourmedia/deploy-war.sh ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script deploy-war.sh a échoué. Création d'une version simplifiée..."
-
-  # Créer une version simplifiée du script de déploiement WAR
-  sudo bash -c 'cat > /opt/yourmedia/deploy-war.sh << EOF
-#!/bin/bash
-#==============================================================================
-# Nom du script : deploy-war.sh
-# Description   : Script pour déployer un fichier WAR dans Tomcat.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
-# Version       : 1.0
-# Date          : 2023-05-04
-#==============================================================================
-
-# Vérifier si un argument a été fourni
-if [ \$# -ne 1 ]; then
-  echo "Usage: \$0 <chemin_vers_war>"
-  exit 1
-fi
-
-WAR_PATH=\$1
-WAR_NAME=\$(basename \$WAR_PATH)
-APP_NAME=\$(echo \$WAR_NAME | sed 's/\.war$//')
-
-echo "Déploiement du fichier WAR: \$WAR_PATH vers /opt/tomcat/webapps/\$WAR_NAME"
-
-# Vérifier si le fichier existe
-if [ ! -f "\$WAR_PATH" ]; then
-  echo "Le fichier \$WAR_PATH n'\''existe pas"
-  exit 1
-fi
-
-# Copier le fichier WAR dans webapps
-sudo cp \$WAR_PATH /opt/tomcat/webapps/\$WAR_NAME
-sudo chown tomcat:tomcat /opt/tomcat/webapps/\$WAR_NAME
-
-# Redémarrer Tomcat
-sudo systemctl restart tomcat
-sleep 10
-
-echo "Déploiement terminé avec succès"
-echo "L'\''application est accessible à l'\''adresse: http://\$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):8080/\$APP_NAME/"
-exit 0
-EOF'
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script deploy-war.sh a échoué. Nouvelle tentative..."
+  sudo wget -v -O /opt/yourmedia/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
 fi
 
 # S'assurer que le script est exécutable
@@ -342,13 +301,7 @@ else
     fi
   fi
 fi
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Téléchargement réussi depuis: $URL"
-    DOWNLOAD_SUCCESS=true
-    break
-  else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Échec du téléchargement depuis: $URL"
-  fi
-done
+
 
 # Vérifier si le téléchargement a réussi
 if [ "$DOWNLOAD_SUCCESS" = false ]; then
