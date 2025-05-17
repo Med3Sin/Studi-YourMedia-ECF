@@ -554,13 +554,13 @@ else
 
   # Télécharger node_exporter
   NODE_EXPORTER_VERSION="1.7.0"
-  sudo wget -q -O /tmp/node_exporter.tar.gz "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
+  sudo wget -q -O /tmp/node_exporter.tar.gz "https://github.com/prometheus/node_exporter/releases/download/v$${NODE_EXPORTER_VERSION}/node_exporter-$${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
 
   # Extraire l'archive
   sudo tar xzf /tmp/node_exporter.tar.gz -C /tmp
 
   # Déplacer le binaire
-  sudo mv /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+  sudo mv /tmp/node_exporter-$${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
 
   # Créer un utilisateur pour node_exporter
   sudo useradd -rs /bin/false node_exporter || true
@@ -587,7 +587,7 @@ EOF'
   sudo systemctl enable node_exporter
 
   # Nettoyer les fichiers temporaires
-  sudo rm -rf /tmp/node_exporter.tar.gz /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64
+  sudo rm -rf /tmp/node_exporter.tar.gz /tmp/node_exporter-$${NODE_EXPORTER_VERSION}.linux-amd64
 fi
 
 # Ouvrir le port 9100 pour node_exporter dans le pare-feu
