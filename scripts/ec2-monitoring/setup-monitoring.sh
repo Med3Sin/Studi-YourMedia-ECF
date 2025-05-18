@@ -771,7 +771,11 @@ start_containers() {
     # Connexion à Docker Hub si les identifiants sont disponibles
     if [ ! -z "$DOCKERHUB_USERNAME" ] && [ ! -z "$DOCKERHUB_TOKEN" ]; then
         log "Connexion à Docker Hub avec l'utilisateur $DOCKERHUB_USERNAME"
-        echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+        echo $DOCKERHUB_TOKEN > /tmp/docker_token.txt
+        docker login -u $DOCKERHUB_USERNAME --password-stdin < /tmp/docker_token.txt
+        # Supprimer le fichier temporaire pour des raisons de sécurité
+        sudo rm -f /tmp/docker_token.txt
     fi
 
     cd /opt/monitoring
@@ -1125,12 +1129,16 @@ export DOCKER_REPO="$DOCKERHUB_REPO"
 # Authentification Docker Hub si les identifiants sont disponibles
 if [ ! -z "${DOCKERHUB_USERNAME}" ] && [ ! -z "${DOCKERHUB_TOKEN}" ]; then
     log "Authentification à Docker Hub avec l'utilisateur ${DOCKERHUB_USERNAME}"
-    echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
+    # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+    echo $DOCKERHUB_TOKEN > /tmp/docker_token.txt
+    docker login -u $DOCKERHUB_USERNAME --password-stdin < /tmp/docker_token.txt
     if [ $? -eq 0 ]; then
         log "✅ Authentification Docker Hub réussie"
     else
         log "❌ Échec de l'authentification Docker Hub"
     fi
+    # Supprimer le fichier temporaire pour des raisons de sécurité
+    sudo rm -f /tmp/docker_token.txt
 else
     log "Aucun identifiant Docker Hub trouvé, les images publiques seront utilisées"
 fi

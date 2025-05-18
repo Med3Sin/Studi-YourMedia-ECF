@@ -375,7 +375,11 @@ check_deploy_vars() {
 # Connexion à Docker Hub
 docker_login() {
     log_info "Connexion à Docker Hub..."
-    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin || log_error "Échec de la connexion à Docker Hub"
+    # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+    echo $DOCKERHUB_TOKEN > /tmp/docker_token.txt
+    docker login -u $DOCKERHUB_USERNAME --password-stdin < /tmp/docker_token.txt || log_error "Échec de la connexion à Docker Hub"
+    # Supprimer le fichier temporaire pour des raisons de sécurité
+    sudo rm -f /tmp/docker_token.txt
 }
 
 # Fonction pour construire et pousser l'image mobile

@@ -666,7 +666,9 @@ if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
 
     # Authentification avec Docker Hub (sans afficher le token dans les logs)
     log "Tentative d'authentification Docker Hub..."
-    if echo "$DOCKERHUB_TOKEN" | sudo docker login --username "$DOCKERHUB_USERNAME" --password-stdin > /dev/null 2>&1; then
+    # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+    echo $DOCKERHUB_TOKEN > /tmp/docker_token.txt
+    if sudo docker login --username $DOCKERHUB_USERNAME --password-stdin < /tmp/docker_token.txt > /dev/null 2>&1; then
         log "✅ Authentification Docker Hub réussie"
         # Exporter uniquement le nom d'utilisateur pour docker-compose
         export DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
@@ -675,6 +677,8 @@ if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
         log "❌ Échec de l'authentification Docker Hub"
         log "Tentative d'utilisation des fichiers d'authentification"
     fi
+    # Supprimer le fichier temporaire pour des raisons de sécurité
+    sudo rm -f /tmp/docker_token.txt
 # Vérifier si les fichiers d'authentification Docker Hub existent
 elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitoring/secure/dockerhub-username.txt" ]; then
     log "Utilisation des fichiers d'authentification pour l'authentification Docker Hub"
@@ -683,7 +687,9 @@ elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitorin
 
     # Authentification avec Docker Hub (sans afficher le token dans les logs)
     log "Tentative d'authentification Docker Hub..."
-    if sudo cat /opt/monitoring/secure/dockerhub-token.txt | sudo docker login --username "$DOCKER_USERNAME" --password-stdin > /dev/null 2>&1; then
+    # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+    sudo cat /opt/monitoring/secure/dockerhub-token.txt > /tmp/docker_token.txt
+    if sudo docker login --username $DOCKER_USERNAME --password-stdin < /tmp/docker_token.txt > /dev/null 2>&1; then
         log "✅ Authentification Docker Hub réussie"
         # Exporter uniquement le nom d'utilisateur pour docker-compose
         export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
@@ -692,6 +698,8 @@ elif [ -f "/opt/monitoring/secure/dockerhub-token.txt" ] && [ -f "/opt/monitorin
         log "❌ Échec de l'authentification Docker Hub"
         log "Tentative d'utilisation des images publiques"
     fi
+    # Supprimer le fichier temporaire pour des raisons de sécurité
+    sudo rm -f /tmp/docker_token.txt
 else
     log "❌ Aucune information d'authentification Docker Hub trouvée"
     log "Tentative d'utilisation des images publiques"
@@ -737,12 +745,16 @@ if [ -z "$DOCKERHUB_TOKEN" ] && [ -f "/opt/monitoring/secure/dockerhub-token.txt
     if ! sudo docker info 2>/dev/null | grep -q "Username:"; then
         log "Tentative d'authentification Docker Hub avec le token stocké"
         DOCKER_USERNAME=$(sudo cat /opt/monitoring/secure/dockerhub-username.txt 2>/dev/null || echo "$DOCKERHUB_USERNAME")
-        if sudo cat /opt/monitoring/secure/dockerhub-token.txt 2>/dev/null | sudo docker login --username "$DOCKER_USERNAME" --password-stdin > /dev/null 2>&1; then
+        # Utiliser un fichier temporaire pour éviter les problèmes de redirection avec sudo
+        sudo cat /opt/monitoring/secure/dockerhub-token.txt 2>/dev/null > /tmp/docker_token.txt
+        if sudo docker login --username $DOCKER_USERNAME --password-stdin < /tmp/docker_token.txt > /dev/null 2>&1; then
             log "✅ Authentification Docker Hub réussie"
             export DOCKERHUB_USERNAME="$DOCKER_USERNAME"
         else
             log "❌ Échec de l'authentification Docker Hub"
         fi
+        # Supprimer le fichier temporaire pour des raisons de sécurité
+        sudo rm -f /tmp/docker_token.txt
     fi
 fi
 
