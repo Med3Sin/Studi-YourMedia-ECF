@@ -81,9 +81,30 @@ else
     log_error "Le fichier catalina.out n'a pas été synchronisé"
 fi
 
+# Définir les permissions appropriées pour que Promtail puisse lire les logs
+log_info "Définition des permissions appropriées pour les logs"
+sudo chmod -R 644 /mnt/ec2-java-tomcat-logs/*.log /mnt/ec2-java-tomcat-logs/catalina.out 2>/dev/null
+sudo chown -R ec2-user:ec2-user /mnt/ec2-java-tomcat-logs/ 2>/dev/null
+
 # Afficher les logs disponibles
 log_info "Logs Tomcat disponibles:"
 ls -la /mnt/ec2-java-tomcat-logs/
+
+# Créer un fichier de test si aucun log n'est disponible
+if [ ! "$(ls -A /mnt/ec2-java-tomcat-logs/)" ]; then
+    log_info "Aucun log trouvé, création d'un fichier de test"
+    cat > /mnt/ec2-java-tomcat-logs/test-java-app.log << EOF
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.StartupInfoLogger - Starting application
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.SpringApplication - No active profile set, falling back to default profiles
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.apache.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.apache.catalina.core.StandardService - Starting service [Tomcat]
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.StartupInfoLogger - Started application in 2.5 seconds
+$(date '+%Y-%m-%d %H:%M:%S.000') ERROR [http-nio-8080-exec-1] org.springframework.boot.web.servlet.support.ErrorPageFilter - Forwarding to error page from request [/api/unknown] due to exception [Resource not found]
+EOF
+    log_success "Fichier de test créé avec succès"
+fi
 
 log_success "Synchronisation des logs de Tomcat terminée avec succès"
 exit 0

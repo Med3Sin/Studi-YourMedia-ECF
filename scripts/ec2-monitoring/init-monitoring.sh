@@ -506,6 +506,19 @@ log "Téléchargement et installation du script de synchronisation des logs Tomc
 sudo wget -q -O /opt/monitoring/scripts/sync-tomcat-logs.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.sh"
 sudo chmod +x /opt/monitoring/scripts/sync-tomcat-logs.sh
 
+# Installation du service de synchronisation des logs Tomcat
+log "Installation du service de synchronisation des logs Tomcat"
+sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.service"
+sudo wget -q -O /etc/systemd/system/sync-tomcat-logs.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/sync-tomcat-logs.timer"
+sudo systemctl daemon-reload
+sudo systemctl enable sync-tomcat-logs.timer
+sudo systemctl start sync-tomcat-logs.timer
+log "Service sync-tomcat-logs installé et activé"
+
+# Exécuter le script de synchronisation des logs immédiatement
+log "Exécution immédiate du script de synchronisation des logs"
+sudo /opt/monitoring/scripts/sync-tomcat-logs.sh
+
 # Téléchargement et installation du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat
 log "Téléchargement et installation du script d'initialisation de l'adresse IP de l'instance EC2 Java Tomcat"
 sudo wget -q -O /opt/monitoring/scripts/init-java-tomcat-ip.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-java-tomcat-ip.sh"

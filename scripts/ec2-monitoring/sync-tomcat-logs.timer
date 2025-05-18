@@ -5,7 +5,7 @@ Requires=sync-tomcat-logs.service
 [Timer]
 Unit=sync-tomcat-logs.service
 OnBootSec=1min
-OnUnitActiveSec=5min
+OnUnitActiveSec=1min
 
 [Install]
 WantedBy=timers.target
