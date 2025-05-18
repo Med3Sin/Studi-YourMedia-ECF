@@ -606,15 +606,60 @@ deploy_mobile() {
 #!/bin/bash
 set -e
 
+echo "Nettoyage des ressources Docker non utilisées..."
+sudo docker system prune -af --volumes
+
 echo "Création du répertoire pour l'application mobile..."
 sudo mkdir -p /opt/mobile-app
+sudo mkdir -p /opt/mobile-app/build
+
+echo "Création du fichier HTML pour l'application mobile..."
+sudo tee /opt/mobile-app/build/index.html > /dev/null << 'EOF'
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YourMedia Mobile App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        p { color: #666; }
+        .logo { font-size: 48px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱</div>
+        <h1>Hello World!</h1>
+        <p>YourMedia Mobile Application</p>
+    </div>
+</body>
+</html>
+EOF
 
 echo "Création du Dockerfile pour l'application mobile..."
-cat > /tmp/Dockerfile << 'EOF'
+sudo tee /opt/mobile-app/Dockerfile > /dev/null << 'EOF'
 FROM node:16-alpine
 
-# Installer les dépendances nécessaires
-RUN apk add --no-cache bash curl
+# Installer les dépendances nécessaires (minimales)
+RUN apk add --no-cache curl
 
 # Définir le répertoire de travail
 WORKDIR /app
@@ -622,38 +667,34 @@ WORKDIR /app
 # Installer un serveur web léger
 RUN npm install -g serve
 
-# Créer une application React simple
-RUN npx create-react-app my-app --template minimal
-
-# Aller dans le répertoire de l'application
-WORKDIR /app/my-app
-
-# Modifier le fichier App.js pour afficher un message personnalisé
-RUN sed -i 's|<p>Edit <code>src/App.js</code> and save to reload.</p>|<h1>YourMedia Mobile App</h1><p>Application mobile pour YourMedia</p>|g' src/App.js
-
-# Construire l'application
-RUN npm run build
+# Copier les fichiers de l'application
+COPY build /app/build
 
 # Exposer le port 8080
 EXPOSE 8080
+
+# Limiter les ressources utilisées
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Démarrer le serveur sur le port 8080
 CMD ["serve", "-s", "build", "-l", "8080"]
 EOF
 
-echo "Copie du Dockerfile dans le répertoire de l'application mobile..."
-sudo cp /tmp/Dockerfile /opt/mobile-app/Dockerfile
+echo "Arrêt et suppression du conteneur existant s'il existe..."
+sudo docker stop app-mobile 2>/dev/null || true
+sudo docker rm app-mobile 2>/dev/null || true
 
 echo "Construction de l'image Docker localement..."
 cd /opt/mobile-app
 sudo docker build -t yourmedia-mobile-app:latest .
 
-echo "Arrêt et suppression du conteneur existant s'il existe..."
-sudo docker stop app-mobile 2>/dev/null || true
-sudo docker rm app-mobile 2>/dev/null || true
-
-echo "Démarrage du conteneur avec la nouvelle image..."
-sudo docker run -d --name app-mobile -p 8080:8080 yourmedia-mobile-app:latest
+echo "Démarrage du conteneur avec la nouvelle image et des limites de ressources..."
+sudo docker run -d --name app-mobile \
+  --memory=256m \
+  --cpus=0.5 \
+  --restart=unless-stopped \
+  -p 8080:8080 \
+  yourmedia-mobile-app:latest
 
 echo "Vérification de l'état du conteneur..."
 if sudo docker ps | grep app-mobile; then
@@ -663,6 +704,37 @@ else
     echo "Logs du conteneur:"
     sudo docker logs app-mobile
 fi
+
+# Créer un script de nettoyage périodique
+echo "Création d'un script de nettoyage périodique..."
+sudo tee /opt/mobile-app/cleanup.sh > /dev/null << 'EOF'
+#!/bin/bash
+# Script de nettoyage des ressources Docker
+
+# Supprimer les conteneurs arrêtés
+docker container prune -f
+
+# Supprimer les images non utilisées
+docker image prune -a -f
+
+# Supprimer les volumes non utilisés
+docker volume prune -f
+
+# Supprimer les réseaux non utilisés
+docker network prune -f
+
+# Nettoyer le cache de construction
+docker builder prune -f
+EOF
+
+sudo chmod +x /opt/mobile-app/cleanup.sh
+
+# Ajouter le script au cron pour une exécution quotidienne
+echo "Ajout du script de nettoyage au cron..."
+(sudo crontab -l 2>/dev/null || echo "") | grep -v "/opt/mobile-app/cleanup.sh" | sudo tee /tmp/crontab
+echo "0 2 * * * /opt/mobile-app/cleanup.sh > /dev/null 2>&1" | sudo tee -a /tmp/crontab
+sudo crontab /tmp/crontab
+sudo rm /tmp/crontab
 EOL
 
     # Copier le script sur l'instance de monitoring

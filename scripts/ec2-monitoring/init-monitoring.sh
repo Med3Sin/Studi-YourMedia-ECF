@@ -486,6 +486,17 @@ if [ -f "/opt/monitoring/container-tests.service" ]; then
     log "Service container-tests installé et activé"
 fi
 
+# Installation du service de nettoyage Docker
+log "Installation du service de nettoyage Docker"
+sudo wget -q -O /opt/monitoring/docker-cleanup.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-cleanup.sh"
+sudo chmod +x /opt/monitoring/docker-cleanup.sh
+sudo wget -q -O /etc/systemd/system/docker-cleanup.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-cleanup.service"
+sudo wget -q -O /etc/systemd/system/docker-cleanup.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/docker-cleanup.timer"
+sudo systemctl daemon-reload
+sudo systemctl enable docker-cleanup.timer
+sudo systemctl start docker-cleanup.timer
+log "Service docker-cleanup installé et activé"
+
 # Création du répertoire scripts
 log "Création du répertoire scripts"
 sudo mkdir -p /opt/monitoring/scripts

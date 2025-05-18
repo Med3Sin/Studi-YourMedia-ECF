@@ -1,0 +1,13 @@
+[Unit]
+Description=Docker Cleanup Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/monitoring/docker-cleanup.sh
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
