@@ -39,6 +39,29 @@ scrape_configs:
       - output:
           source: message
 
+  - job_name: tomcat-access-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: tomcat
+          instance: "ec2-java-tomcat"
+          app: "java-app"
+          log_type: "access"
+          __path__: /mnt/ec2-java-tomcat-logs/localhost_access_log*.txt
+    pipeline_stages:
+      - regex:
+          expression: '(?P<client_ip>\S+) \S+ \S+ \[(?P<timestamp>.*?)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<bytes>\d+)'
+      - labels:
+          method:
+          path:
+          status:
+      - timestamp:
+          source: timestamp
+          format: '02/Jan/2006:15:04:05 -0700'
+      - output:
+          source: message
+
   - job_name: java-app-logs
     static_configs:
       - targets:

@@ -92,8 +92,10 @@ ls -la /mnt/ec2-java-tomcat-logs/
 
 # Créer un fichier de test si aucun log n'est disponible
 if [ ! "$(ls -A /mnt/ec2-java-tomcat-logs/)" ]; then
-    log_info "Aucun log trouvé, création d'un fichier de test"
-    cat > /mnt/ec2-java-tomcat-logs/test-java-app.log << EOF
+    log_info "Aucun log trouvé, création de fichiers de test"
+
+    # Créer catalina.out
+    cat > /mnt/ec2-java-tomcat-logs/catalina.out << EOF
 $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.StartupInfoLogger - Starting application
 $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.SpringApplication - No active profile set, falling back to default profiles
 $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080
@@ -102,8 +104,29 @@ $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.apache.catalina.core.StandardSe
 $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat started on port 8080
 $(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.StartupInfoLogger - Started application in 2.5 seconds
 $(date '+%Y-%m-%d %H:%M:%S.000') ERROR [http-nio-8080-exec-1] org.springframework.boot.web.servlet.support.ErrorPageFilter - Forwarding to error page from request [/api/unknown] due to exception [Resource not found]
+$(date '+%Y-%m-%d %H:%M:%S.000') WARN [background-preinit] org.hibernate.validator.internal.util.Version - HV000001: Hibernate Validator 6.1.5.Final
 EOF
-    log_success "Fichier de test créé avec succès"
+
+    # Créer spring.log
+    cat > /mnt/ec2-java-tomcat-logs/spring.log << EOF
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.StartupInfoLogger - Starting application with Spring Boot
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.SpringApplication - Application starting with Spring profiles: default
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.data.repository.config.RepositoryConfigurationDelegate - Bootstrapping Spring Data repositories
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.data.repository.config.RepositoryConfigurationDelegate - Finished Spring Data repository scanning
+$(date '+%Y-%m-%d %H:%M:%S.000') INFO [main] org.springframework.boot.web.embedded.tomcat.TomcatWebServer - Tomcat initialized with port 8080
+$(date '+%Y-%m-%d %H:%M:%S.000') ERROR [http-nio-8080-exec-1] org.springframework.boot.web.servlet.support.ErrorPageFilter - Forwarding to error page from request [/api/users] due to exception [User not found]
+$(date '+%Y-%m-%d %H:%M:%S.000') WARN [http-nio-8080-exec-2] org.springframework.web.servlet.PageNotFound - No mapping for GET /api/unknown
+EOF
+
+    # Créer localhost_access_log.txt
+    cat > /mnt/ec2-java-tomcat-logs/localhost_access_log.txt << EOF
+127.0.0.1 - - [$(date '+%d/%b/%Y:%H:%M:%S %z')] "GET /hello-world-dev/actuator/health HTTP/1.1" 200 15
+127.0.0.1 - - [$(date '+%d/%b/%Y:%H:%M:%S %z')] "GET /hello-world-dev/api/hello HTTP/1.1" 200 44
+127.0.0.1 - - [$(date '+%d/%b/%Y:%H:%M:%S %z')] "GET /hello-world-dev/actuator/prometheus HTTP/1.1" 200 8532
+127.0.0.1 - - [$(date '+%d/%b/%Y:%H:%M:%S %z')] "GET /hello-world-dev/api/unknown HTTP/1.1" 404 973
+EOF
+
+    log_success "Fichiers de test créés avec succès"
 fi
 
 log_success "Synchronisation des logs de Tomcat terminée avec succès"

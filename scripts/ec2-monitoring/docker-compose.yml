@@ -1,14 +1,15 @@
-version: '3'
+version: '3.8'
 
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:prometheus-latest
     container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
       - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - /opt/monitoring/prometheus/rules:/etc/prometheus/rules
+      - prometheus_data:/prometheus
     restart: always
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -69,8 +70,9 @@ services:
       - /opt/monitoring/config/grafana/dashboards:/etc/grafana/provisioning/dashboards
       - /opt/monitoring/config/grafana/dashboards/dashboards:/var/lib/grafana/dashboards
       - /opt/monitoring/config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-YourMedia2025!}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_DOMAIN=localhost
       - GF_SMTP_ENABLED=false
@@ -92,6 +94,7 @@ services:
     restart: always
     volumes:
       - /opt/monitoring/loki:/loki
+      - loki_data:/loki/chunks
     user: "0"
     logging:
       driver: "json-file"
@@ -116,7 +119,7 @@ services:
         max-file: "3"
 
   app-mobile:
-    image: yourmedia-mobile-app:latest
+    image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:mobile-latest
     container_name: app-mobile
     ports:
       - "8080:8080"
@@ -128,3 +131,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:

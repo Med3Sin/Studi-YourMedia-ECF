@@ -59,6 +59,8 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
 
       # Build and push Grafana image
       - name: Build and push Grafana image
