@@ -22,6 +22,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -38,6 +40,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -59,6 +63,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   grafana:
     image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:grafana-latest
@@ -80,11 +86,14 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_LOG_LEVEL=debug
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   loki:
     image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:loki-latest
@@ -101,6 +110,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   promtail:
     image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:promtail-latest
@@ -110,6 +121,9 @@ services:
       - /var/log:/var/log
       - /mnt/ec2-java-tomcat-logs:/mnt/ec2-java-tomcat-logs
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /opt/monitoring/config/promtail/promtail-config.yml:/etc/promtail/config.yml
+    command:
+      - "-config.file=/etc/promtail/config.yml"
     depends_on:
       - loki
     logging:
@@ -117,6 +131,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
   app-mobile:
     image: ${DOCKERHUB_USERNAME:-medsin}/${DOCKERHUB_REPO:-yourmedia-ecf}:mobile-latest
@@ -131,10 +147,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - monitoring_network
 
 networks:
-  default:
+  monitoring_network:
     driver: bridge
+    name: monitoring_network
 
 volumes:
   prometheus_data:

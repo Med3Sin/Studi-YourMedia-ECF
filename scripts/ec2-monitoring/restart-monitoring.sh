@@ -81,25 +81,26 @@ else
     /opt/monitoring/scripts/copy-dashboards.sh
 fi
 
-# Redémarrer les conteneurs
-log_info "Redémarrage des conteneurs"
+# Arrêter les conteneurs
+log_info "Arrêt des conteneurs"
 cd /opt/monitoring
+docker-compose down
 
-# Redémarrer Loki et Promtail
-log_info "Redémarrage de Loki et Promtail"
-docker restart loki
-docker restart promtail
+# Créer le réseau monitoring_network s'il n'existe pas
+log_info "Création du réseau monitoring_network"
+docker network create monitoring_network 2>/dev/null || true
 
-# Redémarrer Grafana
-log_info "Redémarrage de Grafana"
-docker restart grafana
+# Démarrer les conteneurs
+log_info "Démarrage des conteneurs"
+docker-compose up -d
 
 # Vérifier que les conteneurs sont en cours d'exécution
 log_info "Vérification que les conteneurs sont en cours d'exécution"
-if docker ps | grep -q "loki" && docker ps | grep -q "promtail" && docker ps | grep -q "grafana"; then
-    log_success "Les conteneurs ont été redémarrés avec succès"
+if docker ps | grep -q "prometheus" && docker ps | grep -q "loki" && docker ps | grep -q "promtail" && docker ps | grep -q "grafana"; then
+    log_success "Les conteneurs ont été démarrés avec succès"
 else
     log_error "Certains conteneurs ne sont pas en cours d'exécution"
+    docker ps
 fi
 
 log_success "Services de monitoring redémarrés avec succès"
