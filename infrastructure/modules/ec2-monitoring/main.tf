@@ -328,22 +328,36 @@ sudo mkdir -p /opt/monitoring/secure
 # Définir l'URL GitHub Raw
 GITHUB_RAW_URL="https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main"
 
-# Télécharger le script d'initialisation
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script d'initialisation"
+# Télécharger les scripts d'initialisation
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement des scripts d'initialisation"
 sudo wget -q -O /opt/monitoring/init-monitoring.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/init-monitoring.sh"
+sudo wget -q -O /opt/monitoring/setup-monitoring-complete.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/setup-monitoring-complete.sh"
+sudo wget -q -O /opt/monitoring/fix-grafana.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/fix-grafana.sh"
 
-# Vérifier si le téléchargement a réussi
+# Vérifier si les téléchargements ont réussi
 if [ ! -s /opt/monitoring/init-monitoring.sh ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script init-monitoring.sh a échoué. Tentative avec le chemin complet..."
   sudo wget -v -O /opt/monitoring/init-monitoring.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/init-monitoring.sh"
 fi
 
-# Vérifier à nouveau si le téléchargement a réussi
-if [ -s /opt/monitoring/init-monitoring.sh ]; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - Script init-monitoring.sh téléchargé avec succès"
+if [ ! -s /opt/monitoring/setup-monitoring-complete.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script setup-monitoring-complete.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -v -O /opt/monitoring/setup-monitoring-complete.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/setup-monitoring-complete.sh"
+fi
+
+if [ ! -s /opt/monitoring/fix-grafana.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR: Le téléchargement du script fix-grafana.sh a échoué. Tentative avec le chemin complet..."
+  sudo wget -v -O /opt/monitoring/fix-grafana.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-monitoring/fix-grafana.sh"
+fi
+
+# Vérifier à nouveau si les téléchargements ont réussi
+if [ -s /opt/monitoring/init-monitoring.sh ] && [ -s /opt/monitoring/setup-monitoring-complete.sh ] && [ -s /opt/monitoring/fix-grafana.sh ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - Scripts téléchargés avec succès"
   sudo chmod +x /opt/monitoring/init-monitoring.sh
+  sudo chmod +x /opt/monitoring/setup-monitoring-complete.sh
+  sudo chmod +x /opt/monitoring/fix-grafana.sh
 else
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR CRITIQUE: Impossible de télécharger le script init-monitoring.sh"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - ERREUR CRITIQUE: Impossible de télécharger un ou plusieurs scripts"
   exit 1
 fi
 
@@ -436,9 +450,36 @@ EOF'
   sudo ln -sf /opt/monitoring/config/prometheus/prometheus.yml /opt/monitoring/prometheus.yml
 fi
 
-# Exécuter le script d'initialisation avec les variables d'environnement
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script d'initialisation"
+# Exécuter les scripts d'initialisation avec les variables d'environnement
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution des scripts d'initialisation"
 sudo -E /opt/monitoring/init-monitoring.sh
+
+# Attendre que le script d'initialisation se termine
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Attente de la fin du script d'initialisation"
+sleep 10
+
+# Exécuter le script de configuration complète du monitoring
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script de configuration complète du monitoring"
+sudo -E /opt/monitoring/setup-monitoring-complete.sh
+
+# Attendre que le script de configuration complète se termine
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Attente de la fin du script de configuration complète"
+sleep 10
+
+# Exécuter le script de correction de Grafana
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Exécution du script de correction de Grafana"
+sudo -E /opt/monitoring/fix-grafana.sh
+
+# Télécharger et configurer le service systemd pour la mise à jour des cibles Prometheus
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Configuration du service systemd pour la mise à jour des cibles Prometheus"
+sudo wget -q -O /etc/systemd/system/update-prometheus-targets.service "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.service"
+sudo wget -q -O /etc/systemd/system/update-prometheus-targets.timer "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.timer"
+sudo wget -q -O /opt/monitoring/scripts/update-prometheus-targets.sh "$GITHUB_RAW_URL/scripts/ec2-monitoring/update-prometheus-targets.sh"
+sudo chmod +x /opt/monitoring/scripts/update-prometheus-targets.sh
+sudo systemctl daemon-reload
+sudo systemctl enable update-prometheus-targets.timer
+sudo systemctl start update-prometheus-targets.timer
+sudo systemctl start update-prometheus-targets.service
 
 # Créer un fichier de marqueur pour indiquer que le script a terminé
 sudo touch /var/log/user-data-completed

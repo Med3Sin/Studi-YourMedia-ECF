@@ -58,7 +58,46 @@ log_info "Adresse IP privée de l'instance EC2 Java Tomcat : $JAVA_TOMCAT_IP"
 
 # Mettre à jour le fichier prometheus.yml
 log_info "Mise à jour du fichier prometheus.yml"
-sed -i "s/java-tomcat-instance:8080/$JAVA_TOMCAT_IP:8080/g" /opt/monitoring/prometheus.yml
+
+# Vérifier si le fichier prometheus.yml existe
+if [ ! -f "/opt/monitoring/prometheus.yml" ]; then
+    log_info "Le fichier prometheus.yml n'existe pas, création..."
+    mkdir -p /opt/monitoring
+    cat > /opt/monitoring/prometheus.yml << EOF
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node_exporter_monitoring"
+    static_configs:
+      - targets: ["localhost:9100"]
+
+  - job_name: "node_exporter_java_tomcat"
+    static_configs:
+      - targets: ["$JAVA_TOMCAT_IP:9100"]
+
+  - job_name: "tomcat_jvm"
+    static_configs:
+      - targets: ["$JAVA_TOMCAT_IP:9404"]
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+EOF
+else
+    # Remplacer l'adresse IP de l'instance Java/Tomcat dans le fichier de configuration
+    sed -i "s/\(node_exporter_java_tomcat.*targets.*\[\"\)[^\"]*\(\".*\)/\1$JAVA_TOMCAT_IP\2/" /opt/monitoring/prometheus.yml
+    sed -i "s/\(tomcat_jvm.*targets.*\[\"\)[^\"]*\(\".*\)/\1$JAVA_TOMCAT_IP\2/" /opt/monitoring/prometheus.yml
+    sed -i "s/java-tomcat-instance:8080/$JAVA_TOMCAT_IP:8080/g" /opt/monitoring/prometheus.yml
+fi
 
 if [ $? -ne 0 ]; then
     log_error "Échec de la mise à jour du fichier prometheus.yml"

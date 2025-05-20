@@ -112,6 +112,12 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et exécution du script d'
 sudo wget -q -O /tmp/install-all.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/install-all.sh"
 sudo chmod +x /tmp/install-all.sh
 sudo /tmp/install-all.sh
+
+# Télécharger et exécuter le script d'installation des agents de monitoring
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et exécution du script d'installation des agents de monitoring"
+sudo wget -q -O /tmp/setup-monitoring-agents.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/setup-monitoring-agents.sh"
+sudo chmod +x /tmp/setup-monitoring-agents.sh
+sudo /tmp/setup-monitoring-agents.sh
 EOF
 }
 
