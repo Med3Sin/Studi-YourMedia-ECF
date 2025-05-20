@@ -9,41 +9,53 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          instance: "ec2-monitoring"
+          service: "prometheus"
 
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
-
-  - job_name: 'java-tomcat'
-    metrics_path: '/hello-world-dev/actuator/prometheus'
-    static_configs:
-      - targets: ['10.0.1.93:8080']
+        labels:
+          instance: "ec2-monitoring"
+          service: "node-exporter"
+      - targets: ['ec2-java-tomcat:9100']
         labels:
           instance: "ec2-java-tomcat"
-          app: "java-app"
+          service: "node-exporter"
+
+  - job_name: 'java-tomcat'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ec2-java-tomcat:8080']
+        labels:
+          instance: "ec2-java-tomcat"
+          service: "java-app"
+          type: "application"
 
   - job_name: 'tomcat-jmx'
     static_configs:
-      - targets: ['10.0.1.93:8081']
+      - targets: ['ec2-java-tomcat:9404']
         labels:
           instance: "ec2-java-tomcat"
-          app: "java-app"
+          service: "tomcat"
+          type: "jmx"
 
   - job_name: 'cadvisor'
     scrape_interval: 5s
     static_configs:
       - targets: ['cadvisor:8080']
         labels:
-          instance: "monitoring-instance"
-
-  - job_name: 'react-app-container'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['cadvisor:8080']
+          instance: "ec2-monitoring"
+          service: "cadvisor"
+      - targets: ['ec2-java-tomcat:8081']
         labels:
-          instance: "monitoring-instance"
-          app: "react-app"
-    metric_relabel_configs:
-      - source_labels: [container_name]
-        regex: '.*app-mobile.*'
-        action: keep
+          instance: "ec2-java-tomcat"
+          service: "cadvisor"
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          instance: "ec2-monitoring"
+          service: "grafana"

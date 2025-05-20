@@ -1,22 +1,13 @@
 {
   "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
+    "list": []
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "aliasColors": {},
@@ -412,9 +403,9 @@
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 26,
+  "schemaVersion": 38,
   "style": "dark",
-  "tags": [],
+  "tags": ["system", "monitoring"],
   "templating": {
     "list": []
   },
@@ -426,5 +417,6 @@
   "timezone": "",
   "title": "System Overview",
   "uid": "system-overview",
-  "version": 1
+  "version": 1,
+  "weekStart": ""
 }

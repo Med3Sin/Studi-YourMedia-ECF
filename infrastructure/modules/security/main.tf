@@ -39,6 +39,24 @@ resource "aws_security_group" "ec2_sg" {
     description = "Allow Tomcat traffic (API)"
   }
 
+  # Règle entrante: Node Exporter
+  ingress {
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring_sg.id]
+    description     = "Allow Node Exporter access from Monitoring SG"
+  }
+
+  # Règle entrante: JMX Exporter
+  ingress {
+    from_port       = 9404
+    to_port         = 9404
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring_sg.id]
+    description     = "Allow JMX Exporter access from Monitoring SG"
+  }
+
   # Règle sortante: Autorise tout le trafic sortant
   egress {
     from_port   = 0
@@ -132,6 +150,15 @@ resource "aws_security_group" "monitoring_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
     description = "Allow Node Exporter access"
+  }
+
+  # Règle entrante: JMX Exporter
+  ingress {
+    from_port       = 9404
+    to_port         = 9404
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2_sg.id]
+    description     = "Allow JMX Exporter access from EC2 SG"
   }
 
   # Règle entrante: Application Mobile (React)

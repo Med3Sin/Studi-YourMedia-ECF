@@ -929,8 +929,6 @@ jobs:
           update_secret "TF_GRAFANA_URL" "$GRAFANA_URL"
         continue-on-error: true
 
-
-
       # Étape 11: Synchronisation des secrets GitHub vers Terraform Cloud
       - name: Sync GitHub Secrets to Terraform Cloud
         id: sync_secrets
@@ -996,3 +994,46 @@ jobs:
           echo "* **Branche:** main" >> $GITHUB_STEP_SUMMARY
           echo "* **Région AWS:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Statut:** Succès ✅" >> $GITHUB_STEP_SUMMARY
+
+      # Étape 8: Configuration des agents de monitoring
+      - name: Configure Monitoring Agents
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "::group::Configuration des agents de monitoring"
+          
+          # Attendre que les instances soient prêtes
+          sleep 30
+          
+          # Configuration de l'instance Java/Tomcat
+          echo "Configuration de l'instance Java/Tomcat..."
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ steps.get_ec2_ip.outputs.java_tomcat_ip }} "sudo bash -c 'curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/ec2-java-tomcat/setup-monitoring-agents.sh | bash'"
+          
+          # Configuration de l'instance Monitoring
+          echo "Configuration de l'instance Monitoring..."
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ steps.get_ec2_ip.outputs.monitoring_ip }} "sudo bash -c 'curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/ec2-monitoring/setup-monitoring.sh | bash'"
+          
+          echo "::endgroup::"
+
+      # Étape 9: Vérification des services de monitoring
+      - name: Verify Monitoring Services
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "::group::Vérification des services de monitoring"
+          
+          # Vérifier Node Exporter sur l'instance Java/Tomcat
+          echo "Vérification de Node Exporter..."
+          curl -s http://${{ steps.get_ec2_ip.outputs.java_tomcat_ip }}:9100/metrics | grep -q "node_exporter_build_info" || echo "Node Exporter n'est pas accessible"
+          
+          # Vérifier JMX Exporter sur l'instance Java/Tomcat
+          echo "Vérification de JMX Exporter..."
+          curl -s http://${{ steps.get_ec2_ip.outputs.java_tomcat_ip }}:9404/metrics | grep -q "jvm_" || echo "JMX Exporter n'est pas accessible"
+          
+          # Vérifier Prometheus sur l'instance Monitoring
+          echo "Vérification de Prometheus..."
+          curl -s http://${{ steps.get_ec2_ip.outputs.monitoring_ip }}:9090/-/healthy | grep -q "OK" || echo "Prometheus n'est pas accessible"
+          
+          # Vérifier Grafana sur l'instance Monitoring
+          echo "Vérification de Grafana..."
+          curl -s http://${{ steps.get_ec2_ip.outputs.monitoring_ip }}:3000/api/health | grep -q "ok" || echo "Grafana n'est pas accessible"
+          
+          echo "::endgroup::"
