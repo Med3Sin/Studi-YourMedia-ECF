@@ -1,287 +1,600 @@
-# Workflows GitHub Actions - YourMedia
+# Workflows GitHub Actions
 
-Ce document centralise toutes les informations relatives aux workflows GitHub Actions dans le projet YourMedia.
+## Vue d'ensemble
 
-## Table des matières
+Ce document décrit les workflows GitHub Actions utilisés dans le projet YourMedia pour l'automatisation des processus de développement, de test et de déploiement.
 
-1. [Vue d'ensemble des workflows](#1-vue-densemble-des-workflows)
-2. [Workflows disponibles](#2-workflows-disponibles)
-   - [Vérification des secrets](#21-vérification-des-secrets)
-   - [Déploiement/Destruction de l'infrastructure](#22-déploiementdestruction-de-linfrastructure)
-   - [Déploiement du backend](#23-déploiement-du-backend)
-   - [Construction et déploiement Docker](#24-construction-et-déploiement-docker)
-   - [Analyse de sécurité](#25-analyse-de-sécurité)
-   - [Nettoyage des images Docker](#26-nettoyage-des-images-docker)
-3. [Configuration des secrets GitHub](#3-configuration-des-secrets-github)
-   - [Secrets requis](#31-secrets-requis)
-   - [Configuration des secrets](#32-configuration-des-secrets)
-   - [Variables de compatibilité](#33-variables-de-compatibilité)
-4. [Améliorations et bonnes pratiques](#4-améliorations-et-bonnes-pratiques)
-   - [Centralisation de la configuration](#41-centralisation-de-la-configuration)
-   - [Tests de santé](#42-tests-de-santé)
-   - [Mise à jour des actions GitHub](#43-mise-à-jour-des-actions-github)
-   - [Workflows supprimés](#44-workflows-supprimés)
+## Structure des Workflows
 
-## 1. Vue d'ensemble des workflows
-
-Le projet YourMedia utilise plusieurs workflows GitHub Actions pour automatiser le déploiement et la gestion de l'infrastructure et des applications. Ces workflows sont conçus pour être simples, fiables et faciles à maintenir.
-
-| Workflow | Fichier | Description |
-|----------|---------|-------------|
-| 0 - Vérification des secrets | `0-verification-secrets.yml` | Vérifie que tous les secrets GitHub nécessaires sont configurés |
-| 1 - Déploiement/Destruction de l'infrastructure | `1-infra-deploy-destroy.yml` | Déploie ou détruit l'infrastructure AWS via Terraform |
-| 2 - Déploiement du backend | `2-backend-deploy.yml` | Déploie l'application Java sur l'instance EC2 Tomcat |
-| 3 - Construction et déploiement Docker | `3-docker-build-deploy.yml` | Construit et déploie les images Docker |
-| 4 - Analyse de sécurité | `4-analyse-de-securite.yml` | Analyse la sécurité des images Docker et du code |
-| 5 - Nettoyage des images Docker | `5-docker-cleanup.yml` | Nettoie les images Docker obsolètes |
-
-## 2. Workflows disponibles
-
-### 2.1. Vérification des secrets
-
-**Fichier :** `0-verification-secrets.yml`
-
-**Description :** Ce workflow vérifie que tous les secrets GitHub nécessaires sont configurés. Il est exécuté manuellement ou avant les autres workflows pour s'assurer que tous les secrets requis sont disponibles.
-
-**Paramètres :**
-- `mode` : Mode de vérification (`verification` ou `rapport`)
-
-**Étapes principales :**
-1. Vérification des secrets AWS
-2. Vérification des secrets Docker Hub
-3. Vérification des secrets SSH
-4. Vérification des secrets RDS
-5. Génération d'un rapport
-
-### 2.2. Déploiement/Destruction de l'infrastructure
-
-**Fichier :** `1-infra-deploy-destroy.yml`
-
-**Description :** Ce workflow déploie ou détruit l'infrastructure AWS via Terraform. Il utilise Terraform Cloud pour stocker l'état de l'infrastructure.
-
-**Paramètres :**
-- `action` : Action à effectuer (`apply`, `destroy`, `plan`)
-- `environment` : Environnement cible (`dev`, `staging`, `prod`)
-
-**Étapes principales :**
-1. Vérification des secrets
-2. Configuration de Terraform
-3. Déploiement ou destruction de l'infrastructure
-4. Synchronisation des secrets GitHub vers Terraform Cloud
-5. Nettoyage des ressources persistantes (si destruction)
-
-**Améliorations apportées :**
-- Centralisation de la configuration des variables d'environnement
-- Simplification de la configuration SSH
-- Mise à jour des versions des actions GitHub
-- Amélioration de la gestion des erreurs
-
-### 2.3. Déploiement du backend
-
-**Fichier :** `2-backend-deploy.yml`
-
-**Description :** Ce workflow déploie l'application Java sur l'instance EC2 Tomcat. Il compile l'application Java, crée un fichier WAR et le déploie sur l'instance EC2.
-
-**Paramètres :**
-- `ec2_public_ip` : IP publique de l'instance EC2 (optionnel)
-- `s3_bucket_name` : Nom du bucket S3 (optionnel)
-
-**Étapes principales :**
-1. Compilation de l'application Java
-2. Création du fichier WAR
-3. Téléchargement du fichier WAR sur S3
-4. Déploiement du fichier WAR sur l'instance EC2 Tomcat
-
-**Améliorations apportées :**
-- Utilisation de variables d'environnement pour les paramètres
-- Amélioration de la gestion des erreurs
-- Simplification du processus de déploiement
-
-### 2.4. Construction et déploiement Docker
-
-**Fichier :** `3-docker-build-deploy.yml`
-
-**Description :** Ce workflow construit et déploie les images Docker pour l'application mobile React et les outils de monitoring (Grafana, Prometheus).
-
-**Paramètres :**
-- `action` : Action à effectuer (`build`, `deploy`, `both`)
-- `target` : Cible à construire/déployer (`all`, `mobile`, `monitoring`)
-
-**Étapes principales :**
-1. Construction des images Docker
-2. Test des images Docker avec Trivy
-3. Publication des images sur Docker Hub
-4. Déploiement des conteneurs sur les instances EC2
-
-**Améliorations apportées :**
-- Ajout de tests de santé pour les conteneurs Docker
-- Amélioration de la gestion des erreurs
-- Optimisation du processus de construction des images
-
-### 2.5. Analyse de sécurité
-
-**Fichier :** `4-analyse-de-securite.yml`
-
-**Description :** Ce workflow analyse la sécurité des images Docker et du code source. Il utilise Trivy pour scanner les images Docker et OWASP Dependency Check pour analyser les dépendances Java.
-
-**Étapes principales :**
-1. Construction des images Docker
-2. Scan des images Docker avec Trivy
-3. Analyse des dépendances Java avec OWASP Dependency Check
-4. Génération de rapports de sécurité
-
-**Options de scan optimisées :**
-```bash
-# Limiter le scan aux vulnérabilités uniquement
-trivy image --scanners vuln <image>
-
-# Filtrer par niveau de sévérité
-trivy image --severity HIGH,CRITICAL <image>
-
-# Combiner les options
-trivy image --scanners vuln --severity HIGH,CRITICAL <image>
+```
+.github/
+└── workflows/
+    ├── 1-infra-deploy-destroy.yml    # Déploiement de l'infrastructure
+    ├── 2-java-app-deploy.yml         # Déploiement de l'application Java
+    ├── 3-react-app-deploy.yml        # Déploiement de l'application React
+    └── 4-monitoring-deploy.yml       # Déploiement du monitoring
 ```
 
-### 2.6. Nettoyage des images Docker
+## Workflow d'Infrastructure
 
-**Fichier :** `5-docker-cleanup.yml`
+### 1-infra-deploy-destroy.yml
 
-**Description :** Ce workflow nettoie les images Docker obsolètes sur Docker Hub.
+Ce workflow gère le déploiement et la destruction de l'infrastructure AWS.
 
-**Paramètres :**
-- `repository` : Nom du dépôt Docker Hub
-- `tag_pattern` : Motif de tag à supprimer
-- `dry_run` : Mode simulation (true/false)
-
-**Étapes principales :**
-1. Authentification auprès de Docker Hub
-2. Récupération de la liste des images
-3. Filtrage des images selon le motif de tag
-4. Suppression des images obsolètes
-
-## 3. Configuration des secrets GitHub
-
-### 3.1. Secrets requis
-
-Les secrets suivants sont nécessaires pour exécuter les workflows GitHub Actions :
-
-| Secret | Description | Utilisation |
-|--------|-------------|-------------|
-| `DOCKERHUB_USERNAME` | Nom d'utilisateur Docker Hub | Authentification auprès de Docker Hub |
-| `DOCKERHUB_TOKEN` | Token d'authentification Docker Hub | Authentification auprès de Docker Hub |
-| `DOCKERHUB_REPO` | Nom du dépôt Docker Hub | Référence aux images Docker |
-| `AWS_ACCESS_KEY_ID` | Clé d'accès AWS | Authentification auprès d'AWS |
-| `AWS_SECRET_ACCESS_KEY` | Clé secrète AWS | Authentification auprès d'AWS |
-| `AWS_DEFAULT_REGION` | Région AWS par défaut | Configuration AWS |
-| `RDS_USERNAME` | Nom d'utilisateur RDS | Connexion à la base de données |
-| `RDS_PASSWORD` | Mot de passe RDS | Connexion à la base de données |
-| `EC2_SSH_PRIVATE_KEY` | Clé SSH privée pour EC2 | Connexion SSH aux instances EC2 |
-| `EC2_SSH_PUBLIC_KEY` | Clé SSH publique pour EC2 | Configuration des instances EC2 |
-| `GF_SECURITY_ADMIN_PASSWORD` | Mot de passe administrateur Grafana | Authentification Grafana |
-| `TF_API_TOKEN` | Token d'API Terraform Cloud | Authentification Terraform Cloud |
-| `TF_WORKSPACE_ID` | ID de l'espace de travail Terraform Cloud | Configuration Terraform Cloud |
-| `GH_PAT` | Token d'accès personnel GitHub | Téléchargement des scripts depuis GitHub |
-
-### 3.2. Configuration des secrets
-
-Pour configurer les secrets GitHub, suivez ces étapes :
-
-1. Accédez aux paramètres de votre dépôt GitHub
-2. Cliquez sur "Settings" > "Secrets and variables" > "Actions"
-3. Cliquez sur "New repository secret"
-4. Ajoutez chaque secret avec son nom et sa valeur
-5. Cliquez sur "Add secret" pour enregistrer
-
-### 3.3. Variables de compatibilité
-
-Pour maintenir la compatibilité avec les scripts existants, les variables suivantes sont également supportées :
-
-| Variable | Alias pour | Contexte d'utilisation |
-|----------|------------|------------------------|
-| `DOCKER_USERNAME` | `DOCKERHUB_USERNAME` | Scripts anciens, workflows GitHub Actions |
-| `DOCKER_PASSWORD` | `DOCKERHUB_TOKEN` | Scripts anciens |
-| `DOCKER_REPO` | `DOCKERHUB_REPO` | Scripts anciens, workflows GitHub Actions |
-| `DB_USERNAME` | `RDS_USERNAME` | Scripts anciens |
-| `DB_PASSWORD` | `RDS_PASSWORD` | Scripts anciens |
-| `DB_ENDPOINT` | `RDS_ENDPOINT` | Scripts anciens |
-
-## 4. Améliorations et bonnes pratiques
-
-### 4.1. Centralisation de la configuration
-
-La configuration des variables d'environnement et des clés SSH est centralisée dans une seule étape au début du workflow, ce qui évite les duplications et les incohérences.
-
+#### Déclencheurs
 ```yaml
-- name: Set up environment variables
-  run: |
-    echo "AWS_REGION=${{ secrets.AWS_DEFAULT_REGION || 'eu-west-3' }}" >> $GITHUB_ENV
-    echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
-    echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
-    echo "DOCKERHUB_REPO=${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}" >> $GITHUB_ENV
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action à effectuer'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 ```
 
-### 4.2. Tests de santé
+#### Étapes Principales
+1. Configuration AWS
+2. Initialisation Terraform
+3. Validation du plan
+4. Application/Destruction
+5. Mise à jour des secrets
 
-Des tests de santé sont effectués pour tous les conteneurs Docker, ce qui permet de détecter les problèmes avant le déploiement :
+#### Secrets Requis
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `EC2_SSH_PRIVATE_KEY`
+- `EC2_SSH_PUBLIC_KEY`
 
+## Workflow d'Application Java
+
+### 2-java-app-deploy.yml
+
+Ce workflow gère le build et le déploiement de l'application Spring Boot.
+
+#### Déclencheurs
 ```yaml
-- name: Test container health
-  run: |
-    # Test de santé pour Grafana
-    docker run -d --name grafana-test -p 3001:3000 ${{ env.DOCKERHUB_USERNAME }}/yourmedia-ecf:grafana-${{ env.VERSION }}
-    sleep 10
-    curl -f http://localhost:3001/api/health || (echo "::warning::Le health check de l'image Grafana a échoué" && docker logs grafana-test)
-    docker stop grafana-test
-    docker rm grafana-test
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app-java/**'
+      - '.github/workflows/2-java-app-deploy.yml'
 ```
 
-### 4.3. Mise à jour des actions GitHub
+#### Étapes Principales
+1. Build Maven
+2. Tests unitaires
+3. Build Docker
+4. Push Docker Hub
+5. Déploiement EC2
 
-Les versions des actions GitHub ont été mises à jour pour utiliser les dernières versions disponibles, ce qui permet de bénéficier des dernières fonctionnalités et corrections de bugs.
+#### Secrets Requis
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+- `EC2_SSH_PRIVATE_KEY`
 
-**Problème identifié :** GitHub a déprécié la commande `set-output` utilisée par certaines actions.
+## Workflow d'Application React
 
-**Solution mise en œuvre :** Remplacement de l'action `gliech/create-github-secret-action@v1` par une implémentation personnalisée utilisant directement l'API GitHub pour créer des secrets.
+### 3-react-app-deploy.yml
 
+Ce workflow gère le build et le déploiement de l'application React Native.
+
+#### Déclencheurs
 ```yaml
-- name: Update S3 Bucket Name Secret
-  env:
-    GH_TOKEN: ${{ secrets.GH_PAT }}
-    SECRET_NAME: TF_S3_BUCKET_NAME
-    SECRET_VALUE: ${{ env.S3_BUCKET_NAME }}
-    REPO: ${{ github.repository }}
-  run: |
-    # Récupérer la clé publique du dépôt
-    PUBLIC_KEY_RESPONSE=$(curl -s -X GET \
-      -H "Authorization: token $GH_TOKEN" \
-      -H "Accept: application/vnd.github.v3+json" \
-      "https://api.github.com/repos/$REPO/actions/secrets/public-key")
-    
-    # Extraire la clé publique et l'ID
-    PUBLIC_KEY=$(echo $PUBLIC_KEY_RESPONSE | jq -r .key)
-    PUBLIC_KEY_ID=$(echo $PUBLIC_KEY_RESPONSE | jq -r .key_id)
-    
-    # Créer le secret
-    curl -s -X PUT \
-      -H "Authorization: token $GH_TOKEN" \
-      -H "Accept: application/vnd.github.v3+json" \
-      "https://api.github.com/repos/$REPO/actions/secrets/$SECRET_NAME" \
-      -d @- << EOF
-    {
-      "encrypted_value": "$(echo -n "$SECRET_VALUE" | openssl base64 -A)",
-      "key_id": "$PUBLIC_KEY_ID"
-    }
-    EOF
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app-react/**'
+      - '.github/workflows/3-react-app-deploy.yml'
 ```
 
-### 4.4. Workflows supprimés
+#### Étapes Principales
+1. Installation Node.js
+2. Build React
+3. Tests
+4. Déploiement EC2
 
-Les workflows suivants ont été supprimés car ils étaient redondants ou inutiles :
+#### Secrets Requis
+- `EC2_SSH_PRIVATE_KEY`
+- `REACT_APP_API_URL`
 
-1. **`sync-secrets-to-terraform.yml`** : Redondant car le workflow principal `1-infra-deploy-destroy.yml` gère déjà la synchronisation des secrets avec Terraform Cloud.
+## Workflow de Monitoring
 
-2. **`upload-scripts-to-s3.yml`** : Supprimé car les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3.
+### 4-monitoring-deploy.yml
 
-3. **`view-secret-securely.yml`** : Présentait un risque de sécurité car il affichait les secrets en clair dans les logs.
+Ce workflow gère le déploiement et la configuration du système de monitoring.
 
-4. **`3.1-canary-deployment.yml`** : Workflow complexe pour le déploiement canary, inutile pour un projet simple.
+#### Déclencheurs
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - dev
+          - prod
+```
+
+#### Étapes Principales
+1. Configuration AWS
+2. Déploiement EC2
+3. Configuration Docker
+4. Configuration Prometheus
+5. Configuration Grafana
+
+#### Secrets Requis
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `GF_SECURITY_ADMIN_PASSWORD`
+
+## Bonnes Pratiques
+
+### 1. Sécurité
+- Utiliser des secrets pour les informations sensibles
+- Limiter les permissions des tokens
+- Vérifier les dépendances
+
+### 2. Performance
+- Utiliser le cache pour les dépendances
+- Paralléliser les jobs quand possible
+- Optimiser les étapes de build
+
+### 3. Maintenance
+- Documenter les changements
+- Tester les workflows localement
+- Mettre à jour les dépendances
+
+## Dépannage
+
+### Problèmes Courants
+1. Échec de l'authentification AWS
+2. Timeout des jobs
+3. Échec des tests
+4. Problèmes de déploiement
+
+### Solutions
+1. Vérifier les secrets
+2. Augmenter les timeouts
+3. Examiner les logs
+4. Tester localement
+
+## Maintenance
+
+### Mise à Jour
+1. Vérifier les versions des actions
+2. Tester les changements
+3. Mettre à jour la documentation
+4. Créer un commit descriptif
+
+### Nettoyage
+1. Supprimer les workflows inutilisés
+2. Nettoyer les secrets obsolètes
+3. Archiver les anciennes configurations
+
+## Infrastructure
+
+### 1. Déploiement Infrastructure
+
+#### `.github/workflows/1-infra-deploy-destroy.yml`
+```yaml
+name: Infrastructure Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+      
+      - name: Terraform Init
+        run: |
+          cd infrastructure
+          terraform init
+      
+      - name: Terraform Plan
+        run: |
+          cd infrastructure
+          terraform plan
+      
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd infrastructure
+          terraform apply -auto-approve
+```
+
+### 2. Destruction Infrastructure
+
+#### `.github/workflows/1-infra-deploy-destroy.yml`
+```yaml
+name: Infrastructure Destruction
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        default: 'dev'
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+      
+      - name: Terraform Init
+        run: |
+          cd infrastructure
+          terraform init
+      
+      - name: Terraform Destroy
+        run: |
+          cd infrastructure
+          terraform destroy -auto-approve
+```
+
+## Applications
+
+### 1. Backend Java
+
+#### `.github/workflows/2-app-deploy.yml`
+```yaml
+name: Java Application Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app-java/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app-java/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      
+      - name: Build with Maven
+        run: |
+          cd app-java
+          mvn clean install
+      
+      - name: Run Tests
+        run: |
+          cd app-java
+          mvn test
+      
+      - name: Build Docker Image
+        run: |
+          docker build -t yourmedia/java-app:${{ github.sha }} ./app-java
+      
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+          docker push yourmedia/java-app:${{ github.sha }}
+```
+
+### 2. Frontend React
+
+#### `.github/workflows/2-app-deploy.yml`
+```yaml
+name: React Application Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app-react/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app-react/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: |
+          cd app-react
+          npm ci
+      
+      - name: Run Tests
+        run: |
+          cd app-react
+          npm test
+      
+      - name: Build
+        run: |
+          cd app-react
+          npm run build
+      
+      - name: Build Docker Image
+        run: |
+          docker build -t yourmedia/react-app:${{ github.sha }} ./app-react
+      
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main'
+        run: |
+          aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+          docker push yourmedia/react-app:${{ github.sha }}
+```
+
+## Tests
+
+### 1. Tests Unitaires
+
+#### `.github/workflows/3-tests.yml`
+```yaml
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Run Java Tests
+        run: |
+          cd app-java
+          mvn test
+      
+      - name: Run React Tests
+        run: |
+          cd app-react
+          npm test
+```
+
+### 2. Tests d'Intégration
+
+#### `.github/workflows/3-tests.yml`
+```yaml
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      
+      - name: Run Integration Tests
+        run: |
+          cd app-java
+          mvn verify
+```
+
+## Sécurité
+
+### 1. Scan de Code
+
+#### `.github/workflows/4-security.yml`
+```yaml
+name: Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'YourMedia'
+          path: '.'
+          format: 'HTML'
+```
+
+### 2. Analyse de Code
+
+#### `.github/workflows/4-security.yml`
+```yaml
+name: Code Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      
+      - name: Run SonarQube Analysis
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+```
+
+## Documentation
+
+### 1. Génération Documentation
+
+#### `.github/workflows/5-docs.yml`
+```yaml
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+      
+      - name: Build Documentation
+        run: |
+          mkdocs build
+      
+      - name: Deploy Documentation
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdocs gh-deploy
+```
+
+### 2. Vérification Documentation
+
+#### `.github/workflows/5-docs.yml`
+```yaml
+name: Documentation Check
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+      
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs mkdocs-material
+      
+      - name: Check Documentation
+        run: |
+          mkdocs build --strict
+```

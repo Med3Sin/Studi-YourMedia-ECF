@@ -1,98 +1,159 @@
-# Gestion des Variables et Secrets - YourMedia
+# Variables d'Environnement
 
-Ce document explique la gestion des variables et des secrets dans le projet YourMedia.
+## Vue d'ensemble
 
-## 1. Variables standardisées
+Ce document décrit toutes les variables d'environnement utilisées dans le projet YourMedia. Ces variables sont essentielles pour la configuration et le fonctionnement des différents composants du système.
 
-Les variables ont été standardisées dans tout le projet pour assurer la cohérence et faciliter la maintenance.
+## Structure des Fichiers
 
-### Variables AWS
+```
+.
+├── .env.example           # Template des variables d'environnement
+├── app-java/.env         # Variables pour l'application Java
+├── app-react/.env        # Variables pour l'application React
+└── infrastructure/       # Variables Terraform
+    ├── variables.tf
+    └── terraform.tfvars
+```
 
-- `AWS_ACCESS_KEY_ID` - Clé d'accès AWS
-- `AWS_SECRET_ACCESS_KEY` - Clé secrète AWS
-- `AWS_DEFAULT_REGION` - Région AWS (par défaut: eu-west-3)
+## Variables Globales
 
-### Variables Docker Hub
+### AWS Configuration
+```bash
+AWS_REGION=eu-west-3
+AWS_PROFILE=yourmedia
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+```
 
-- `DOCKERHUB_USERNAME` - Nom d'utilisateur Docker Hub
-- `DOCKERHUB_TOKEN` - Token d'authentification Docker Hub
-- `DOCKERHUB_REPO` - Nom du dépôt Docker Hub
+### Base de Données
+```bash
+DB_HOST=yourmedia-db.xxxxx.region.rds.amazonaws.com
+DB_PORT=3306
+DB_NAME=yourmedia
+DB_USER=admin
+DB_PASSWORD=your_secure_password
+```
 
-### Variables de base de données
+### Monitoring
+```bash
+PROMETHEUS_PORT=9090
+GRAFANA_PORT=3000
+LOKI_PORT=3100
+```
 
-- `RDS_USERNAME` / `DB_USERNAME` - Nom d'utilisateur pour la base de données
-- `RDS_PASSWORD` / `DB_PASSWORD` - Mot de passe pour la base de données
-- `DB_NAME` - Nom de la base de données (par défaut: yourmedia)
+## Variables Java
 
-### Variables SSH
+### Application
+```bash
+SPRING_PROFILES_ACTIVE=prod
+SERVER_PORT=8080
+JAVA_OPTS=-Xmx512m -Xms256m
+```
 
-- `EC2_SSH_PRIVATE_KEY` - Contenu de la clé SSH privée
-- `EC2_SSH_PUBLIC_KEY` - Contenu de la clé SSH publique
-- `EC2_KEY_PAIR_NAME` - Nom de la paire de clés EC2 dans AWS
+### Base de Données
+```bash
+SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+SPRING_DATASOURCE_USERNAME=${DB_USER}
+SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+```
 
-### Variables Grafana
+### JWT
+```bash
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=86400000
+```
 
-- `GF_SECURITY_ADMIN_PASSWORD` - Mot de passe administrateur Grafana
+## Variables React
 
-## 2. Secrets GitHub
+### API
+```bash
+REACT_APP_API_URL=https://api.yourmedia.com
+REACT_APP_API_VERSION=v1
+```
 
-Les secrets GitHub sont utilisés pour stocker les informations sensibles et les rendre disponibles aux workflows GitHub Actions.
+### Authentication
+```bash
+REACT_APP_AUTH_DOMAIN=yourmedia.auth0.com
+REACT_APP_AUTH_CLIENT_ID=your_client_id
+REACT_APP_AUTH_AUDIENCE=your_audience
+```
 
-### Configuration des secrets
+## Variables Terraform
 
-1. Accédez aux paramètres de votre dépôt GitHub
-2. Cliquez sur "Secrets and variables" > "Actions"
-3. Cliquez sur "New repository secret"
-4. Entrez le nom et la valeur du secret
-5. Cliquez sur "Add secret"
+### Infrastructure
+```hcl
+project_name     = "yourmedia"
+environment      = "prod"
+region           = "eu-west-3"
+vpc_cidr         = "10.0.0.0/16"
+```
 
-### Secrets à configurer manuellement
+### EC2
+```hcl
+instance_type    = "t3.micro"
+ami_id           = "ami-xxxxx"
+key_name         = "yourmedia-key"
+```
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `RDS_USERNAME`
-- `RDS_PASSWORD`
-- `EC2_SSH_PRIVATE_KEY`
-- `EC2_SSH_PUBLIC_KEY`
-- `EC2_KEY_PAIR_NAME`
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
-- `DOCKERHUB_REPO`
-- `GF_SECURITY_ADMIN_PASSWORD`
+### RDS
+```hcl
+db_instance_type = "db.t3.micro"
+db_allocated_storage = 20
+db_engine_version   = "8.0.28"
+```
 
-### Secrets générés automatiquement
+## Sécurité
 
-Les secrets suivants sont créés automatiquement lors de l'exécution du workflow d'infrastructure avec l'action `apply` :
+### Bonnes Pratiques
+1. Ne jamais commiter les fichiers `.env` dans Git
+2. Utiliser des secrets managers (AWS Secrets Manager)
+3. Rotation régulière des clés et mots de passe
+4. Utiliser des variables d'environnement pour les secrets
 
-- `EC2_PUBLIC_IP` - Adresse IP publique de l'instance EC2 Java
-- `S3_BUCKET_NAME` - Nom du bucket S3
-- `MONITORING_EC2_PUBLIC_IP` - Adresse IP publique de l'instance EC2 de monitoring
+### Gestion des Secrets
+```bash
+# AWS Secrets Manager
+aws secretsmanager create-secret \
+    --name yourmedia/prod/db-credentials \
+    --secret-string '{"username":"admin","password":"your_secure_password"}'
+```
 
-## 3. Variables Terraform
+## Déploiement
 
-Les variables Terraform sont définies dans le fichier `infrastructure/variables.tf` et peuvent être regroupées en plusieurs catégories :
+### Local
+1. Copier `.env.example` vers `.env`
+2. Remplir les variables avec les valeurs appropriées
+3. Vérifier les permissions du fichier
 
-### Variables de base
+### Production
+1. Utiliser AWS Systems Manager Parameter Store
+2. Injecter les variables via CI/CD
+3. Vérifier les variables avant le déploiement
 
-- `aws_region` - Région AWS
-- `project_name` - Nom du projet
-- `environment` - Environnement (dev, pre-prod, prod)
+## Dépannage
 
-### Variables d'infrastructure
+### Problèmes Courants
+1. Variables manquantes
+2. Valeurs incorrectes
+3. Problèmes de permissions
+4. Conflits de variables
 
-- `instance_type_ec2` - Type d'instance EC2
-- `instance_type_rds` - Type d'instance RDS
-- `ami_id` - ID de l'AMI à utiliser
-- `use_latest_ami` - Utiliser l'AMI la plus récente
+### Solutions
+1. Vérifier les logs d'application
+2. Utiliser les commandes de debug
+3. Vérifier les fichiers de configuration
+4. Consulter la documentation
 
-### Variables de provisionnement
+## Maintenance
 
-- `enable_provisioning` - Activer ou désactiver le provisionnement
-- `ssh_private_key_path` - Chemin vers la clé SSH privée
+### Mise à Jour
+1. Documenter les changements
+2. Tester les nouvelles variables
+3. Mettre à jour les templates
+4. Vérifier la compatibilité
 
-## 4. Bonnes pratiques
-
-- Utilisez toujours les variables standardisées dans les scripts et les workflows
-- Ne stockez jamais de secrets en clair dans le code
-- Utilisez les secrets GitHub pour les informations sensibles
-- Préférez les références aux variables plutôt que les valeurs codées en dur
+### Nettoyage
+1. Supprimer les variables inutilisées
+2. Archiver les anciennes configurations
+3. Mettre à jour la documentation

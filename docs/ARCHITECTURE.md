@@ -1,250 +1,247 @@
-# Architecture YourMedia
-
-Ce document décrit l'architecture technique du projet YourMedia, en détaillant les différents composants, leurs interactions et les flux de données.
-
-## Table des matières
-
-1. [Vue d'ensemble](#vue-densemble)
-2. [Architecture applicative](#architecture-applicative)
-3. [Architecture d'infrastructure](#architecture-dinfrastructure)
-4. [Sécurité](#sécurité)
-5. [Monitoring et observabilité](#monitoring-et-observabilité)
-6. [Déploiement et CI/CD](#déploiement-et-cicd)
-7. [Gestion des données](#gestion-des-données)
-8. [Évolution et maintenance](#évolution-et-maintenance)
+# Architecture
 
 ## Vue d'ensemble
 
-YourMedia est une application de gestion de médias qui utilise une architecture moderne basée sur des conteneurs Docker. L'application est déployée sur AWS et utilise une approche DevOps pour le développement, le déploiement et la maintenance.
+Ce document décrit l'architecture du projet YourMedia, détaillant les composants, leurs interactions et les choix techniques.
 
-### Principes architecturaux
+## Infrastructure AWS
 
-- **Architecture en microservices** : Séparation des responsabilités en composants indépendants
-- **Infrastructure as Code (IaC)** : Toute l'infrastructure est définie en code avec Terraform
-- **Conteneurisation** : Utilisation de Docker pour l'empaquetage et le déploiement des applications
-- **CI/CD automatisé** : Intégration et déploiement continus avec GitHub Actions
-- **Observabilité** : Monitoring complet avec Prometheus et Grafana
-- **Sécurité by design** : Sécurité intégrée à toutes les étapes du développement
+### 1. Réseau
 
-### Diagramme d'architecture globale
+#### VPC
+- VPC principal: 10.0.0.0/16
+- Sous-réseaux publics: 10.0.1.0/24, 10.0.2.0/24
+- Sous-réseaux privés: 10.0.3.0/24, 10.0.4.0/24
+- NAT Gateway pour l'accès Internet
+- Internet Gateway pour les services publics
 
-Le diagramme d'architecture globale se trouve dans le fichier `diagrams/architecture-overview.drawio.png`.
+#### Sécurité
+- Security Groups par service
+- NACLs par sous-réseau
+- WAF pour l'API Gateway
+- Shield pour la protection DDoS
 
-## Architecture applicative
+### 2. Compute
 
-### Frontend (React Native)
+#### EC2
+- Instance type: t3.micro (dev), t3.small (prod)
+- AMI: Amazon Linux 2023
+- EBS: gp3, 20GB
+- User Data pour l'initialisation
 
-L'application mobile est développée avec React Native et Expo, ce qui permet de créer une application mobile qui fonctionne à la fois sur iOS, Android et Web.
+#### Auto Scaling
+- Min: 1 instance
+- Max: 3 instances
+- Target: 70% CPU
+- Health checks: ELB
 
-**Composants principaux :**
-- **Interface utilisateur** : Composants React Native
-- **Gestion d'état** : Context API et hooks React
-- **Navigation** : React Navigation
-- **Communication API** : Axios pour les requêtes HTTP
+### 3. Base de données
 
-### Backend (Java Spring Boot)
+#### RDS MySQL
+- Instance type: db.t3.micro
+- Storage: 20GB gp2
+- Multi-AZ: Non (dev), Oui (prod)
+- Backup: 7 jours
 
-Le backend est développé avec Java Spring Boot et expose une API REST pour la logique métier.
+#### Configuration
+- Charset: utf8mb4
+- Collation: utf8mb4_unicode_ci
+- Parameters group personnalisé
+- Option group: MySQL 8.0
 
-**Composants principaux :**
-- **API REST** : Contrôleurs Spring MVC
-- **Logique métier** : Services Spring
-- **Accès aux données** : Spring Data JPA
-- **Sécurité** : Spring Security
-- **Documentation API** : Swagger/OpenAPI
+## Applications
 
-### Communication entre les composants
+### 1. Backend (Java)
 
-La communication entre le frontend et le backend se fait via des appels API REST. Les données sont échangées au format JSON.
+#### Spring Boot
+- Version: 2.7.x
+- Java: 11
+- Maven pour le build
+- JPA/Hibernate
 
-**Flux de données :**
-1. L'utilisateur interagit avec l'application mobile
-2. L'application mobile envoie des requêtes HTTP au backend
-3. Le backend traite les requêtes et interagit avec la base de données
-4. Le backend renvoie les réponses au format JSON
-5. L'application mobile affiche les données à l'utilisateur
+#### Architecture
+- Controllers REST
+- Services métier
+- Repositories
+- DTOs
 
-## Architecture d'infrastructure
+#### Sécurité
+- Spring Security
+- JWT
+- CORS
+- Rate limiting
 
-### AWS
+### 2. Frontend (React)
 
-L'infrastructure est déployée sur AWS et comprend les services suivants :
+#### React
+- Version: 18.x
+- TypeScript
+- npm pour le build
+- Redux pour l'état
 
-- **EC2** : Instances pour l'hébergement des applications
-- **RDS** : Base de données MySQL
-- **S3** : Stockage des médias et des sauvegardes
-- **CloudWatch** : Monitoring et logs
-- **IAM** : Gestion des accès et des permissions
-- **VPC** : Réseau virtuel isolé
-- **Route 53** : Gestion DNS
+#### Architecture
+- Components
+- Hooks
+- Context
+- Services
 
-### Instances EC2 et conteneurisation
+#### UI/UX
+- Material-UI
+- Responsive design
+- PWA
+- i18n
 
-L'infrastructure utilise deux types d'instances EC2 distinctes, chacune avec un rôle spécifique :
+## Monitoring
 
-1. **Instance EC2 Java Tomcat** : Dédiée à l'exécution de l'application Java backend via Tomcat
-   - Exécute Java 17 (Amazon Corretto) et Tomcat 9.0.87
-   - Ne contient pas Docker et n'exécute pas de conteneurs
-   - Déploie les applications sous forme de fichiers WAR
+### 1. Prometheus
 
-2. **Instance EC2 Monitoring** : Dédiée à l'exécution des services de monitoring via Docker
-   - Exécute Docker et Docker Compose
-   - Contient les conteneurs pour les services de monitoring
+#### Configuration
+- Scrape interval: 15s
+- Retention: 15 jours
+- Alert rules
+- Recording rules
 
-**Images Docker** (uniquement sur l'instance EC2 Monitoring) :
-- **app-react** : Application mobile React Native
-- **grafana** : Visualisation des métriques
-- **prometheus** : Collecte des métriques
+#### Métriques
+- Node Exporter
+- cAdvisor
+- Spring Boot Actuator
+- Custom metrics
 
-- **mysql-exporter** : Collecte des métriques MySQL
-- **cloudwatch-exporter** : Collecte des métriques CloudWatch
+### 2. Grafana
 
-### Terraform
+#### Dashboards
+- System Overview
+- Java Application
+- React Application
+- Logs
 
-L'infrastructure est définie en code avec Terraform, ce qui permet une gestion cohérente et reproductible.
+#### Alerting
+- Email notifications
+- Slack integration
+- PagerDuty
+- Escalation
 
-**Modules Terraform :**
-- **ec2-java-tomcat** : Instance EC2 pour le backend Java/Tomcat
-- **ec2-monitoring** : Instance EC2 pour le monitoring (Prometheus, Grafana)
-- **rds-mysql** : Base de données MySQL
-- **s3** : Buckets S3 pour le stockage des médias et des artefacts
-- **network** : Configuration du VPC, des sous-réseaux et des groupes de sécurité
+### 3. Loki
 
+#### Configuration
+- Retention: 30 jours
+- Chunks
+- Index
+- Storage
 
-### Scripts
+#### Logs
+- Application logs
+- System logs
+- Access logs
+- Error logs
 
-Les scripts sont centralisés dans un dossier unique et organisés par module ou fonction pour faciliter la maintenance et éviter la duplication. Chaque instance EC2 utilise uniquement les scripts qui lui sont spécifiques.
+## CI/CD
 
-**Catégories de scripts :**
-- **database** : Scripts liés à la base de données (sécurisation, migration, etc.)
-- **docker** : Scripts de gestion des conteneurs Docker (construction, déploiement, nettoyage) - *utilisés uniquement sur l'instance EC2 Monitoring*
-- **ec2-java-tomcat** : Scripts d'installation et de configuration de Java et Tomcat - *utilisés uniquement sur l'instance EC2 Java Tomcat*
-- **ec2-monitoring** : Scripts de configuration du monitoring (Prometheus, Grafana) - *utilisés uniquement sur l'instance EC2 Monitoring*
-- **utils** : Scripts utilitaires génériques (correction des clés SSH, installation de dépendances, etc.)
+### 1. GitHub Actions
 
-**Scripts spécifiques à l'instance EC2 Java Tomcat :**
-- `init-instance-env.sh` : Initialisation de l'environnement
-- `install_java_tomcat.sh` : Installation de Java et Tomcat
-- `deploy-war.sh` : Déploiement d'applications WAR
+#### Workflows
+- Build & Test
+- Security Scan
+- Deploy Dev
+- Deploy Prod
 
-**Scripts spécifiques à l'instance EC2 Monitoring :**
-- `init-instance-env.sh` : Initialisation de l'environnement
-- `install-docker.sh` : Installation de Docker
-- `docker-manager.sh` : Gestion des conteneurs Docker
-- `setup.sh` : Configuration des services de monitoring
+#### Environnements
+- Development
+- Staging
+- Production
 
-**Ordre d'exécution des scripts :**
-1. Les instances EC2 téléchargent les scripts directement depuis GitHub lors de leur initialisation
-2. Les scripts vérifient les dépendances nécessaires avant leur exécution
-3. Les scripts de configuration sont exécutés dans un ordre précis pour garantir le bon fonctionnement de l'infrastructure
+### 2. Docker
 
-> **Note importante** : Depuis la version 2.0 du projet, les scripts sont téléchargés directement depuis GitHub au lieu d'être stockés dans un bucket S3. Pour plus de détails sur cette nouvelle approche, consultez le document [SCRIPTS-GITHUB-APPROACH.md](SCRIPTS-GITHUB-APPROACH.md).
+#### Images
+- Java: openjdk:11-jre
+- React: node:18-alpine
+- Monitoring: prom/prometheus, grafana/grafana
+
+#### Compose
+- Services
+- Networks
+- Volumes
+- Environment
 
 ## Sécurité
 
-### Authentification et autorisation
+### 1. IAM
 
-- **Utilisateurs** : Authentification basée sur JWT
-- **API** : Sécurisation avec Spring Security
-- **Infrastructure** : IAM pour la gestion des accès AWS
+#### Rôles
+- EC2: ssm, s3
+- RDS: rds
+- Lambda: cloudwatch
 
-### Gestion des secrets
+#### Politiques
+- Least privilege
+- Resource-based
+- Tag-based
+- Time-based
 
-- **GitHub Secrets** : Stockage des secrets pour les workflows GitHub Actions
-- **Terraform Cloud** : Stockage des secrets pour l'infrastructure
-- **Rotation automatique** : Rotation périodique des secrets sensibles
+### 2. Chiffrement
 
-### Sécurité réseau
+#### Données
+- Au repos: KMS
+- En transit: TLS 1.2+
+- Backups: SSE
+- Keys: Rotation
 
-- **VPC** : Isolation réseau
-- **Security Groups** : Contrôle des accès réseau
-- **HTTPS** : Communication chiffrée
+## Maintenance
 
-## Monitoring et observabilité
+### 1. Backup
 
-### Métriques
+#### RDS
+- Daily snapshots
+- Point-in-time recovery
+- Cross-region
+- Retention
 
-- **Prometheus** : Collecte des métriques
-- **Grafana** : Visualisation des métriques
-- **Dashboards** : Tableaux de bord pour les différents composants
+#### EBS
+- Daily snapshots
+- Lifecycle policy
+- Cross-region
+- Retention
 
-### Logs
+### 2. Mises à jour
 
-- **CloudWatch Logs** : Centralisation des logs
-- **Log Rotation** : Gestion de la rétention des logs
+#### Système
+- Security patches
+- Minor updates
+- Major updates
+- Testing
 
-### Alertes
+#### Applications
+- Dependencies
+- Frameworks
+- Libraries
+- Testing
 
-- **Grafana Alerting** : Alertes basées sur les métriques
-- **CloudWatch Alarms** : Alertes basées sur les métriques AWS
-- **Notifications** : Envoi d'alertes par email et SNS
+## Documentation
 
-## Déploiement et CI/CD
+### 1. Technique
 
-### GitHub Actions
+#### Architecture
+- Diagrams
+- Components
+- Interactions
+- Decisions
 
-Les workflows GitHub Actions automatisent l'intégration et le déploiement continus.
+#### API
+- Endpoints
+- Models
+- Authentication
+- Examples
 
-**Workflows principaux :**
-- **1-infra-deploy-destroy.yml** : Déploiement et destruction de l'infrastructure
-- **2-backend-deploy.yml** : Déploiement du backend
-- **2.1-application-tests.yml** : Tests automatisés des applications
-- **3-docker-build-deploy.yml** : Construction et déploiement des images Docker
-- **3.1-canary-deployment.yml** : Déploiement canary pour réduire les risques
+### 2. Opérationnelle
 
-- **5-docker-cleanup.yml** : Nettoyage des images Docker
-- **4-analyse-de-securite.yml** : Analyse de sécurité
+#### Procédures
+- Deployment
+- Monitoring
+- Maintenance
+- Troubleshooting
 
-**Actions personnalisées :**
-- **update-github-secret** : Action personnalisée pour mettre à jour les secrets GitHub de manière sécurisée, en utilisant les fichiers d'environnement au lieu de la commande `set-output` dépréciée.
-
-### Déploiement canary
-
-Le déploiement canary permet de réduire les risques en déployant progressivement les nouvelles versions.
-
-**Processus :**
-1. Déploiement de la nouvelle version pour un pourcentage limité du trafic
-2. Surveillance des métriques et des logs
-3. Augmentation progressive du pourcentage ou rollback en cas de problème
-4. Promotion à 100% si tout fonctionne correctement
-
-## Gestion des données
-
-### Base de données
-
-- **MySQL** : Base de données relationnelle
-- **Schéma** : Structure des tables et des relations
-- **Migrations** : Gestion des évolutions du schéma
-
-### Stockage des médias
-
-- **S3** : Stockage des fichiers médias
-- **CDN** : Distribution des contenus statiques
-
-### Sauvegardes
-
-- **RDS Automated Backups** : Sauvegardes automatiques de la base de données
-- **S3 Versioning** : Versionnement des fichiers dans S3
-- **Scripts de sauvegarde** : Sauvegarde des configurations et des données des conteneurs
-
-## Évolution et maintenance
-
-### Gestion des versions
-
-- **Semantic Versioning** : Versionnement sémantique des applications
-- **Git Flow** : Workflow de développement basé sur Git
-
-### Mise à jour des dépendances
-
-- **Dependabot** : Mise à jour automatique des dépendances
-- **Analyse de sécurité** : Vérification des vulnérabilités dans les dépendances
-
-### Documentation
-
-- **Documentation technique** : Architecture, API, etc.
-- **Documentation utilisateur** : Guides d'utilisation
-- **Diagrammes** : Représentation visuelle de l'architecture
-
----
-
-Pour plus de détails sur chaque composant, veuillez consulter les diagrammes d'architecture dans le dossier `diagrams/` et la documentation spécifique à chaque module.
+#### Runbooks
+- Incidents
+- Recovery
+- Scaling
+- Security
