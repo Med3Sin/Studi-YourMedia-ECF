@@ -82,8 +82,20 @@ jobs:
             exit 1
           fi
 
-          # Exécuter Maven
-          cd ${{ env.APP_DIR }} && mvn -B package --file pom.xml # -B pour le mode batch non interactif
+          # Exécuter Maven avec les dépendances
+          cd ${{ env.APP_DIR }} && mvn -B clean package --file pom.xml
+          
+          # Vérifier que les dépendances Actuator sont présentes
+          echo "Vérification des dépendances Actuator..."
+          if ! unzip -l target/hello-world.war | grep -q "spring-boot-starter-actuator"; then
+            echo "ERREUR: La dépendance spring-boot-starter-actuator n'est pas présente dans le WAR"
+            exit 1
+          fi
+          if ! unzip -l target/hello-world.war | grep -q "micrometer-registry-prometheus"; then
+            echo "ERREUR: La dépendance micrometer-registry-prometheus n'est pas présente dans le WAR"
+            exit 1
+          fi
+          
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 5: Configuration des identifiants AWS
