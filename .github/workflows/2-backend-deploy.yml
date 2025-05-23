@@ -66,34 +66,55 @@ jobs:
       - name: Build with Maven
         run: |
           echo "group=Maven Build" >> $GITHUB_STEP_SUMMARY
+          # Vérifier que le répertoire existe
           if [ ! -d "${{ env.APP_DIR }}" ]; then
             echo "ERREUR: Le répertoire ${{ env.APP_DIR }} n'existe pas!"
+            echo "Contenu du répertoire courant:"
             ls -la
             exit 1
           fi
+
+          # Vérifier que le fichier pom.xml existe
           if [ ! -f "${{ env.APP_DIR }}/pom.xml" ]; then
             echo "ERREUR: Le fichier pom.xml n'existe pas dans ${{ env.APP_DIR }}!"
+            echo "Contenu du répertoire ${{ env.APP_DIR }}:"
             ls -la ${{ env.APP_DIR }}
             exit 1
           fi
+
+          # Exécuter Maven avec les dépendances
           cd ${{ env.APP_DIR }} && mvn -B clean package --file pom.xml
+          
+          echo "" # Ligne vide pour la lisibilité des logs
+          echo "--- Contenu de BOOT-INF/lib/ dans le WAR (pour débogage) ---"
+          # Affiche la liste des fichiers ou un avertissement si la commande échoue ou si le répertoire est vide
+          unzip -l target/hello-world.war | grep "BOOT-INF/lib/" || echo "AVERTISSEMENT: N'a pas pu lister le contenu de BOOT-INF/lib/ ou le répertoire est vide."
+          echo "--- Fin du contenu de BOOT-INF/lib/ ---"
+          echo ""
+          
           echo "Vérification des dépendances Actuator et Micrometer..."
-          if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/spring-boot-actuator-autoconfigure-[^/]*\.jar"; then
-            echo "ERREUR: Le JAR spring-boot-actuator-autoconfigure (inclus par spring-boot-starter-actuator) n'est pas présent dans le WAR."
-            echo "Contenu de BOOT-INF/lib/ pour débogage:"
-            unzip -l target/hello-world.war | grep "BOOT-INF/lib/"
+          
+          ACTUATOR_JAR_PATTERN="BOOT-INF/lib/spring-boot-actuator-autoconfigure-[^/]*\.jar"
+          MICROMETER_JAR_PATTERN="BOOT-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"
+
+          # Vérification du JAR Actuator
+          if [ -z "$(unzip -l target/hello-world.war | grep -E "$ACTUATOR_JAR_PATTERN")" ]; then
+            echo "ERREUR: Le JAR spring-boot-actuator-autoconfigure (pattern: $ACTUATOR_JAR_PATTERN) n'est pas trouvé dans le WAR."
             exit 1
+          else
+            echo "INFO: JAR Actuator (pattern: $ACTUATOR_JAR_PATTERN) trouvé."
           fi
-          if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"; then
-            echo "ERREUR: Le JAR micrometer-registry-prometheus n'est pas présent dans le WAR."
-            echo "Contenu de BOOT-INF/lib/ pour débogage:"
-            unzip -l target/hello-world.war | grep "BOOT-INF/lib/"
+          
+          # Vérification du JAR Micrometer
+          if [ -z "$(unzip -l target/hello-world.war | grep -E "$MICROMETER_JAR_PATTERN")" ]; then
+            echo "ERREUR: Le JAR micrometer-registry-prometheus (pattern: $MICROMETER_JAR_PATTERN) n'est pas trouvé dans le WAR."
             exit 1
+          else
+            echo "INFO: JAR Micrometer (pattern: $MICROMETER_JAR_PATTERN) trouvé."
           fi
+          
           echo "Les dépendances Actuator et Micrometer ont été vérifiées avec succès dans le WAR."
-          echo "Contenu du WAR (JARs Actuator et Micrometer):"
-          unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*actuator"
-          unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*micrometer"
+          
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 5: Configuration des identifiants AWS
@@ -104,8 +125,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs (correction du nom de l'étape)
-      - name: Set Deployment Variables
+      # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs
+      - name: Set Environment Variables
         run: |
           echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
           echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
@@ -159,12 +180,6 @@ jobs:
 
       # Étape 11: Vérification de l'application déployée
       - name: Verify Deployment
-        env: # Définir les variables d'environnement spécifiques à cette étape
-          TARGET_EC2_IP: ${{ env.EC2_IP }}
-          TARGET_APP_NAME: ${{ env.APP_NAME }}
-          # Utiliser des patterns exacts pour grep, incluant le signe '='
-          ACTUATOR_KEY_PATTERN: "management.endpoints.web.base-path=" 
-          APP_PROPERTIES_FILE: "${{ env.APP_DIR }}/src/main/resources/application.properties"
         run: |
           echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
           echo "Attente de la disponibilité de l'application..."
@@ -175,48 +190,47 @@ jobs:
           ATTEMPT=1
           SUCCESS=false
 
-          # Lire management.endpoints.web.base-path depuis application.properties
-          # grep pour le pattern exact au début de la ligne, puis cut pour la valeur
-          # cut -f2- prend tout après le premier délimiteur (au cas où la valeur contiendrait '=')
-          RAW_ACTUATOR_BASE_PATH=$(grep "^${ACTUATOR_KEY_PATTERN}" "${APP_PROPERTIES_FILE}" | cut -d'=' -f2-)
-          if [ -z "$RAW_ACTUATOR_BASE_PATH" ]; then
-            ACTUATOR_BASE_PATH="/actuator" # Valeur par défaut si non trouvée ou vide
-            echo "WARN: '${ACTUATOR_KEY_PATTERN}' non trouvée ou vide dans ${APP_PROPERTIES_FILE}. Utilisation de la valeur par défaut: ${ACTUATOR_BASE_PATH}"
-          else
-            # Supprimer les espaces de début/fin de la valeur extraite
-            ACTUATOR_BASE_PATH=$(echo "$RAW_ACTUATOR_BASE_PATH" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            echo "INFO: Valeur trouvée pour '${ACTUATOR_KEY_PATTERN}': ${ACTUATOR_BASE_PATH}"
-          fi
+          APPLICATION_PROPERTIES_PATH="${{ env.APP_DIR }}/src/main/resources/application.properties"
+          PROPERTY_KEY_ACTUATOR_BASE="management.endpoints.web.base-path"
+          PROPERTY_KEY_SPRING_CONTEXT="server.servlet.context-path"
 
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             echo "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
-
-            # L'URL de base de l'application. TARGET_APP_NAME est le nom du contexte sur Tomcat.
-            APP_BASE_URL="http://${TARGET_EC2_IP}:8080/${TARGET_APP_NAME}"
-
-            # Vérifier l'accès à la racine de l'application
-            # / à la fin pour s'assurer qu'on teste le contexte de l'application (peut rediriger vers index.html)
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${APP_BASE_URL}/")
-            
-            # Accepter 200 (OK) ou 302 (Found - souvent une redirection vers index.html par WelcomePageHandlerMapping)
-            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
-              echo "✅ L'application est accessible (HTTP $HTTP_CODE) à ${APP_BASE_URL}/"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/)
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ L'application est accessible (HTTP 200)"
               
-              # L'URL de l'Actuator est construite en ajoutant ACTUATOR_BASE_PATH au contexte de l'application
-              # Ex: http://host:port/app-name/actuator
-              ACTUATOR_URL="${APP_BASE_URL}${ACTUATOR_BASE_PATH}"
+              ACTUATOR_BASE_PATH_VALUE=$(grep "$PROPERTY_KEY_ACTUATOR_BASE" "$APPLICATION_PROPERTIES_PATH" | cut -d'=' -f2)
+              if [ -z "$ACTUATOR_BASE_PATH_VALUE" ]; then
+                ACTUATOR_BASE_PATH_VALUE="/actuator" 
+              fi
+              
+              ACTUATOR_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}${ACTUATOR_BASE_PATH_VALUE}"
               echo "Vérification de l'endpoint Actuator à l'URL: ${ACTUATOR_URL}"
-              ACTUATOR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${ACTUATOR_URL}")
+              ACTUATOR_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${ACTUATOR_URL})
               
               if [ "$ACTUATOR_CODE" = "200" ]; then
-                echo "✅ L'endpoint Actuator est accessible (HTTP 200) à ${ACTUATOR_URL}"
+                echo "✅ L'endpoint Actuator est accessible (HTTP 200)"
                 SUCCESS=true
                 break
               else
                 echo "⚠️ L'endpoint Actuator n'est pas accessible (HTTP $ACTUATOR_CODE) à l'URL ${ACTUATOR_URL}"
+                SPRING_CONTEXT_PATH_VALUE=$(grep "$PROPERTY_KEY_SPRING_CONTEXT" "$APPLICATION_PROPERTIES_PATH" | cut -d'=' -f2)
+                if [ -n "$SPRING_CONTEXT_PATH_VALUE" ] && [ "/${{ env.APP_NAME }}" != "$SPRING_CONTEXT_PATH_VALUE" ]; then
+                   ALTERNATIVE_ACTUATOR_URL="http://${{ env.EC2_IP }}:8080${SPRING_CONTEXT_PATH_VALUE}${ACTUATOR_BASE_PATH_VALUE}"
+                   echo "Tentative avec l'URL alternative de l'Actuator: ${ALTERNATIVE_ACTUATOR_URL}"
+                   ACTUATOR_CODE_ALT=$(curl -s -o /dev/null -w "%{http_code}" ${ALTERNATIVE_ACTUATOR_URL})
+                   if [ "$ACTUATOR_CODE_ALT" = "200" ]; then
+                     echo "✅ L'endpoint Actuator est accessible via l'URL alternative (HTTP 200)"
+                     SUCCESS=true
+                     break
+                   else
+                     echo "⚠️ L'endpoint Actuator n'est pas accessible via l'URL alternative (HTTP $ACTUATOR_CODE_ALT)"
+                   fi
+                fi
               fi
             else
-              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE) à ${APP_BASE_URL}/"
+              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE) à http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/"
             fi
 
             ATTEMPT=$((ATTEMPT+1))
@@ -228,8 +242,6 @@ jobs:
 
           if [ "$SUCCESS" = "false" ]; then
             echo "❌ L'application ou l'endpoint Actuator n'est pas accessible après $MAX_ATTEMPTS tentatives"
-            # Décommenter pour faire échouer le workflow si la vérification échoue
-            # exit 1 
           fi
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
@@ -242,13 +254,10 @@ jobs:
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
           
-          # APP_NAME est le nom du contexte (ex: hello-world-dev)
-          # L'application.properties a server.servlet.context-path=/hello-world-dev
-          # Donc l'URL de base est http://ip:port/APP_NAME/
-          # L'API Health (définie dans HomeController à @GetMapping("/api/health")) est relative à cela.
-          APP_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/"
-          HEALTH_API_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health"
+          FINAL_CONTEXT_PATH="${{ env.APP_NAME }}"
+          HEALTH_API_URL="http://${{ env.EC2_IP }}:8080/${FINAL_CONTEXT_PATH}/api/health"
           
-          echo "* **URL de l'application (index):** ${APP_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "* **URL de l'application (index):** http://${{ env.EC2_IP }}:8080/${FINAL_CONTEXT_PATH}/" >> $GITHUB_STEP_SUMMARY
           echo "* **URL de l'API Health:** ${HEALTH_API_URL}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Statut:** Déployé avec succès (vérification Actuator: $SUCCESS) ✅" >> $GITHUB_STEP_SUMMARY
+          # Le statut devrait refléter le succès de l'étape Verify Deployment
+          echo "* **Statut:** Déployé (vérifiez les logs de l'étape 'Verify Deployment' pour le statut final)" >> $GITHUB_STEP_SUMMARY
