@@ -1,39 +1,6 @@
 name: 2 - Compilation et Déploiement de l'Application Hello World (Java WAR)
 
-# -----------------------------------------------------------------------
-# Ce workflow gère la compilation et le déploiement de l'application Hello World Java.
-# Il compile le code Java avec Maven, télécharge le WAR sur S3, puis le déploie
-# sur l'instance EC2 exécutant Tomcat via SSH.
-# -----------------------------------------------------------------------
-
-on:
-  workflow_dispatch:
-    inputs:
-      ec2_public_ip:
-        description: 'IP publique EC2 (optionnel)'
-        required: false
-        type: string
-      s3_bucket_name:
-        description: 'Nom du bucket S3 (optionnel)'
-        required: false
-        type: string
-      environment:
-        description: 'Environnement de déploiement'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev      # Environnement de développement
-          - pre-prod # Environnement de pré-production
-          - prod     # Environnement de production
-
-# Variables d'environnement globales
-env:
-  JAVA_VERSION: '17'         # Version de Java à utiliser
-  JAVA_DISTRIBUTION: 'temurin' # Distribution Java (Adoptium Temurin)
-  AWS_REGION: eu-west-3      # Région AWS (Paris)
-  APP_DIR: app-java          # Répertoire de l'application Java (sans ./ pour éviter les problèmes de chemin)
-  WAR_NAME: hello-world.war  # Nom du fichier WAR (sera modifié pour inclure l'environnement)
+# ... (sections on, env, jobs, steps 1-3 restent les mêmes) ...
 
 jobs:
   build-and-deploy:
@@ -45,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Récupère tout l'historique pour les tags
+          fetch-depth: 0
 
       # Étape 2: Configuration de Java
       - name: Set up JDK ${{ env.JAVA_VERSION }}
@@ -69,27 +36,49 @@ jobs:
           # Vérifier que le répertoire existe
           if [ ! -d "${{ env.APP_DIR }}" ]; then
             echo "ERREUR: Le répertoire ${{ env.APP_DIR }} n'existe pas!"
-            echo "Contenu du répertoire courant:"
+            echo "Contenu du répertoire courant (avant cd):"
             ls -la
             exit 1
           fi
 
+          # Aller dans le répertoire de l'application
+          cd ${{ env.APP_DIR }}
+          echo "Répertoire courant après cd: $(pwd)"
+
           # Vérifier que le fichier pom.xml existe
-          if [ ! -f "${{ env.APP_DIR }}/pom.xml" ]; then
-            echo "ERREUR: Le fichier pom.xml n'existe pas dans ${{ env.APP_DIR }}!"
-            echo "Contenu du répertoire ${{ env.APP_DIR }}:"
-            ls -la ${{ env.APP_DIR }}
+          if [ ! -f "pom.xml" ]; then # pom.xml est maintenant relatif au répertoire courant (APP_DIR)
+            echo "ERREUR: Le fichier pom.xml n'existe pas dans $(pwd)!"
+            echo "Contenu du répertoire $(pwd):"
+            ls -la
             exit 1
           fi
 
           # Exécuter Maven avec les dépendances
-          cd ${{ env.APP_DIR }} && mvn -B clean package --file pom.xml
+          mvn -B clean package --file pom.xml
           
-          echo "" # Ligne vide pour la lisibilité des logs
-          echo "--- Contenu de BOOT-INF/lib/ dans le WAR (pour débogage) ---"
-          # Affiche la liste des fichiers ou un avertissement si la commande échoue ou si le répertoire est vide
-          unzip -l target/hello-world.war | grep "BOOT-INF/lib/" || echo "AVERTISSEMENT: N'a pas pu lister le contenu de BOOT-INF/lib/ ou le répertoire est vide."
-          echo "--- Fin du contenu de BOOT-INF/lib/ ---"
+          echo ""
+          echo "--- Vérification de l'existence du WAR ---"
+          if [ -f "target/hello-world.war" ]; then
+            echo "INFO: Le fichier target/hello-world.war existe."
+            echo "Taille: $(ls -lh target/hello-world.war)"
+          else
+            echo "ERREUR CRITIQUE: Le fichier target/hello-world.war N'EXISTE PAS après la compilation Maven."
+            echo "Contenu du répertoire target/ :"
+            ls -la target/
+            exit 1
+          fi
+          echo "--- Fin de la vérification de l'existence du WAR ---"
+          echo ""
+          
+          echo "--- Contenu complet de target/hello-world.war (brut via unzip -l) ---"
+          # Rediriger stderr vers stdout pour capturer les erreurs de unzip
+          unzip -l target/hello-world.war 2>&1 || echo "AVERTISSEMENT: La commande 'unzip -l target/hello-world.war' a échoué ou n'a rien retourné."
+          echo "--- Fin du contenu complet du WAR ---"
+          echo ""
+
+          echo "--- Listage filtré de BOOT-INF/lib/ dans le WAR (pour débogage) ---"
+          unzip -l target/hello-world.war | grep "BOOT-INF/lib/" || echo "AVERTISSEMENT: N'a pas pu lister le contenu de BOOT-INF/lib/ via grep ou le répertoire est vide."
+          echo "--- Fin du listage filtré de BOOT-INF/lib/ ---"
           echo ""
           
           echo "Vérification des dépendances Actuator et Micrometer..."
@@ -98,19 +87,23 @@ jobs:
           MICROMETER_JAR_PATTERN="BOOT-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"
 
           # Vérification du JAR Actuator
-          if [ -z "$(unzip -l target/hello-world.war | grep -E "$ACTUATOR_JAR_PATTERN")" ]; then
+          actuator_jar_found=$(unzip -l target/hello-world.war 2>&1 | grep -E "$ACTUATOR_JAR_PATTERN")
+          if [ -z "$actuator_jar_found" ]; then
             echo "ERREUR: Le JAR spring-boot-actuator-autoconfigure (pattern: $ACTUATOR_JAR_PATTERN) n'est pas trouvé dans le WAR."
             exit 1
           else
-            echo "INFO: JAR Actuator (pattern: $ACTUATOR_JAR_PATTERN) trouvé."
+            echo "INFO: JAR Actuator trouvé:"
+            echo "$actuator_jar_found"
           fi
           
           # Vérification du JAR Micrometer
-          if [ -z "$(unzip -l target/hello-world.war | grep -E "$MICROMETER_JAR_PATTERN")" ]; then
+          micrometer_jar_found=$(unzip -l target/hello-world.war 2>&1 | grep -E "$MICROMETER_JAR_PATTERN")
+          if [ -z "$micrometer_jar_found" ]; then
             echo "ERREUR: Le JAR micrometer-registry-prometheus (pattern: $MICROMETER_JAR_PATTERN) n'est pas trouvé dans le WAR."
             exit 1
           else
-            echo "INFO: JAR Micrometer (pattern: $MICROMETER_JAR_PATTERN) trouvé."
+            echo "INFO: JAR Micrometer trouvé:"
+            echo "$micrometer_jar_found"
           fi
           
           echo "Les dépendances Actuator et Micrometer ont été vérifiées avec succès dans le WAR."
@@ -139,8 +132,11 @@ jobs:
       - name: Upload WAR to S3
         run: |
           echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
+          # Le cd vers APP_DIR est fait dans l'étape "Build with Maven", donc le chemin ici doit être relatif au workspace ou absolu
+          # Pour la cohérence et éviter les erreurs, utilisons le chemin relatif à APP_DIR puisque le WAR est là.
           if [ ! -f "${{ env.APP_DIR }}/target/hello-world.war" ]; then
             echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/hello-world.war"
+            echo "Contenu du répertoire ${{ env.APP_DIR }}/target/ (si existant):"
             ls -la ${{ env.APP_DIR }}/target/
             exit 1
           fi
@@ -242,6 +238,7 @@ jobs:
 
           if [ "$SUCCESS" = "false" ]; then
             echo "❌ L'application ou l'endpoint Actuator n'est pas accessible après $MAX_ATTEMPTS tentatives"
+            # Consider failing the workflow if critical: exit 1
           fi
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
@@ -259,5 +256,4 @@ jobs:
           
           echo "* **URL de l'application (index):** http://${{ env.EC2_IP }}:8080/${FINAL_CONTEXT_PATH}/" >> $GITHUB_STEP_SUMMARY
           echo "* **URL de l'API Health:** ${HEALTH_API_URL}" >> $GITHUB_STEP_SUMMARY
-          # Le statut devrait refléter le succès de l'étape Verify Deployment
-          echo "* **Statut:** Déployé (vérifiez les logs de l'étape 'Verify Deployment' pour le statut final)" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Déployé (vérifiez les logs de l'étape 'Verify Deployment' pour le statut d'accessibilité)" >> $GITHUB_STEP_SUMMARY
