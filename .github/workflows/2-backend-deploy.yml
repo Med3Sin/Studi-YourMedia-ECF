@@ -87,19 +87,19 @@ jobs:
           
           # Vérifier que les dépendances Actuator sont présentes
           echo "Vérification des dépendances Actuator..."
-          if ! unzip -l target/hello-world.war | grep -q "spring-boot-starter-actuator"; then
+          if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/spring-boot-starter-actuator"; then
             echo "ERREUR: La dépendance spring-boot-starter-actuator n'est pas présente dans le WAR"
             exit 1
           fi
-          if ! unzip -l target/hello-world.war | grep -q "micrometer-registry-prometheus"; then
+          if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/micrometer-registry-prometheus"; then
             echo "ERREUR: La dépendance micrometer-registry-prometheus n'est pas présente dans le WAR"
             exit 1
           fi
           
           # Vérifier le contenu du WAR
           echo "Contenu du WAR:"
-          unzip -l target/hello-world.war | grep -i actuator
-          unzip -l target/hello-world.war | grep -i micrometer
+          unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*actuator"
+          unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*micrometer"
           
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
