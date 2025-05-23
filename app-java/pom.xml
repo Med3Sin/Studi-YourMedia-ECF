@@ -83,12 +83,22 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                        <configuration>
+                            <mainClass>com.yourmedia.backend.Application</mainClass>
+                            <layout>WAR</layout>
+                            <includes>
+                                <include>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-starter-actuator</artifactId>
+                                </include>
+                                <include>
+                                    <groupId>io.micrometer</groupId>
+                                    <artifactId>micrometer-registry-prometheus</artifactId>
+                                </include>
+                            </includes>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <mainClass>com.yourmedia.backend.Application</mainClass>
-                    <layout>WAR</layout>
-                </configuration>
             </plugin>
 
             <!-- Maven War Plugin -->
