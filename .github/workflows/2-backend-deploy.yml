@@ -101,16 +101,12 @@ jobs:
           unzip -l target/hello-world.war 2>&1 || echo "AVERTISSEMENT: La commande 'unzip -l target/hello-world.war' a échoué ou n'a rien retourné."
           echo "--- Fin du contenu complet du WAR ---"
           echo ""
-
-          echo "--- Listage filtré de BOOT-INF/lib/ dans le WAR (pour débogage) ---"
-          unzip -l target/hello-world.war | grep "BOOT-INF/lib/" || echo "AVERTISSEMENT: N'a pas pu lister le contenu de BOOT-INF/lib/ via grep ou le répertoire est vide."
-          echo "--- Fin du listage filtré de BOOT-INF/lib/ ---"
-          echo ""
           
           echo "Vérification des dépendances Actuator et Micrometer..."
           
-          ACTUATOR_JAR_PATTERN="BOOT-INF/lib/spring-boot-actuator-autoconfigure-[^/]*\.jar"
-          MICROMETER_JAR_PATTERN="BOOT-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"
+          # MODIFICATION ICI: BOOT-INF/lib/ -> WEB-INF/lib/
+          ACTUATOR_JAR_PATTERN="WEB-INF/lib/spring-boot-actuator-autoconfigure-[^/]*\.jar"
+          MICROMETER_JAR_PATTERN="WEB-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"
 
           # Vérification du JAR Actuator
           actuator_jar_found=$(unzip -l target/hello-world.war 2>&1 | grep -E "$ACTUATOR_JAR_PATTERN")
