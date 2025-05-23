@@ -66,52 +66,34 @@ jobs:
       - name: Build with Maven
         run: |
           echo "group=Maven Build" >> $GITHUB_STEP_SUMMARY
-          # Vérifier que le répertoire existe
           if [ ! -d "${{ env.APP_DIR }}" ]; then
             echo "ERREUR: Le répertoire ${{ env.APP_DIR }} n'existe pas!"
-            echo "Contenu du répertoire courant:"
             ls -la
             exit 1
           fi
-
-          # Vérifier que le fichier pom.xml existe
           if [ ! -f "${{ env.APP_DIR }}/pom.xml" ]; then
             echo "ERREUR: Le fichier pom.xml n'existe pas dans ${{ env.APP_DIR }}!"
-            echo "Contenu du répertoire ${{ env.APP_DIR }}:"
             ls -la ${{ env.APP_DIR }}
             exit 1
           fi
-
-          # Exécuter Maven avec les dépendances
           cd ${{ env.APP_DIR }} && mvn -B clean package --file pom.xml
-          
-          # Vérifier que les dépendances Actuator et Micrometer sont présentes
           echo "Vérification des dépendances Actuator et Micrometer..."
-          
-          # Vérifie un JAR Actuator clé (ex: spring-boot-actuator-autoconfigure-3.2.3.jar)
-          # Le pattern [^/]* correspond à n'importe quels caractères sauf un slash, pour gérer les numéros de version.
           if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/spring-boot-actuator-autoconfigure-[^/]*\.jar"; then
             echo "ERREUR: Le JAR spring-boot-actuator-autoconfigure (inclus par spring-boot-starter-actuator) n'est pas présent dans le WAR."
             echo "Contenu de BOOT-INF/lib/ pour débogage:"
             unzip -l target/hello-world.war | grep "BOOT-INF/lib/"
             exit 1
           fi
-          
-          # Vérifie le JAR Micrometer Prometheus (ex: micrometer-registry-prometheus-1.12.3.jar)
           if ! unzip -l target/hello-world.war | grep -q "BOOT-INF/lib/micrometer-registry-prometheus-[^/]*\.jar"; then
             echo "ERREUR: Le JAR micrometer-registry-prometheus n'est pas présent dans le WAR."
             echo "Contenu de BOOT-INF/lib/ pour débogage:"
             unzip -l target/hello-world.war | grep "BOOT-INF/lib/"
             exit 1
           fi
-          
           echo "Les dépendances Actuator et Micrometer ont été vérifiées avec succès dans le WAR."
-          
-          # Vérifier le contenu du WAR (optionnel, pour le log)
           echo "Contenu du WAR (JARs Actuator et Micrometer):"
           unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*actuator"
           unzip -l target/hello-world.war | grep -i "BOOT-INF/lib/.*micrometer"
-          
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 5: Configuration des identifiants AWS
@@ -122,15 +104,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs
-      - name: Set Environment Variables
+      # Étape 3.1: Définir les variables d'environnement à partir des secrets ou des inputs (correction du nom de l'étape)
+      - name: Set Deployment Variables
         run: |
-          # Utiliser les secrets Terraform (préfixés par TF_) s'ils existent, sinon utiliser les inputs
           echo "EC2_IP=${{ secrets.TF_EC2_PUBLIC_IP || github.event.inputs.ec2_public_ip }}" >> $GITHUB_ENV
           echo "S3_BUCKET=${{ secrets.TF_S3_BUCKET_NAME || github.event.inputs.s3_bucket_name }}" >> $GITHUB_ENV
           echo "RDS_ENDPOINT=${{ secrets.TF_RDS_ENDPOINT || '' }}" >> $GITHUB_ENV
-
-          # Définir le nom du WAR pour le déploiement (avec environnement)
           WAR_BASE_NAME=$(echo "${{ env.WAR_NAME }}" | sed 's/\.war$//')
           echo "DEPLOY_WAR_NAME=${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war" >> $GITHUB_ENV
           echo "Nom du WAR pour le déploiement: ${WAR_BASE_NAME}-${{ github.event.inputs.environment }}.war"
@@ -139,15 +118,11 @@ jobs:
       - name: Upload WAR to S3
         run: |
           echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
-          # Vérifier que le fichier WAR existe
           if [ ! -f "${{ env.APP_DIR }}/target/hello-world.war" ]; then
             echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/hello-world.war"
-            echo "Contenu du répertoire target:"
             ls -la ${{ env.APP_DIR }}/target/
             exit 1
           fi
-
-          # Copier le WAR vers S3 avec le nom de déploiement (incluant l'environnement)
           aws s3 cp ${{ env.APP_DIR }}/target/hello-world.war s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}
           echo "WAR téléversé avec succès sur S3: s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }}"
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
@@ -155,122 +130,93 @@ jobs:
       # Étape 7: Configuration de SSH simplifiée
       - name: Setup SSH
         run: |
-          # Créer le répertoire SSH et configurer la clé
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-          # Ajouter la clé d'hôte EC2 aux known_hosts pour éviter les prompts
           ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
-
           echo "Configuration SSH terminée."
 
       # Étape 9: Déploiement du WAR sur l'instance EC2
       - name: Deploy WAR from S3 to EC2 Tomcat
         run: |
           echo "group=Deploy to EC2" >> $GITHUB_STEP_SUMMARY
-          # Déploiement du WAR sur l'instance EC2
           echo "Déploiement du WAR sur l'instance EC2..."
-
-          # Télécharger d'abord le WAR localement
           echo "Téléchargement du WAR depuis S3..."
           aws s3 cp s3://${{ env.S3_BUCKET }}/builds/backend/${{ env.DEPLOY_WAR_NAME }} /tmp/${{ env.DEPLOY_WAR_NAME }}
-
-          # Puis le copier sur l'instance EC2 via SCP
           echo "Copie du WAR vers l'instance EC2..."
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa /tmp/${{ env.DEPLOY_WAR_NAME }} ec2-user@${{ env.EC2_IP }}:/tmp/${{ env.DEPLOY_WAR_NAME }}
-
-          # Utiliser le script deploy-war.sh pour déployer le WAR
           echo "Déploiement du WAR avec le script deploy-war.sh..."
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ec2-user@${{ env.EC2_IP }} "sudo /opt/yourmedia/deploy-war.sh /tmp/${{ env.DEPLOY_WAR_NAME }}"
-
           echo "Déploiement terminé."
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 10: Extraction du nom de l'application à partir du nom du WAR
       - name: Extract App Name
         run: |
-          # Extraire le nom de l'application à partir du nom du WAR (sans l'extension .war)
           APP_NAME=$(echo "${{ env.DEPLOY_WAR_NAME }}" | sed 's/\.war$//')
           echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
           echo "Nom de l'application extrait: $APP_NAME"
 
       # Étape 11: Vérification de l'application déployée
       - name: Verify Deployment
+        env: # Définir les variables d'environnement spécifiques à cette étape
+          TARGET_EC2_IP: ${{ env.EC2_IP }}
+          TARGET_APP_NAME: ${{ env.APP_NAME }}
+          # Utiliser des patterns exacts pour grep, incluant le signe '='
+          ACTUATOR_KEY_PATTERN: "management.endpoints.web.base-path=" 
+          APP_PROPERTIES_FILE: "${{ env.APP_DIR }}/src/main/resources/application.properties"
         run: |
           echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
-          # Attendre que l'application soit disponible
           echo "Attente de la disponibilité de l'application..."
           sleep 30
 
-          # Vérification plus robuste
           echo "Vérification de l'application..."
           MAX_ATTEMPTS=10
           ATTEMPT=1
           SUCCESS=false
 
+          # Lire management.endpoints.web.base-path depuis application.properties
+          # grep pour le pattern exact au début de la ligne, puis cut pour la valeur
+          # cut -f2- prend tout après le premier délimiteur (au cas où la valeur contiendrait '=')
+          RAW_ACTUATOR_BASE_PATH=$(grep "^${ACTUATOR_KEY_PATTERN}" "${APP_PROPERTIES_FILE}" | cut -d'=' -f2-)
+          if [ -z "$RAW_ACTUATOR_BASE_PATH" ]; then
+            ACTUATOR_BASE_PATH="/actuator" # Valeur par défaut si non trouvée ou vide
+            echo "WARN: '${ACTUATOR_KEY_PATTERN}' non trouvée ou vide dans ${APP_PROPERTIES_FILE}. Utilisation de la valeur par défaut: ${ACTUATOR_BASE_PATH}"
+          else
+            # Supprimer les espaces de début/fin de la valeur extraite
+            ACTUATOR_BASE_PATH=$(echo "$RAW_ACTUATOR_BASE_PATH" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo "INFO: Valeur trouvée pour '${ACTUATOR_KEY_PATTERN}': ${ACTUATOR_BASE_PATH}"
+          fi
+
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             echo "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
 
-            # Vérifier l'accès à l'application
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/)
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ L'application est accessible (HTTP 200)"
-              
-              # Vérifier l'accès à l'endpoint Actuator
-              # Note: L'URL de l'actuator est généralement /actuator, pas /APP_NAME/actuator si context-path est défini dans application.properties
-              # Mais si server.servlet.context-path est /hello-world-dev et que APP_NAME est hello-world-dev, alors l'URL serait /hello-world-dev/actuator
-              # Cependant, le pom.xml <finalName>hello-world</finalName> et le DEPLOY_WAR_NAME est hello-world-${env}.war
-              # Donc APP_NAME devient hello-world-${env}.
-              # Le application.properties a server.servlet.context-path=/hello-world-dev
-              # Tomcat déploie généralement l'app sous /${WAR_NAME_WITHOUT_EXTENSION}
-              # Donc l'URL de base sera http://ip:8080/hello-world-${env}/
-              # Et l'actuator sera http://ip:8080/hello-world-${env}/hello-world-dev/actuator si Spring Boot ajoute son propre context-path par dessus celui de Tomcat
-              # Ou plus probablement, Tomcat utilise le nom du WAR, et Spring Boot son context-path.
-              # Si Tomcat déploie en tant que ROOT.war ou avec un context path explicite via Tomcat config, alors /hello-world-dev/actuator serait correct.
-              # Si Tomcat déploie à /${APP_NAME}, et que Spring Boot utilise server.servlet.context-path, il faut vérifier la config de déploiement Tomcat.
-              # En supposant que Tomcat déploie à /${APP_NAME} et que le context-path Spring Boot est relatif à cela:
-              # L'application.properties spécifie : server.servlet.context-path=/hello-world-dev
-              # Et management.endpoints.web.base-path=/actuator
-              # Donc l'URL de l'actuator sera http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}${{ management.endpoints.web.base-path }}
-              # Ou plus précisément, si server.servlet.context-path est le seul contexte, alors http://${{ env.EC2_IP }}:8080/hello-world-dev/actuator
-              # Mais le script de déploiement et le nom du WAR suggèrent que l'application est déployée à /${APP_NAME} (ex: /hello-world-dev)
-              # Donc, si APP_NAME est hello-world-dev (ce qui est le cas si environment=dev), alors l'URL devrait être http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/actuator
+            # L'URL de base de l'application. TARGET_APP_NAME est le nom du contexte sur Tomcat.
+            APP_BASE_URL="http://${TARGET_EC2_IP}:8080/${TARGET_APP_NAME}"
 
-              ACTUATOR_BASE_PATH=$(grep "management.endpoints.web.base-path" ${{ env.APP_DIR }}/src/main/resources/application.properties | cut -d'=' -f2)
-              if [ -z "$ACTUATOR_BASE_PATH" ]; then
-                ACTUATOR_BASE_PATH="/actuator" # Default si non spécifié
-              fi
+            # Vérifier l'accès à la racine de l'application
+            # / à la fin pour s'assurer qu'on teste le contexte de l'application (peut rediriger vers index.html)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${APP_BASE_URL}/")
+            
+            # Accepter 200 (OK) ou 302 (Found - souvent une redirection vers index.html par WelcomePageHandlerMapping)
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+              echo "✅ L'application est accessible (HTTP $HTTP_CODE) à ${APP_BASE_URL}/"
               
-              # L'URL de l'application est http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/
-              # L'endpoint Actuator sera à http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}${ACTUATOR_BASE_PATH}
-              ACTUATOR_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}${ACTUATOR_BASE_PATH}"
+              # L'URL de l'Actuator est construite en ajoutant ACTUATOR_BASE_PATH au contexte de l'application
+              # Ex: http://host:port/app-name/actuator
+              ACTUATOR_URL="${APP_BASE_URL}${ACTUATOR_BASE_PATH}"
               echo "Vérification de l'endpoint Actuator à l'URL: ${ACTUATOR_URL}"
-              ACTUATOR_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${ACTUATOR_URL})
+              ACTUATOR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${ACTUATOR_URL}")
               
               if [ "$ACTUATOR_CODE" = "200" ]; then
-                echo "✅ L'endpoint Actuator est accessible (HTTP 200)"
+                echo "✅ L'endpoint Actuator est accessible (HTTP 200) à ${ACTUATOR_URL}"
                 SUCCESS=true
                 break
               else
                 echo "⚠️ L'endpoint Actuator n'est pas accessible (HTTP $ACTUATOR_CODE) à l'URL ${ACTUATOR_URL}"
-                # Tentative avec le context-path Spring Boot si APP_NAME ne le contient pas déjà
-                SPRING_CONTEXT_PATH=$(grep "server.servlet.context-path" ${{ env.APP_DIR }}/src/main/resources/application.properties | cut -d'=' -f2)
-                if [ -n "$SPRING_CONTEXT_PATH" ] && [ "/${{ env.APP_NAME }}" != "$SPRING_CONTEXT_PATH" ]; then
-                   ALTERNATIVE_ACTUATOR_URL="http://${{ env.EC2_IP }}:8080${SPRING_CONTEXT_PATH}${ACTUATOR_BASE_PATH}"
-                   echo "Tentative avec l'URL alternative de l'Actuator: ${ALTERNATIVE_ACTUATOR_URL}"
-                   ACTUATOR_CODE_ALT=$(curl -s -o /dev/null -w "%{http_code}" ${ALTERNATIVE_ACTUATOR_URL})
-                   if [ "$ACTUATOR_CODE_ALT" = "200" ]; then
-                     echo "✅ L'endpoint Actuator est accessible via l'URL alternative (HTTP 200)"
-                     SUCCESS=true
-                     break
-                   else
-                     echo "⚠️ L'endpoint Actuator n'est pas accessible via l'URL alternative (HTTP $ACTUATOR_CODE_ALT)"
-                   fi
-                fi
               fi
             else
-              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE) à http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/"
+              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE) à ${APP_BASE_URL}/"
             fi
 
             ATTEMPT=$((ATTEMPT+1))
@@ -282,7 +228,7 @@ jobs:
 
           if [ "$SUCCESS" = "false" ]; then
             echo "❌ L'application ou l'endpoint Actuator n'est pas accessible après $MAX_ATTEMPTS tentatives"
-            # Ne pas faire échouer le workflow pour le moment
+            # Décommenter pour faire échouer le workflow si la vérification échoue
             # exit 1 
           fi
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
@@ -295,34 +241,14 @@ jobs:
           echo "* **Environnement:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Instance EC2:** ${{ env.EC2_IP }}" >> $GITHUB_STEP_SUMMARY
           echo "* **Bucket S3:** ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          # Utiliser le nom du WAR sans l'extension
-          # Le context path de l'application est défini dans application.properties -> server.servlet.context-path
-          # Tomcat déploie généralement le WAR sous /${APP_NAME} (où APP_NAME est le nom du fichier WAR sans .war)
-          # Donc, l'URL de base de l'application est http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/
-          # L'API health sera alors à http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health (si HomeController est mappé à /api)
-          # Ou si server.servlet.context-path=/hello-world-dev est utilisé par Spring Boot sur Tomcat
-          # et que le WAR est déployé comme hello-world-dev.war, alors l'URL est http://ip:8080/hello-world-dev/api/health
-
-          # L'application.properties définit server.servlet.context-path=/hello-world-dev
-          # APP_NAME est hello-world-${{ github.event.inputs.environment }}
-          # Si environment=dev, APP_NAME = hello-world-dev. Tomcat le déploiera à /hello-world-dev
-          # Spring Boot ajoutera son propre context path /hello-world-dev. Ce qui donnerait /hello-world-dev/hello-world-dev/
-          # Ceci doit être clarifié. Typiquement, si on déploie un WAR avec un context-path Spring Boot, on déploie le WAR en tant que ROOT.war
-          # ou on configure Tomcat pour mapper le WAR à "/".
-          # Si Tomcat déploie à /${APP_NAME}, et Spring Boot a un context-path, le context path Spring Boot est relatif à celui de Tomcat.
-          # Pour l'instant, on suppose que le deploy-war.sh gère correctement le nom de contexte.
-          # Et que l'application est accessible à /${APP_NAME}/ (qui inclut le server.servlet.context-path)
           
-          # En se basant sur application.properties: server.servlet.context-path=/hello-world-dev
-          # et le fait que APP_NAME est hello-world-${{ github.event.inputs.environment }}
-          # Si l'environnement est 'dev', APP_NAME est 'hello-world-dev'.
-          # L'URL de l'application sera donc http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/
-          # Et l'API health http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health
-          # Et l'index http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/ (pour index.html ou le contrôleur à "/")
-
+          # APP_NAME est le nom du contexte (ex: hello-world-dev)
+          # L'application.properties a server.servlet.context-path=/hello-world-dev
+          # Donc l'URL de base est http://ip:port/APP_NAME/
+          # L'API Health (définie dans HomeController à @GetMapping("/api/health")) est relative à cela.
           APP_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/"
-          HEALTH_API_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health" # En supposant que HealthController est à /api/health relatif au contexte de l'app
+          HEALTH_API_URL="http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health"
           
           echo "* **URL de l'application (index):** ${APP_URL}" >> $GITHUB_STEP_SUMMARY
           echo "* **URL de l'API Health:** ${HEALTH_API_URL}" >> $GITHUB_STEP_SUMMARY
-          echo "* **Statut:** Déployé avec succès ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* **Statut:** Déployé avec succès (vérification Actuator: $SUCCESS) ✅" >> $GITHUB_STEP_SUMMARY
