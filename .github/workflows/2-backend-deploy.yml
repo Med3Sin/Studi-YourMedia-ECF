@@ -1,6 +1,32 @@
 name: 2 - Compilation et Déploiement de l'Application Hello World (Java WAR)
 
-# ... (sections on, env, jobs, steps 1-3 restent les mêmes) ...
+on:
+  workflow_dispatch:
+    inputs:
+      ec2_public_ip:
+        description: 'IP publique EC2 (optionnel)'
+        required: false
+        type: string
+      s3_bucket_name:
+        description: 'Nom du bucket S3 (optionnel)'
+        required: false
+        type: string
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - pre-prod
+          - prod
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+  AWS_REGION: eu-west-3
+  APP_DIR: app-java
+  WAR_NAME: hello-world.war
 
 jobs:
   build-and-deploy:
@@ -132,8 +158,6 @@ jobs:
       - name: Upload WAR to S3
         run: |
           echo "group=Upload to S3" >> $GITHUB_STEP_SUMMARY
-          # Le cd vers APP_DIR est fait dans l'étape "Build with Maven", donc le chemin ici doit être relatif au workspace ou absolu
-          # Pour la cohérence et éviter les erreurs, utilisons le chemin relatif à APP_DIR puisque le WAR est là.
           if [ ! -f "${{ env.APP_DIR }}/target/hello-world.war" ]; then
             echo "ERREUR: Le fichier WAR n'existe pas: ${{ env.APP_DIR }}/target/hello-world.war"
             echo "Contenu du répertoire ${{ env.APP_DIR }}/target/ (si existant):"
