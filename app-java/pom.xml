@@ -104,9 +104,6 @@
                 <version>3.3.2</version>
                 <configuration>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
-                    <archive>
-                        <addClasspath>true</addClasspath>
-                    </archive>
                     <webResources>
                         <resource>
                             <directory>src/main/resources</directory>
