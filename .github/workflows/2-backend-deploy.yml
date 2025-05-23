@@ -96,6 +96,11 @@ jobs:
             exit 1
           fi
           
+          # Vérifier le contenu du WAR
+          echo "Contenu du WAR:"
+          unzip -l target/hello-world.war | grep -i actuator
+          unzip -l target/hello-world.war | grep -i micrometer
+          
           echo "endgroup" >> $GITHUB_STEP_SUMMARY
 
       # Étape 5: Configuration des identifiants AWS
@@ -185,7 +190,7 @@ jobs:
           echo "group=Vérification du déploiement" >> $GITHUB_STEP_SUMMARY
           # Attendre que l'application soit disponible
           echo "Attente de la disponibilité de l'application..."
-          sleep 30  # Augmenter le temps d'attente à 30 secondes
+          sleep 30
 
           # Vérification plus robuste
           echo "Vérification de l'application..."
@@ -196,36 +201,22 @@ jobs:
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             echo "Tentative $ATTEMPT/$MAX_ATTEMPTS..."
 
-            # Vérifier l'accès direct à l'application
+            # Vérifier l'accès à l'application
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }})
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✅ L'application est accessible (HTTP 200)"
-              SUCCESS=true
-              break
-            else
-              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
-
-              # Vérifier l'accès via index.html
-              echo "Tentative d'accès à l'URL avec /index.html..."
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/index.html)
-              if [ "$HTTP_CODE" = "200" ]; then
-                echo "✅ L'application est accessible via /index.html (HTTP 200)"
+              
+              # Vérifier l'accès à l'endpoint Actuator
+              ACTUATOR_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/actuator)
+              if [ "$ACTUATOR_CODE" = "200" ]; then
+                echo "✅ L'endpoint Actuator est accessible (HTTP 200)"
                 SUCCESS=true
                 break
               else
-                echo "⚠️ L'application n'est pas accessible via /index.html (HTTP $HTTP_CODE)"
-
-                # Vérifier l'accès à l'API health
-                echo "Tentative d'accès à l'API health..."
-                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.EC2_IP }}:8080/${{ env.APP_NAME }}/api/health)
-                if [ "$HTTP_CODE" = "200" ]; then
-                  echo "✅ L'API health est accessible (HTTP 200)"
-                  SUCCESS=true
-                  break
-                else
-                  echo "⚠️ L'API health n'est pas accessible (HTTP $HTTP_CODE)"
-                fi
+                echo "⚠️ L'endpoint Actuator n'est pas accessible (HTTP $ACTUATOR_CODE)"
               fi
+            else
+              echo "⚠️ L'application n'est pas accessible (HTTP $HTTP_CODE)"
             fi
 
             ATTEMPT=$((ATTEMPT+1))
@@ -236,7 +227,7 @@ jobs:
           done
 
           if [ "$SUCCESS" = "false" ]; then
-            echo "❌ L'application n'est pas accessible après $MAX_ATTEMPTS tentatives"
+            echo "❌ L'application ou l'endpoint Actuator n'est pas accessible après $MAX_ATTEMPTS tentatives"
             # Ne pas faire échouer le workflow pour le moment
             # exit 1
           fi
