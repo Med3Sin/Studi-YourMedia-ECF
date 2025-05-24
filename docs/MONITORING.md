@@ -1,53 +1,93 @@
-# Monitoring YourMédia
+# Monitoring - YourMédia
 
-## Vue d'ensemble
+Ce document décrit la configuration du système de monitoring pour le projet YourMédia.
 
-Le système de monitoring de YourMédia est basé sur une stack moderne et complète :
-- **Prometheus** : Collecte et stockage des métriques
-- **Grafana** : Visualisation et alerting
-- **cAdvisor** : Monitoring des conteneurs Docker
-- **Loki** : Gestion des logs
-- **Promtail** : Collecte des logs
+## Table des matières
+
+1. [Architecture](#architecture)
+2. [Composants](#composants)
+3. [Configuration](#configuration)
+4. [Tableaux de bord](#tableaux-de-bord)
+5. [Logs](#logs)
+6. [Maintenance](#maintenance)
 
 ## Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Prometheus │◄────┤   Grafana   │◄────┤   cAdvisor  │
-└─────────────┘     └─────────────┘     └─────────────┘
-       ▲                   ▲                   ▲
-       │                   │                   │
-       ▼                   ▼                   ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Loki      │◄────┤  Promtail   │◄────┤  Docker     │
-└─────────────┘     └─────────────┘     └─────────────┘
-```
+Le système de monitoring est déployé sur une instance EC2 dédiée et comprend les composants suivants :
 
-## Dashboards
+- Prometheus : Collecte et stockage des métriques
+- Grafana : Visualisation des métriques et logs
+- Loki : Collecte et stockage des logs
+- Promtail : Agent de collecte des logs
+- cAdvisor : Métriques des conteneurs Docker
+- Node Exporter : Métriques système
 
-### 1. Vue d'ensemble du système
-- Métriques système (CPU, RAM, disque)
-- État des services
-- Alertes actives
+## Composants
 
-### 2. Application Java
-- Métriques JVM
-- Logs d'application
-- Performance des requêtes
+### Prometheus
 
-### 3. Conteneurs Docker
-- Utilisation des ressources par conteneur
-- État des conteneurs
-- Logs des conteneurs
+- Port : 9090
+- Configuration : `scripts/config/prometheus/prometheus.yml`
+- Métriques collectées :
+  - Java/Tomcat (JMX Exporter)
+  - Node Exporter
+  - cAdvisor
+  - Métriques système
 
-### 4. Application React
-- Métriques de performance
-- Erreurs côté client
-- Temps de chargement
+### Grafana
+
+- Port : 3000
+- Configuration : `scripts/config/grafana/`
+- Tableaux de bord :
+  - Vue d'ensemble système
+  - Métriques Java/Tomcat
+  - Métriques Docker
+  - Logs applicatifs
+
+### Loki
+
+- Port : 3100
+- Configuration : `scripts/config/loki/loki-config.yml`
+- Rétention : 7 jours
+- Sources de logs :
+  - Tomcat
+  - Applications Docker
+  - Système
+
+### Promtail
+
+- Port : 9080
+- Configuration : `scripts/config/promtail/promtail-config.yml`
+- Sources de logs :
+  - `/var/log/tomcat/`
+  - `/var/log/docker/`
+  - `/var/log/syslog`
+
+### cAdvisor
+
+- Port web : 8081
+- Port métriques : 8080
+- Métriques collectées :
+  - CPU
+  - Mémoire
+  - Réseau
+  - Disque
+  - Conteneurs
+
+### Node Exporter
+
+- Port : 9100
+- Métriques collectées :
+  - CPU
+  - Mémoire
+  - Disque
+  - Réseau
+  - Système de fichiers
 
 ## Configuration
 
 ### Prometheus
+
 ```yaml
 global:
   scrape_interval: 15s
@@ -57,82 +97,241 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-  - job_name: 'node_exporter'
+
+  - job_name: 'node'
     static_configs:
       - targets: ['localhost:9100']
+
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['localhost:8080']
+
+  - job_name: 'tomcat'
+    static_configs:
+      - targets: ['localhost:8080']
 ```
 
 ### Grafana
-- Port : 3000
-- Credentials par défaut : admin/admin
-- Sources de données :
-  - Prometheus
-  - Loki
 
-### cAdvisor
-- Port : 8081
-- Métriques Docker :
-  - CPU usage
-  - Memory usage
-  - Network I/O
-  - Disk I/O
+```yaml
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+```
+
+### Loki
+
+```yaml
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+
+schema_config:
+  configs:
+    - from: 2020-05-15
+      store: boltdb
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  boltdb:
+    directory: /tmp/loki/index
+
+  filesystem:
+    directory: /tmp/loki/chunks
+
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+```
+
+### Promtail
+
+```yaml
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+
+  - job_name: tomcat
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: tomcat
+          __path__: /var/log/tomcat/*.log
+
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/log/docker/*.log
+```
+
+## Tableaux de bord
+
+### Vue d'ensemble système
+
+- CPU, mémoire, disque
+- État des conteneurs
+- Métriques réseau
+- Alertes système
+
+### Métriques Java/Tomcat
+
+- JVM (heap, threads, GC)
+- Requêtes HTTP
+- Sessions
+- Performance
+
+### Métriques Docker
+
+- État des conteneurs
+- Utilisation des ressources
+- Logs des conteneurs
+- Performance
+
+### Logs applicatifs
+
+- Logs Tomcat
+- Logs des applications
+- Erreurs système
+- Alertes
+
+## Logs
+
+### Configuration des logs
+
+1. **Tomcat**
+   - Format : JSON
+   - Rotation : quotidienne
+   - Rétention : 7 jours
+
+2. **Docker**
+   - Driver : json-file
+   - Rotation : 100MB
+   - Rétention : 7 jours
+
+3. **Système**
+   - Rotation : quotidienne
+   - Rétention : 7 jours
+
+### Collecte des logs
+
+1. **Promtail**
+   - Collecte des logs système
+   - Collecte des logs Tomcat
+   - Collecte des logs Docker
+
+2. **Loki**
+   - Stockage des logs
+   - Indexation
+   - Requêtes
 
 ## Maintenance
 
-### Mise à jour des dashboards
-1. Les dashboards sont stockés dans `scripts/config/grafana/dashboards/`
-2. Pour ajouter un nouveau dashboard :
-   - Créer le fichier JSON dans le dossier approprié
-   - Ajouter la référence dans `dashboards.yml`
+### Nettoyage
 
-### Nettoyage des données
-- Prometheus : 15 jours de rétention
-- Loki : 7 jours de rétention
-- Grafana : Pas de limite de rétention
+1. **Métriques**
+   - Rétention : 15 jours
+   - Nettoyage automatique
 
-## Dépannage
+2. **Logs**
+   - Rétention : 7 jours
+   - Rotation automatique
 
-### Problèmes courants
-1. **Prometheus ne collecte pas de métriques**
-   - Vérifier les logs : `docker logs prometheus`
-   - Vérifier la configuration : `prometheus.yml`
+### Surveillance
 
-2. **Grafana ne peut pas se connecter à Prometheus**
-   - Vérifier le réseau Docker
-   - Vérifier les credentials
+1. **Système**
+   - CPU > 80%
+   - Mémoire > 80%
+   - Disque > 80%
 
-3. **cAdvisor ne montre pas les conteneurs**
-   - Vérifier les permissions Docker
-   - Vérifier les logs : `docker logs cadvisor`
+2. **Applications**
+   - Erreurs HTTP > 5%
+   - Latence > 1s
+   - Erreurs JVM
 
-## Sécurité
+### Mises à jour
 
-### Bonnes pratiques
-1. Changer le mot de passe par défaut de Grafana
-2. Limiter l'accès aux ports de monitoring
-3. Utiliser HTTPS pour l'accès à Grafana
-4. Configurer les alertes pour les problèmes de sécurité
+1. **Procédure**
+   - Backup des configurations
+   - Test en staging
+   - Déploiement progressif
 
-### Configuration des alertes
-```yaml
-groups:
-  - name: example
-    rules:
-      - alert: HighCPUUsage
-        expr: cpu_usage_percent > 80
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "CPU usage is high"
-```
+2. **Vérification**
+   - Métriques
+   - Logs
+   - Tableaux de bord
+
+## Améliorations futures
+
+1. **Haute disponibilité**
+   - Cluster Prometheus
+   - Réplication Loki
+   - Cluster Grafana
+
+2. **Performance**
+   - Optimisation des requêtes
+   - Compression des données
+   - Cache
+
+3. **Sécurité**
+   - Authentification
+   - Chiffrement
+   - Audit
+
+4. **Fonctionnalités**
+   - Alertes avancées
+   - Anomalies
+   - ML
 
 ## Ressources
 
-- [Documentation Prometheus](https://prometheus.io/docs/)
-- [Documentation Grafana](https://grafana.com/docs/)
+- [Documentation Prometheus](https://prometheus.io/docs)
+- [Documentation Grafana](https://grafana.com/docs)
+- [Documentation Loki](https://grafana.com/docs/loki/latest)
 - [Documentation cAdvisor](https://github.com/google/cadvisor)
-- [Documentation Loki](https://grafana.com/docs/loki/latest/)
+- [Documentation Node Exporter](https://prometheus.io/docs/guides/node-exporter)

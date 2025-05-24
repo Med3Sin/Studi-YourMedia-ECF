@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-YourMedia est une plateforme de streaming moderne construite avec Spring Boot et React Native. Ce projet implémente une architecture cloud-native sur AWS avec un système de monitoring complet.
+YourMedia est une plateforme de streaming moderne construite avec Spring Boot et React. Ce projet implémente une architecture cloud-native sur AWS avec un système de monitoring complet.
 
 ## Documentation
 
@@ -10,21 +10,25 @@ La documentation du projet est organisée dans le dossier `docs/` :
 
 - [Documentation Générale](docs/README.md) - Vue d'ensemble du projet
 - [Architecture](docs/ARCHITECTURE.md) - Détails de l'architecture système
-- [Déploiement](docs/DEPLOYMENT.md) - Guide de déploiement
+- [Applications](docs/APPLICATIONS.md) - Documentation des applications
 - [Monitoring](docs/MONITORING.md) - Configuration et utilisation du monitoring
 - [Scripts](docs/SCRIPTS.md) - Documentation des scripts utilitaires
-- [API](docs/API.md) - Documentation de l'API REST
-- [Base de Données](docs/DATABASE.md) - Schéma et migrations de la base de données
+- [Workflows](docs/WORKFLOWS.md) - Documentation des workflows GitHub Actions
+- [Erreurs](docs/ERRORS.md) - Guide de dépannage et solutions aux erreurs courantes
 
 ## Structure du Projet
 
 ```
 .
 ├── app-java/           # Application Spring Boot
-├── app-react/         # Application React Native
+├── app-react/         # Application React
 ├── docs/              # Documentation
 ├── infrastructure/    # Terraform pour AWS
 ├── scripts/           # Scripts de déploiement et utilitaires
+│   ├── config/       # Configurations pour le monitoring
+│   ├── ec2-java-tomcat/  # Scripts pour l'instance Java
+│   ├── ec2-monitoring/   # Scripts pour l'instance de monitoring
+│   └── utils/        # Scripts utilitaires
 └── .github/          # GitHub Actions workflows
 ```
 
@@ -59,7 +63,7 @@ La documentation du projet est organisée dans le dossier `docs/` :
 
 4. Déployer l'application :
    ```bash
-   ./scripts/deploy.sh
+   ./scripts/ec2-java-tomcat/install-all.sh
    ```
 
 ## Monitoring
@@ -70,6 +74,14 @@ Le système de monitoring comprend :
 - cAdvisor pour les métriques Docker
 - Loki pour la gestion des logs
 - Promtail pour la collecte des logs
+
+Pour configurer le monitoring :
+```bash
+cd scripts/ec2-monitoring
+./setup-monitoring.sh
+./setup-monitoring-complete.sh
+./init-monitoring.sh
+```
 
 Voir [Documentation Monitoring](docs/MONITORING.md) pour plus de détails.
 
@@ -82,7 +94,7 @@ cd app-java
 ./mvnw spring-boot:run
 ```
 
-### Frontend (React Native)
+### Frontend (React)
 
 ```bash
 cd app-react
@@ -104,7 +116,34 @@ npm test
 
 ## CI/CD
 
-Le projet utilise GitHub Actions pour l'intégration et le déploiement continu. Les workflows sont définis dans `.github/workflows/`.
+Le projet utilise GitHub Actions pour l'intégration et le déploiement continu. Les workflows sont définis dans `.github/workflows/` :
+
+- `1-infra-deploy-destroy.yml` - Déploiement de l'infrastructure
+- `2-java-app-deploy.yml` - Déploiement de l'application Java
+- `3-docker-build-deploy.yml` - Build et déploiement des conteneurs Docker
+- `4-monitoring-deploy.yml` - Déploiement du monitoring
+
+Voir [Documentation Workflows](docs/WORKFLOWS.md) pour plus de détails.
+
+## Maintenance
+
+### Nettoyage Docker
+
+Le nettoyage des ressources Docker est géré automatiquement par le service systemd `docker-cleanup.service`. Pour une maintenance manuelle :
+
+```bash
+cd scripts/ec2-monitoring
+./docker-cleanup.sh
+```
+
+### Synchronisation des Logs
+
+La synchronisation des logs Tomcat est gérée par le service systemd `sync-tomcat-logs.service`. Pour une synchronisation manuelle :
+
+```bash
+cd scripts/ec2-monitoring
+./sync-tomcat-logs.sh
+```
 
 ## Contribution
 

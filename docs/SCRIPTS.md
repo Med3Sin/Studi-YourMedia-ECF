@@ -36,33 +36,87 @@ Ce document décrit les scripts utilisés dans le projet YourMedia, leur objecti
 
 ## Scripts de Monitoring
 
-### 1. Installation
+### 1. Installation et Configuration
 
 #### `scripts/ec2-monitoring/setup-monitoring.sh`
-- Installe Prometheus
+- Installe les dépendances système
+- Configure les limites système
+- Configure les services systemd
+- Configure les permissions
+
+#### `scripts/ec2-monitoring/setup-monitoring-complete.sh`
 - Configure Grafana
+- Configure Prometheus
 - Configure Loki
 - Configure Promtail
 
-#### `scripts/ec2-monitoring/configure-dashboards.sh`
-- Importe les dashboards
-- Configure les datasources
-- Configure les alertes
-- Configure les utilisateurs
+#### `scripts/ec2-monitoring/init-monitoring.sh`
+- Initialise l'environnement de monitoring
+- Télécharge les configurations
+- Configure les services
+- Démarre les conteneurs
 
-### 2. Maintenance
+### 2. Maintenance et Gestion
 
-#### `scripts/ec2-monitoring/backup-monitoring.sh`
-- Sauvegarde les configurations
-- Sauvegarde les dashboards
-- Sauvegarde les données
-- Rotation des backups
+#### `scripts/ec2-monitoring/docker-manager.sh`
+- Gère les conteneurs Docker
+- Déploie les services
+- Gère les configurations
+- Vérifie l'état des services
 
-#### `scripts/ec2-monitoring/cleanup-monitoring.sh`
-- Nettoie les logs
-- Nettoie les métriques
-- Nettoie les snapshots
-- Optimise le stockage
+#### `scripts/ec2-monitoring/docker-cleanup.sh`
+- Nettoie les conteneurs arrêtés
+- Supprime les images non utilisées
+- Nettoie les volumes orphelins
+- Nettoie les réseaux non utilisés
+
+#### `scripts/ec2-monitoring/restart-monitoring.sh`
+- Redémarre les services de monitoring
+- Met à jour les configurations
+- Vérifie l'état des services
+- Gère les erreurs
+
+### 3. Logs et Métriques
+
+#### `scripts/ec2-monitoring/sync-tomcat-logs.sh`
+- Synchronise les logs Tomcat
+- Configure la rotation des logs
+- Gère les permissions
+- Vérifie l'intégrité des logs
+
+#### `scripts/ec2-monitoring/get-aws-resources-info.sh`
+- Récupère les informations des ressources AWS
+- Génère les configurations
+- Met à jour les variables d'environnement
+- Configure les exporters
+
+### 4. Sécurité et Vérification
+
+#### `scripts/ec2-monitoring/setup-ssh-keys.sh`
+- Configure les clés SSH
+- Gère les permissions
+- Configure l'authentification
+- Vérifie la sécurité
+
+#### `scripts/ec2-monitoring/check-grafana.sh`
+- Vérifie l'état de Grafana
+- Vérifie les datasources
+- Vérifie les dashboards
+- Vérifie les utilisateurs
+
+### 5. Services Systemd
+
+#### `docker-cleanup.service` et `docker-cleanup.timer`
+- Service de nettoyage automatique des ressources Docker
+- Exécution périodique
+- Gestion des logs
+- Gestion des erreurs
+
+#### `sync-tomcat-logs.service` et `sync-tomcat-logs.timer`
+- Service de synchronisation des logs Tomcat
+- Exécution périodique
+- Gestion des logs
+- Gestion des erreurs
 
 ## Scripts d'Application
 
@@ -209,161 +263,3 @@ Ce document décrit les scripts utilisés dans le projet YourMedia, leur objecti
 - Vérifie les références
 
 #### `scripts/docs/update-docs.sh`
-- Met à jour la documentation
-- Synchronise les versions
-- Vérifie la cohérence
-- Publie les changements
-
-## Structure des Scripts
-
-```
-scripts/
-├── config/           # Fichiers de configuration
-├── database/         # Scripts de gestion de la base de données
-├── ec2-java-tomcat/  # Scripts de déploiement Java
-├── ec2-monitoring/   # Scripts de configuration du monitoring
-└── utils/           # Scripts utilitaires
-```
-
-## Scripts Utilitaires
-
-### standardize-scripts.sh
-
-Script de standardisation des scripts shell du projet.
-
-**Utilisation :**
-```bash
-sudo ./scripts/utils/standardize-scripts.sh
-```
-
-**Fonctionnalités :**
-- Ajoute un en-tête standard à tous les scripts shell
-- Vérifie la cohérence des conventions de nommage
-- Met à jour les permissions des fichiers
-
-### cleanup-obsolete.sh
-
-Script de nettoyage des fichiers obsolètes.
-
-**Utilisation :**
-```bash
-sudo ./scripts/utils/cleanup-obsolete.sh
-```
-
-**Fonctionnalités :**
-- Supprime les fichiers obsolètes non référencés
-- Met à jour les références obsolètes dans le code
-- Vérifie les dépendances avant suppression
-
-## Scripts de Déploiement
-
-### setup-monitoring.sh
-
-Script de configuration du monitoring.
-
-**Utilisation :**
-```bash
-sudo ./scripts/ec2-monitoring/setup-monitoring.sh
-```
-
-**Fonctionnalités :**
-- Installation de Docker et Docker Compose
-- Configuration de Prometheus, Grafana et cAdvisor
-- Mise en place des dashboards et alertes
-
-### setup-java-app.sh
-
-Script de déploiement de l'application Java.
-
-**Utilisation :**
-```bash
-sudo ./scripts/ec2-java-tomcat/setup-java-app.sh
-```
-
-**Fonctionnalités :**
-- Installation de Java et Tomcat
-- Configuration de l'environnement
-- Déploiement de l'application
-
-## Scripts de Base de Données
-
-### setup-database.sh
-
-Script de configuration de la base de données.
-
-**Utilisation :**
-```bash
-sudo ./scripts/database/setup-database.sh
-```
-
-**Fonctionnalités :**
-- Création de la base de données
-- Configuration des utilisateurs
-- Import des données initiales
-
-## Conventions de Nommage
-
-1. **Scripts Shell :**
-   - Utiliser le suffixe `.sh`
-   - Nom en kebab-case (ex: `setup-monitoring.sh`)
-   - Préfixe descriptif (ex: `setup-`, `cleanup-`, `backup-`)
-
-2. **Fichiers de Configuration :**
-   - Utiliser le suffixe `.yml` ou `.json`
-   - Nom en kebab-case
-   - Préfixe du service (ex: `prometheus-`, `grafana-`)
-
-## Bonnes Pratiques
-
-1. **Sécurité :**
-   - Vérifier les permissions des fichiers
-   - Utiliser des chemins absolus
-   - Valider les entrées utilisateur
-
-2. **Maintenance :**
-   - Documenter les modifications
-   - Ajouter des commentaires explicatifs
-   - Utiliser des variables pour les valeurs configurables
-
-3. **Débogage :**
-   - Activer le mode debug avec `set -x`
-   - Utiliser la fonction `log()` pour les messages
-   - Vérifier les codes de retour
-
-## Dépannage
-
-### Problèmes Courants
-
-1. **Erreurs de Permission :**
-   ```bash
-   sudo chmod +x script.sh
-   ```
-
-2. **Erreurs de Chemin :**
-   - Utiliser des chemins absolus
-   - Vérifier les variables d'environnement
-
-3. **Erreurs de Syntaxe :**
-   - Vérifier avec `shellcheck`
-   - Tester dans un environnement isolé
-
-## Maintenance
-
-### Mise à Jour des Scripts
-
-1. Vérifier les dépendances
-2. Tester dans un environnement de développement
-3. Mettre à jour la documentation
-4. Créer un commit avec un message descriptif
-
-### Nettoyage
-
-1. Supprimer les fichiers temporaires
-2. Archiver les anciennes versions
-3. Mettre à jour les références
-
-## Ressources
-
-- [Bash Reference Manual](https://www.gnu.org/software/bash/manual/bash.html)
-- [Shell Scripting Best Practices](https://github.com/koalaman/shellcheck)
-- [Docker Documentation](https://docs.docker.com/) 

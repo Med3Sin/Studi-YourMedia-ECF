@@ -1,31 +1,26 @@
 variable "project_name" {
-  description = "Nom du projet pour taguer les ressources."
+  description = "Nom du projet"
   type        = string
 }
 
 variable "environment" {
-  description = "Environnement de déploiement (dev, pre-prod, prod)."
+  description = "Environnement (dev, staging, prod)"
   type        = string
-  default     = "dev"
-
-  validation {
-    condition     = contains(["dev", "pre-prod", "prod"], var.environment)
-    error_message = "L'environnement doit être 'dev', 'pre-prod' ou 'prod'."
-  }
 }
 
 variable "vpc_id" {
-  description = "ID du VPC où créer les groupes de sécurité."
+  description = "ID du VPC"
   type        = string
 }
 
-variable "operator_ip" {
-  description = "Adresse IP publique autorisée pour SSH et Grafana (format CIDR, ex: '123.123.123.123/32' ou '0.0.0.0/0' pour tout autoriser)."
+variable "vpc_cidr" {
+  description = "CIDR du VPC"
   type        = string
-  default     = "0.0.0.0/0" # Par défaut, autorise tout accès
+  default     = "10.0.0.0/16"
+}
 
-  validation {
-    condition     = can(regex("^([0-9]{1,3}[.]){3}[0-9]{1,3}/[0-9]{1,2}$", var.operator_ip))
-    error_message = "La variable operator_ip doit être au format CIDR valide (ex: '123.123.123.123/32' ou '0.0.0.0/0')."
-  }
+variable "ec2_java_tomcat_ip" {
+  description = "IP de l'instance EC2 Java/Tomcat"
+  type        = string
+  default     = "0.0.0.0/0"
 }

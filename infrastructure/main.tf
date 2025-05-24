@@ -129,7 +129,6 @@ module "network" {
   project_name = var.project_name
   environment  = var.environment
   vpc_id       = aws_vpc.main.id
-  operator_ip  = var.operator_ip
 }
 
 # -----------------------------------------------------------------------------

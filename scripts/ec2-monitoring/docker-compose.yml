@@ -12,6 +12,9 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
     ports:
       - "9090:9090"
     restart: unless-stopped
@@ -28,6 +31,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_BASIC_ENABLED=true
+      - GF_SERVER_ROOT_URL=http://localhost:3000
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -63,7 +70,8 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     ports:
-      - "8080:8080"
+      - "8080:8080"  # Pour Prometheus scraping
+      - "8081:8080"  # Pour l'interface web
     restart: unless-stopped
     networks:
       - monitoring
@@ -75,6 +83,8 @@ services:
       - ./config/loki:/etc/loki
       - loki_data:/loki
     command: -config.file=/etc/loki/loki-config.yml
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
     ports:
       - "3100:3100"
     restart: unless-stopped
@@ -87,7 +97,12 @@ services:
     volumes:
       - ./config/promtail:/etc/promtail
       - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/promtail-config.yml
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+    ports:
+      - "9080:9080"
     restart: unless-stopped
     networks:
       - monitoring

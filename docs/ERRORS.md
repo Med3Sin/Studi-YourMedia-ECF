@@ -173,66 +173,6 @@ Error: OutOfMemoryError: Java heap space
    // Gérer les ressources
    ```
 
-### 2. React
-
-#### Erreur: Build échoué
-```
-Error: Failed to compile
-```
-
-**Causes:**
-- Dépendances incompatibles
-- Syntaxe incorrecte
-- Configuration webpack
-
-**Solutions:**
-1. Nettoyer le cache
-   ```bash
-   npm cache clean --force
-   rm -rf node_modules
-   npm install
-   ```
-
-2. Vérifier la syntaxe
-   ```bash
-   npm run lint
-   ```
-
-3. Vérifier la configuration
-   ```bash
-   cat webpack.config.js
-   ```
-
-#### Erreur: Performance dégradée
-```
-Error: Slow rendering
-```
-
-**Causes:**
-- Rendu inutile
-- Composants lourds
-- État mal géré
-
-**Solutions:**
-1. Optimiser les rendus
-   ```javascript
-   // Utiliser React.memo
-   // Implémenter useMemo
-   // Gérer les props
-   ```
-
-2. Analyser les performances
-   ```javascript
-   // Utiliser React Profiler
-   // Mesurer les rendus
-   // Identifier les goulots d'étranglement
-   ```
-
-3. Optimiser les assets
-   ```bash
-   npm run build -- --optimize
-   ```
-
 ## Monitoring
 
 ### 1. Prometheus
@@ -249,327 +189,191 @@ Error: No data points
 
 **Solutions:**
 1. Vérifier la configuration
-   ```yaml
-   scrape_configs:
-     - job_name: 'java'
-       static_configs:
-         - targets: ['localhost:8080']
-   ```
-
-2. Vérifier l'accès
    ```bash
-   curl http://localhost:8080/actuator/prometheus
+   cat scripts/config/prometheus/prometheus.yml
    ```
 
-3. Vérifier les métriques
+2. Vérifier les targets
    ```bash
    curl http://localhost:9090/api/v1/targets
    ```
 
-#### Erreur: Stockage plein
-```
-Error: Storage full
-```
-
-**Causes:**
-- Rétention trop longue
-- Données volumineuses
-- Disque plein
-
-**Solutions:**
-1. Ajuster la rétention
-   ```yaml
-   storage:
-     tsdb:
-       retention:
-         time: 15d
-   ```
-
-2. Nettoyer les données
+3. Vérifier les logs
    ```bash
-   prometheus --storage.tsdb.retention.time=15d
-   ```
-
-3. Augmenter le stockage
-   ```bash
-   aws ec2 modify-volume --volume-id vol-xxxxx --size 100
+   docker-compose logs prometheus
    ```
 
 ### 2. Grafana
 
-#### Erreur: Connexion refusée
+#### Erreur: Datasource inaccessible
 ```
-Error: Access denied
+Error: Failed to query datasource
 ```
 
 **Causes:**
-- Credentials incorrects
-- Permissions insuffisantes
 - Configuration incorrecte
+- Service inaccessible
+- Problème de réseau
 
 **Solutions:**
-1. Vérifier les credentials
-   ```ini
-   [security]
-   admin_user = admin
-   admin_password = changeme
+1. Vérifier la configuration
+   ```bash
+   cat scripts/config/grafana/datasources/prometheus.yml
+   ```
+
+2. Vérifier l'accès
+   ```bash
+   curl http://localhost:9090/-/healthy
+   ```
+
+3. Vérifier les logs
+   ```bash
+   docker-compose logs grafana
+   ```
+
+### 3. Loki
+
+#### Erreur: Logs non reçus
+```
+Error: No logs received
+```
+
+**Causes:**
+- Configuration Promtail incorrecte
+- Permissions insuffisantes
+- Problème de réseau
+
+**Solutions:**
+1. Vérifier la configuration
+   ```bash
+   cat scripts/config/promtail/promtail-config.yml
    ```
 
 2. Vérifier les permissions
    ```bash
-   ls -l /var/lib/grafana
+   ls -l /var/log/tomcat/
    ```
 
-3. Vérifier la configuration
+3. Vérifier les logs
    ```bash
-   cat grafana.ini
+   docker-compose logs promtail
    ```
 
-#### Erreur: Dashboard non chargé
+### 4. Docker
+
+#### Erreur: Conteneur non démarré
 ```
-Error: Failed to load dashboard
+Error: Container failed to start
 ```
 
 **Causes:**
-- JSON invalide
-- Datasource manquante
-- Permissions insuffisantes
-
-**Solutions:**
-1. Vérifier le JSON
-   ```bash
-   cat dashboard.json | jq
-   ```
-
-2. Vérifier les datasources
-   ```bash
-   curl http://localhost:3000/api/datasources
-   ```
-
-3. Vérifier les permissions
-   ```bash
-   curl http://localhost:3000/api/dashboards/uid/xxxxx
-   ```
-
-## Base de Données
-
-### 1. MySQL
-
-#### Erreur: Connexion refusée
-```
-Error: Can't connect to MySQL server
-```
-
-**Causes:**
-- Service arrêté
-- Port bloqué
-- Credentials incorrects
-
-**Solutions:**
-1. Vérifier le service
-   ```bash
-   sudo systemctl status mysql
-   ```
-
-2. Vérifier le port
-   ```bash
-   sudo netstat -tulpn | grep 3306
-   ```
-
-3. Vérifier les credentials
-   ```bash
-   mysql -u root -p
-   ```
-
-#### Erreur: Requête lente
-```
-Error: Query taking too long
-```
-
-**Causes:**
-- Index manquant
-- Requête non optimisée
-- Données volumineuses
-
-**Solutions:**
-1. Analyser la requête
-   ```sql
-   EXPLAIN SELECT * FROM users WHERE email = 'test@example.com';
-   ```
-
-2. Optimiser les index
-   ```sql
-   CREATE INDEX idx_email ON users(email);
-   ```
-
-3. Optimiser la requête
-   ```sql
-   SELECT id, email FROM users WHERE email = 'test@example.com';
-   ```
-
-### 2. Redis
-
-#### Erreur: Mémoire pleine
-```
-Error: OOM command not allowed
-```
-
-**Causes:**
-- Données volumineuses
-- TTL manquant
 - Configuration incorrecte
-
-**Solutions:**
-1. Vérifier la mémoire
-   ```bash
-   redis-cli info memory
-   ```
-
-2. Configurer le TTL
-   ```bash
-   redis-cli CONFIG SET maxmemory-policy allkeys-lru
-   ```
-
-3. Nettoyer les données
-   ```bash
-   redis-cli FLUSHALL
-   ```
-
-#### Erreur: Connexion perdue
-```
-Error: Connection reset by peer
-```
-
-**Causes:**
-- Timeout
-- Réseau instable
-- Configuration incorrecte
-
-**Solutions:**
-1. Ajuster le timeout
-   ```bash
-   redis-cli CONFIG SET timeout 300
-   ```
-
-2. Vérifier le réseau
-   ```bash
-   ping redis-server
-   ```
-
-3. Vérifier la configuration
-   ```bash
-   redis-cli CONFIG GET *
-   ```
-
-## CI/CD
-
-### 1. GitHub Actions
-
-#### Erreur: Workflow échoué
-```
-Error: Workflow failed
-```
-
-**Causes:**
-- Tests échoués
-- Build échoué
-- Déploiement échoué
-
-**Solutions:**
-1. Vérifier les tests
-   ```bash
-   npm test
-   mvn test
-   ```
-
-2. Vérifier le build
-   ```bash
-   npm run build
-   mvn clean install
-   ```
-
-3. Vérifier le déploiement
-   ```bash
-   aws ecs describe-services --cluster yourmedia --services yourmedia-service
-   ```
-
-#### Erreur: Secrets manquants
-```
-Error: Secret not found
-```
-
-**Causes:**
-- Secret non configuré
-- Permission insuffisante
-- Nom incorrect
-
-**Solutions:**
-1. Vérifier les secrets
-   ```bash
-   aws secretsmanager list-secrets
-   ```
-
-2. Vérifier les permissions
-   ```bash
-   aws iam get-user-policy --user-name github-actions --policy-name secrets-access
-   ```
-
-3. Vérifier les noms
-   ```yaml
-   env:
-     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-   ```
-
-### 2. Docker
-
-#### Erreur: Build échoué
-```
-Error: Failed to build image
-```
-
-**Causes:**
-- Dockerfile invalide
-- Dépendances manquantes
 - Ressources insuffisantes
+- Conflit de ports
 
 **Solutions:**
-1. Vérifier le Dockerfile
+1. Vérifier la configuration
    ```bash
-   docker build -t yourmedia .
-   ```
-
-2. Vérifier les dépendances
-   ```bash
-   docker-compose build
-   ```
-
-3. Vérifier les ressources
-   ```bash
-   docker system df
-   ```
-
-#### Erreur: Container arrêté
-```
-Error: Container exited with code 1
-```
-
-**Causes:**
-- Application crash
-- Ressources insuffisantes
-- Configuration incorrecte
-
-**Solutions:**
-1. Vérifier les logs
-   ```bash
-   docker logs container-name
+   cat scripts/ec2-monitoring/docker-compose.yml
    ```
 
 2. Vérifier les ressources
    ```bash
-   docker stats container-name
+   docker stats
    ```
 
-3. Vérifier la configuration
+3. Vérifier les logs
    ```bash
-   docker inspect container-name
-   ``` 
+   docker-compose logs
+   ```
+
+## Dépannage
+
+### 1. Vérification des Services
+
+```bash
+# Vérifier l'état des services
+./scripts/ec2-monitoring/check-grafana.sh
+./scripts/ec2-monitoring/restart-monitoring.sh
+
+# Vérifier les logs
+docker-compose logs
+
+# Vérifier les métriques
+curl http://localhost:9090/api/v1/targets
+```
+
+### 2. Nettoyage
+
+```bash
+# Nettoyer les conteneurs
+./scripts/ec2-monitoring/docker-cleanup.sh
+
+# Nettoyer les logs
+sudo find /var/log -type f -name "*.log" -mtime +7 -delete
+
+# Nettoyer le cache
+sudo rm -rf /tmp/*
+```
+
+### 3. Redémarrage
+
+```bash
+# Redémarrer les services
+./scripts/ec2-monitoring/restart-monitoring.sh
+
+# Redémarrer Docker
+sudo systemctl restart docker
+
+# Redémarrer les conteneurs
+docker-compose down
+docker-compose up -d
+```
+
+## Maintenance
+
+### 1. Mise à Jour
+
+```bash
+# Mettre à jour les images
+docker-compose pull
+
+# Mettre à jour les configurations
+./scripts/ec2-monitoring/setup-monitoring-complete.sh
+
+# Mettre à jour les dashboards
+./scripts/ec2-monitoring/copy-dashboards.sh
+```
+
+### 2. Sauvegarde
+
+```bash
+# Sauvegarder les configurations
+tar -czf config-backup.tar.gz scripts/config/
+
+# Sauvegarder les données
+docker-compose exec prometheus promtool tsdb backup /backup
+
+# Sauvegarder les dashboards
+./scripts/ec2-monitoring/copy-dashboards.sh
+```
+
+### 3. Restauration
+
+```bash
+# Restaurer les configurations
+tar -xzf config-backup.tar.gz
+
+# Restaurer les données
+docker-compose exec prometheus promtool tsdb restore /backup
+
+# Restaurer les dashboards
+./scripts/ec2-monitoring/copy-dashboards.sh
+```
+
+## Ressources
+
+- [Documentation Prometheus](https://prometheus.io/docs/)
+- [Documentation Grafana](https://grafana.com/docs/)
+- [Documentation Loki](https://grafana.com/docs/loki/latest/)
+- [Documentation Docker](https://docs.docker.com/) 

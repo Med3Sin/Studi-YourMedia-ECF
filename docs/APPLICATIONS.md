@@ -19,6 +19,7 @@ Ce document centralise toute la documentation relative aux applications backend 
 4. [Déploiement des applications](#déploiement-des-applications)
    - [Déploiement du backend](#déploiement-du-backend)
    - [Déploiement du frontend](#déploiement-du-frontend)
+   - [Services Systemd](#services-systemd)
 5. [Corrections et améliorations](#corrections-et-améliorations)
 
 ## Vue d'ensemble
@@ -26,7 +27,7 @@ Ce document centralise toute la documentation relative aux applications backend 
 Le projet YourMédia est composé de deux applications principales :
 
 1. **Backend** : Une application Java déployée sur Tomcat qui expose une API REST pour la gestion des médias.
-2. **Frontend** : Une application React Native Web conteneurisée avec Docker qui fournit l'interface utilisateur.
+2. **Frontend** : Une application React conteneurisée avec Docker qui fournit l'interface utilisateur.
 
 Ces deux applications communiquent via des appels API REST et utilisent les services AWS (RDS, S3) pour le stockage des données et des médias. Les deux applications sont déployées sur des instances EC2 via des conteneurs Docker.
 
@@ -234,107 +235,45 @@ export default ApiService;
 
 ### Déploiement du backend
 
-Le déploiement du backend est géré via GitHub Actions. Le workflow de déploiement effectue les étapes suivantes :
-
-1. Compilation du code Java avec Maven
-2. Création d'un fichier WAR
-3. Upload du WAR vers le bucket S3
-4. Déploiement du WAR sur l'instance EC2 via SSH
-
-```yaml
-name: Deploy Backend
-
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'app-java/**'
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v2
-        with:
-          java-version: '11'
-          distribution: 'adopt'
-
-      - name: Build with Maven
-        run: |
-          cd app-java
-          mvn clean package
-
-      - name: Upload WAR to S3
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3
-
-      - name: Copy WAR to S3
-        run: |
-          aws s3 cp app-java/target/yourmedia.war s3://${{ secrets.S3_BUCKET_NAME }}/builds/backend/yourmedia.war
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_PUBLIC_IP }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script: |
-            sudo aws s3 cp s3://${{ secrets.S3_BUCKET_NAME }}/builds/backend/yourmedia.war /var/lib/tomcat/webapps/ROOT.war
-            sudo systemctl restart tomcat
-```
+Le déploiement du backend est géré par le workflow GitHub Actions `2-java-app-deploy.yml` qui :
+1. Build l'application avec Maven
+2. Exécute les tests unitaires
+3. Crée l'image Docker
+4. Déploie sur l'instance EC2 Java/Tomcat
 
 ### Déploiement du frontend
 
-Le déploiement du frontend est géré via GitHub Actions. Le workflow de déploiement effectue les étapes suivantes :
+Le déploiement du frontend est géré par le workflow GitHub Actions `3-docker-build-deploy.yml` qui :
+1. Build l'application React
+2. Crée l'image Docker
+3. Déploie sur l'instance EC2 Java/Tomcat
 
-1. Construction de l'image Docker pour l'application React Native
-2. Push de l'image vers Docker Hub
-3. Déploiement de l'image sur l'instance EC2 via SSH
+### Services Systemd
 
-```yaml
-name: Deploy Frontend
+Deux services systemd sont configurés pour la maintenance des applications :
 
-on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'app-react/**'
+1. **docker-cleanup.service** :
+   - Nettoie les conteneurs Docker arrêtés
+   - Supprime les images non utilisées
+   - Nettoie les volumes orphelins
+   - S'exécute quotidiennement
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+2. **sync-tomcat-logs.service** :
+   - Synchronise les logs Tomcat
+   - Stocke les logs dans le volume Loki
+   - Maintient l'historique des logs
+   - S'exécute toutes les heures
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
+Pour vérifier le statut des services :
+```bash
+sudo systemctl status docker-cleanup.service
+sudo systemctl status sync-tomcat-logs.service
+```
 
-      - name: Build Docker image
-        run: |
-          cd app-react
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-latest .
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/yourmedia-ecf:mobile-latest
-
-      - name: Deploy to EC2
-        run: |
-          ./scripts/deploy-containers.sh app
+Pour redémarrer les services si nécessaire :
+```bash
+sudo systemctl restart docker-cleanup.service
+sudo systemctl restart sync-tomcat-logs.service
 ```
 
 ## Corrections et améliorations

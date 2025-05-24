@@ -1,159 +1,146 @@
-# Variables d'Environnement
+# Variables - YourMédia
 
-## Vue d'ensemble
+Ce document liste toutes les variables utilisées dans le projet YourMédia, organisées par catégorie.
 
-Ce document décrit toutes les variables d'environnement utilisées dans le projet YourMedia. Ces variables sont essentielles pour la configuration et le fonctionnement des différents composants du système.
+## Table des matières
 
-## Structure des Fichiers
+1. [Variables AWS](#variables-aws)
+2. [Variables Docker](#variables-docker)
+3. [Variables Monitoring](#variables-monitoring)
+4. [Variables GitHub Actions](#variables-github-actions)
+5. [Variables Terraform](#variables-terraform)
 
-```
-.
-├── .env.example           # Template des variables d'environnement
-├── app-java/.env         # Variables pour l'application Java
-├── app-react/.env        # Variables pour l'application React
-└── infrastructure/       # Variables Terraform
-    ├── variables.tf
-    └── terraform.tfvars
-```
+## Variables AWS
 
-## Variables Globales
+### EC2
 
-### AWS Configuration
-```bash
-AWS_REGION=eu-west-3
-AWS_PROFILE=yourmedia
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-```
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `aws_region` | Région AWS | `eu-west-3` |
+| `instance_type` | Type d'instance EC2 | `t2.micro` |
+| `ami_id` | ID de l'AMI Amazon Linux 2023 | `ami-0c55b159cbfafe1f0` |
+| `volume_size` | Taille du volume EBS (Go) | `8` |
+| `volume_type` | Type de volume EBS | `gp2` |
+| `availability_zone` | Zone de disponibilité | `eu-west-3a` |
 
-### Base de Données
-```bash
-DB_HOST=yourmedia-db.xxxxx.region.rds.amazonaws.com
-DB_PORT=3306
-DB_NAME=yourmedia
-DB_USER=admin
-DB_PASSWORD=your_secure_password
-```
+### RDS
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `db_instance_class` | Type d'instance RDS | `db.t3.micro` |
+| `db_engine` | Moteur de base de données | `mysql` |
+| `db_engine_version` | Version du moteur | `8.0` |
+| `db_allocated_storage` | Stockage alloué (Go) | `20` |
+| `db_name` | Nom de la base de données | `yourmedia` |
+| `db_username` | Nom d'utilisateur | `admin` |
+| `db_password` | Mot de passe | `changeme` |
+
+### S3
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `s3_bucket_name` | Nom du bucket S3 | `yourmedia-artifacts` |
+| `s3_versioning` | Activation du versioning | `true` |
+| `s3_encryption` | Type de chiffrement | `AES256` |
+| `s3_lifecycle_days` | Jours de rétention | `30` |
+
+## Variables Docker
+
+### Java/Tomcat
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `tomcat_version` | Version de Tomcat | `9.0.65` |
+| `java_version` | Version de Java | `11` |
+| `tomcat_user` | Utilisateur Tomcat | `tomcat` |
+| `tomcat_group` | Groupe Tomcat | `tomcat` |
+| `tomcat_port` | Port Tomcat | `8080` |
+| `tomcat_ajp_port` | Port AJP | `8009` |
 
 ### Monitoring
-```bash
-PROMETHEUS_PORT=9090
-GRAFANA_PORT=3000
-LOKI_PORT=3100
-```
 
-## Variables Java
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `prometheus_version` | Version de Prometheus | `2.45.0` |
+| `grafana_version` | Version de Grafana | `10.0.0` |
+| `loki_version` | Version de Loki | `2.8.0` |
+| `promtail_version` | Version de Promtail | `2.8.0` |
+| `node_exporter_version` | Version de Node Exporter | `1.6.1` |
 
-### Application
-```bash
-SPRING_PROFILES_ACTIVE=prod
-SERVER_PORT=8080
-JAVA_OPTS=-Xmx512m -Xms256m
-```
+## Variables Monitoring
 
-### Base de Données
-```bash
-SPRING_DATASOURCE_URL=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-SPRING_DATASOURCE_USERNAME=${DB_USER}
-SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-```
+### Prometheus
 
-### JWT
-```bash
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRATION=86400000
-```
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `prometheus_retention_time` | Période de rétention | `15d` |
+| `prometheus_scrape_interval` | Intervalle de scraping | `15s` |
+| `prometheus_evaluation_interval` | Intervalle d'évaluation | `15s` |
 
-## Variables React
+### Grafana
 
-### API
-```bash
-REACT_APP_API_URL=https://api.yourmedia.com
-REACT_APP_API_VERSION=v1
-```
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `grafana_admin_user` | Utilisateur admin | `admin` |
+| `grafana_admin_password` | Mot de passe admin | `changeme` |
+| `grafana_port` | Port Grafana | `3000` |
 
-### Authentication
-```bash
-REACT_APP_AUTH_DOMAIN=yourmedia.auth0.com
-REACT_APP_AUTH_CLIENT_ID=your_client_id
-REACT_APP_AUTH_AUDIENCE=your_audience
-```
+### Loki
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `loki_retention_period` | Période de rétention | `168h` |
+| `loki_port` | Port Loki | `3100` |
+
+### Promtail
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `promtail_port` | Port Promtail | `9080` |
+| `promtail_positions_file` | Fichier de positions | `/var/lib/promtail/positions.yaml` |
+
+## Variables GitHub Actions
+
+### Déploiement
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `AWS_ACCESS_KEY_ID` | Clé d'accès AWS | - |
+| `AWS_SECRET_ACCESS_KEY` | Clé secrète AWS | - |
+| `AWS_REGION` | Région AWS | `eu-west-3` |
+| `EC2_HOST` | Host EC2 | - |
+| `EC2_USERNAME` | Utilisateur EC2 | `ec2-user` |
+| `SSH_PRIVATE_KEY` | Clé SSH privée | - |
+
+### Build
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `JAVA_VERSION` | Version de Java | `11` |
+| `NODE_VERSION` | Version de Node.js | `18` |
+| `MAVEN_OPTS` | Options Maven | `-Xmx2048m` |
 
 ## Variables Terraform
 
-### Infrastructure
-```hcl
-project_name     = "yourmedia"
-environment      = "prod"
-region           = "eu-west-3"
-vpc_cidr         = "10.0.0.0/16"
-```
+### Général
 
-### EC2
-```hcl
-instance_type    = "t3.micro"
-ami_id           = "ami-xxxxx"
-key_name         = "yourmedia-key"
-```
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `environment` | Environnement | `dev` |
+| `project_name` | Nom du projet | `yourmedia` |
+| `tags` | Tags AWS | `{}` |
 
-### RDS
-```hcl
-db_instance_type = "db.t3.micro"
-db_allocated_storage = 20
-db_engine_version   = "8.0.28"
-```
+### Réseau
 
-## Sécurité
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `vpc_cidr` | CIDR du VPC | `10.0.0.0/16` |
+| `public_subnet_cidr` | CIDR du subnet public | `10.0.1.0/24` |
+| `private_subnet_cidr` | CIDR du subnet privé | `10.0.2.0/24` |
 
-### Bonnes Pratiques
-1. Ne jamais commiter les fichiers `.env` dans Git
-2. Utiliser des secrets managers (AWS Secrets Manager)
-3. Rotation régulière des clés et mots de passe
-4. Utiliser des variables d'environnement pour les secrets
+## Ressources
 
-### Gestion des Secrets
-```bash
-# AWS Secrets Manager
-aws secretsmanager create-secret \
-    --name yourmedia/prod/db-credentials \
-    --secret-string '{"username":"admin","password":"your_secure_password"}'
-```
-
-## Déploiement
-
-### Local
-1. Copier `.env.example` vers `.env`
-2. Remplir les variables avec les valeurs appropriées
-3. Vérifier les permissions du fichier
-
-### Production
-1. Utiliser AWS Systems Manager Parameter Store
-2. Injecter les variables via CI/CD
-3. Vérifier les variables avant le déploiement
-
-## Dépannage
-
-### Problèmes Courants
-1. Variables manquantes
-2. Valeurs incorrectes
-3. Problèmes de permissions
-4. Conflits de variables
-
-### Solutions
-1. Vérifier les logs d'application
-2. Utiliser les commandes de debug
-3. Vérifier les fichiers de configuration
-4. Consulter la documentation
-
-## Maintenance
-
-### Mise à Jour
-1. Documenter les changements
-2. Tester les nouvelles variables
-3. Mettre à jour les templates
-4. Vérifier la compatibilité
-
-### Nettoyage
-1. Supprimer les variables inutilisées
-2. Archiver les anciennes configurations
-3. Mettre à jour la documentation
+- [Documentation AWS Variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html)
+- [Documentation Docker Environment Variables](https://docs.docker.com/compose/environment-variables)
+- [Documentation GitHub Actions Variables](https://docs.github.com/en/actions/learn-github-actions/variables)
+- [Documentation Terraform Variables](https://www.terraform.io/language/values/variables)

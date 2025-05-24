@@ -96,15 +96,6 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-          - localhost:9093
-
-rule_files:
-  - "alert.rules"
-
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
@@ -137,13 +128,6 @@ secret_key = ${GRAFANA_SECRET_KEY}
 enabled = true
 org_name = Main Org.
 org_role = Viewer
-
-[databases]
-type = mysql
-host = ${DB_HOST}:3306
-name = grafana
-user = ${DB_USERNAME}
-password = ${DB_PASSWORD}
 ```
 
 ## Docker
@@ -198,7 +182,48 @@ GRAFANA_SECRET_KEY=your-secret-key
 
 # Loki
 LOKI_STORAGE_PATH=/loki
-LOKI_RETENTION_PERIOD=168h
+```
+
+## Services Systemd
+
+### 1. Docker Cleanup Service
+
+#### `/etc/systemd/system/docker-cleanup.service`
+```ini
+[Unit]
+Description=Docker Cleanup Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/docker-cleanup.sh
+User=root
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 2. Log Synchronization Service
+
+#### `/etc/systemd/system/sync-tomcat-logs.service`
+```ini
+[Unit]
+Description=Tomcat Logs Synchronization Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sync-tomcat-logs.sh
+User=root
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## Scripts
