@@ -4,7 +4,7 @@
 
 output "ec2_security_group_id" {
   description = "ID du groupe de sécurité pour l'instance EC2 (ec2-java-tomcat)"
-  value       = aws_security_group.ec2_sg.id
+  value       = aws_security_group.ec2_java_tomcat.id
 }
 
 output "rds_security_group_id" {
@@ -14,7 +14,7 @@ output "rds_security_group_id" {
 
 output "monitoring_security_group_id" {
   description = "ID du groupe de sécurité pour l'instance EC2 de monitoring (ec2-monitoring)"
-  value       = aws_security_group.monitoring_sg.id
+  value       = aws_security_group.ec2_monitoring.id
 }
 
 output "vpc_id" {
