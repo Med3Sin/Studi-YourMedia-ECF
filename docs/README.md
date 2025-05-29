@@ -6,6 +6,7 @@ Ce dossier contient toute la documentation du projet YourMedia, simplifiée et o
 
 - [DOCUMENTATION.md](./DOCUMENTATION.md) - Point d'entrée principal pour toute la documentation
 - [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) - Infrastructure AWS (VPC, EC2, RDS, S3)
+- [MONITORING.md](./MONITORING.md) - Configuration et utilisation du monitoring (Prometheus, Grafana, Loki, Promtail)
 - [DOCKER.md](./DOCKER.md) - Gestion des conteneurs Docker
 - [VARIABLES.md](./VARIABLES.md) - Gestion des variables et secrets
 - [OPTIMISATIONS.md](./OPTIMISATIONS.md) - Optimisations et améliorations
