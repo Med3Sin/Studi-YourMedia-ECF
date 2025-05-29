@@ -183,8 +183,6 @@ Pour assurer la cohérence et la maintenabilité du code, les variables d'enviro
 ### Variables Grafana
 - **GF_SECURITY_ADMIN_PASSWORD** : Mot de passe administrateur Grafana (anciennement: GRAFANA_ADMIN_PASSWORD)
 
-
-
 ### Variables GitHub
 - **GITHUB_CLIENT_ID** : ID client GitHub (non utilisé actuellement)
 - **GITHUB_CLIENT_SECRET** : Secret client GitHub (non utilisé actuellement)
@@ -201,3 +199,173 @@ Pour les variables sensibles, utilisez les conventions suivantes :
 2. Transmettez les variables sensibles aux scripts via des variables d'environnement
 3. Dans les scripts, stockez les variables sensibles dans des fichiers avec des permissions restreintes (600)
 4. N'affichez jamais les valeurs sensibles dans les logs ou les sorties standard
+
+# Scripts d'automatisation
+
+Ce répertoire contient les scripts d'automatisation pour le déploiement et la maintenance du projet YourMedia.
+
+## Structure
+
+```
+scripts/
+├── ec2-java-tomcat/        # Scripts pour l'instance Java/Tomcat
+│   ├── install-all.sh      # Installation complète
+│   └── deploy-war.sh       # Déploiement du WAR
+└── ec2-monitoring/         # Scripts pour l'instance de monitoring
+    └── setup-monitoring.sh # Configuration du monitoring
+```
+
+## Scripts principaux
+
+### install-all.sh
+
+Script d'installation complet pour l'instance EC2 Java/Tomcat.
+
+```bash
+#!/bin/bash
+# Installation de Java, Tomcat et Node Exporter
+# Usage: ./install-all.sh
+
+# Mise à jour du système
+sudo dnf update -y
+
+# Installation des dépendances
+sudo dnf install -y java-17-amazon-corretto tomcat9
+
+# Configuration de Tomcat
+sudo systemctl enable tomcat
+sudo systemctl start tomcat
+
+# Installation de Node Exporter
+NODE_EXPORTER_VERSION="1.7.0"
+wget -q -O /tmp/node_exporter.tar.gz "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
+sudo tar xzf /tmp/node_exporter.tar.gz -C /tmp
+sudo mv /tmp/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+sudo useradd -rs /bin/false node_exporter || true
+
+# Configuration du service Node Exporter
+sudo tee /etc/systemd/system/node_exporter.service << EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Démarrage des services
+sudo systemctl daemon-reload
+sudo systemctl start node_exporter
+sudo systemctl enable node_exporter
+```
+
+### deploy-war.sh
+
+Script de déploiement du fichier WAR sur Tomcat.
+
+```bash
+#!/bin/bash
+# Déploiement d'un fichier WAR sur Tomcat
+# Usage: ./deploy-war.sh <chemin_vers_war>
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 <chemin_vers_war>"
+    exit 1
+fi
+
+WAR_FILE=$1
+TOMCAT_HOME="/opt/tomcat"
+
+# Arrêt de Tomcat
+sudo systemctl stop tomcat
+
+# Nettoyage du répertoire webapps
+sudo rm -rf ${TOMCAT_HOME}/webapps/*
+
+# Copie du nouveau WAR
+sudo cp ${WAR_FILE} ${TOMCAT_HOME}/webapps/ROOT.war
+
+# Démarrage de Tomcat
+sudo systemctl start tomcat
+
+# Vérification du déploiement
+sleep 10
+curl -f http://localhost:8080/actuator/health || exit 1
+```
+
+### setup-monitoring.sh
+
+Script de configuration du monitoring sur l'instance dédiée.
+
+```bash
+#!/bin/bash
+# Configuration du monitoring
+# Usage: ./setup-monitoring.sh
+
+# Installation de Docker
+sudo dnf install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Création du réseau Docker
+docker network create monitoring
+
+# Démarrage des conteneurs
+docker-compose up -d
+```
+
+## Utilisation
+
+1. Copier les scripts sur l'instance :
+```bash
+scp -r scripts/ ec2-user@<instance-ip>:~/
+```
+
+2. Rendre les scripts exécutables :
+```bash
+chmod +x scripts/*.sh
+```
+
+3. Exécuter les scripts :
+```bash
+# Installation complète
+./scripts/ec2-java-tomcat/install-all.sh
+
+# Déploiement d'une application
+./scripts/ec2-java-tomcat/deploy-war.sh target/backend.war
+
+# Configuration du monitoring
+./scripts/ec2-monitoring/setup-monitoring.sh
+```
+
+## Maintenance
+
+### Mise à jour des scripts
+
+Les scripts sont versionnés dans le repository Git. Pour les mettre à jour :
+
+1. Modifier les scripts localement
+2. Tester les modifications
+3. Commiter les changements
+4. Pousser les modifications
+
+### Logs
+
+Les scripts génèrent des logs dans les emplacements suivants :
+
+- `/var/log/user-data-init.log` - Logs d'initialisation
+- `/var/log/tomcat/catalina.out` - Logs Tomcat
+- `/var/log/node_exporter.log` - Logs Node Exporter
+
+## Sécurité
+
+- Les scripts utilisent des permissions minimales
+- Les mots de passe et clés sont gérés via des variables d'environnement
+- Les logs sensibles sont filtrés
+- Les connexions SSH sont sécurisées

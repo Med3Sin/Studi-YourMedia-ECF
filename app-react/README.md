@@ -1,70 +1,146 @@
 # YourMedia Frontend
 
-Ce répertoire contient le code source de l'application frontend pour le projet YourMedia.
-
-## Structure du projet
-
-L'application est développée avec React Native Web, permettant une expérience utilisateur fluide et réactive.
-
-```
-app-react/
-├── assets/             # Images, polices et autres ressources statiques
-├── dist/               # Fichiers de build générés
-├── node_modules/       # Dépendances (générées par npm/yarn)
-├── App.js              # Composant principal de l'application
-├── app.json            # Configuration de l'application
-├── package.json        # Configuration des dépendances et scripts
-└── package-lock.json   # Verrouillage des versions des dépendances
-```
+Application frontend React Native/Expo pour la plateforme YourMedia.
 
 ## Prérequis
 
-- Node.js 14 ou supérieur
-- npm 6 ou supérieur (ou yarn)
+- Node.js 16
+- npm 8+
+- Expo CLI
+- Android Studio (pour le développement Android)
+- Xcode (pour le développement iOS, macOS uniquement)
 
-## Installation des dépendances
+## Structure du projet
 
-Pour installer les dépendances, exécutez la commande suivante :
+```
+app-react/
+├── src/
+│   ├── components/          # Composants réutilisables
+│   ├── screens/            # Écrans de l'application
+│   ├── services/           # Services API
+│   ├── utils/              # Utilitaires
+│   └── App.js             # Point d'entrée
+├── assets/                 # Images, fonts, etc.
+├── app.json               # Configuration Expo
+└── package.json           # Dépendances
+```
 
-```bash
-npm install
-# ou
-yarn
+## Configuration
+
+### app.json
+```json
+{
+  "expo": {
+    "name": "YourMedia",
+    "slug": "yourmedia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
+```
+
+### Dépendances principales
+
+```json
+{
+  "dependencies": {
+    "@expo/metro-runtime": "~3.1.1",
+    "expo": "~50.0.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.73.2",
+    "react-native-web": "~0.19.6"
+  }
+}
 ```
 
 ## Développement
 
-Pour démarrer le serveur de développement, exécutez :
-
+1. Cloner le repository :
 ```bash
-npm start
-# ou
-yarn start
+git clone https://github.com/Med3Sin/Studi-YourMedia-ECF.git
+cd Studi-YourMedia-ECF/app-react
 ```
 
-Cela lancera l'application en mode développement. Ouvrez [http://localhost:3000](http://localhost:3000) pour la voir dans votre navigateur.
+2. Installer les dépendances :
+```bash
+npm install
+```
 
-## Build
+3. Lancer l'application :
+```bash
+# Développement web
+npm run web
 
-Pour créer une version de production, exécutez :
+# Développement Android
+npm run android
 
+# Développement iOS
+npm run ios
+```
+
+## Build et déploiement
+
+1. Build pour le web :
 ```bash
 npm run build
-# ou
-yarn build
 ```
 
-Cela générera les fichiers statiques dans le répertoire `dist/`.
+2. Build pour Android :
+```bash
+expo build:android
+```
 
-## Déploiement
+3. Build pour iOS :
+```bash
+expo build:ios
+```
 
-Le déploiement est géré automatiquement par des conteneurs Docker, qui sont configurés pour être déployés sur l'instance EC2 de monitoring.
+## Fonctionnalités
 
-## Configuration
+- Streaming vidéo
+- Gestion des playlists
+- Recherche de contenu
+- Profil utilisateur
+- Mode hors ligne
 
-L'application peut être configurée via les variables d'environnement suivantes :
+## Tests
 
-- `REACT_APP_API_URL` : URL de l'API backend
-- `REACT_APP_S3_BUCKET` : Nom du bucket S3 pour le stockage des médias
+```bash
+# Exécuter les tests
+npm test
 
-Ces variables peuvent être définies dans un fichier `.env` à la racine du projet.
+# Exécuter les tests avec couverture
+npm test -- --coverage
+```
+
+## Documentation
+
+Pour plus de détails, consultez :
+- [Documentation Expo](https://docs.expo.dev)
+- [Documentation React Native](https://reactnative.dev/docs/getting-started)
+- [Documentation React](https://reactjs.org/docs/getting-started.html)

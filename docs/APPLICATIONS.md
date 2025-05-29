@@ -1,41 +1,91 @@
-# Applications - YourMédia
+# 🚀 Applications - YourMedia
 
-Ce document centralise toute la documentation relative aux applications backend (Java) et frontend (React) du projet YourMédia.
+Ce document centralise toute la documentation relative aux applications backend (Java) et frontend (React) du projet YourMedia.
 
-## Table des matières
+## 📋 Table des matières
 
 1. [Vue d'ensemble](#vue-densemble)
-2. [Application Backend (Java)](#application-backend-java)
-   - [Structure du projet](#structure-du-projet-backend)
-   - [Configuration](#configuration-backend)
-   - [API REST](#api-rest)
-   - [Accès à la base de données](#accès-à-la-base-de-données)
-   - [Accès au stockage S3](#accès-au-stockage-s3)
-3. [Application Frontend (React)](#application-frontend-react)
-   - [Structure du projet](#structure-du-projet-frontend)
-   - [Configuration](#configuration-frontend)
-   - [Composants principaux](#composants-principaux)
-   - [Intégration avec l'API](#intégration-avec-lapi)
-4. [Déploiement des applications](#déploiement-des-applications)
-   - [Déploiement du backend](#déploiement-du-backend)
-   - [Déploiement du frontend](#déploiement-du-frontend)
-   - [Services Systemd](#services-systemd)
-5. [Corrections et améliorations](#corrections-et-améliorations)
+2. [Architecture](#architecture)
+3. [Application Backend (Java)](#application-backend-java)
+4. [Application Frontend (React)](#application-frontend-react)
+5. [Déploiement](#déploiement)
+6. [Tests](#tests)
+7. [Maintenance](#maintenance)
+8. [Performance](#performance)
+9. [Sécurité](#sécurité)
 
-## Vue d'ensemble
+## 🌟 Vue d'ensemble
 
-Le projet YourMédia est composé de deux applications principales :
+YourMedia est une plateforme moderne de streaming vidéo composée de deux applications principales, conçues pour offrir une expérience utilisateur optimale et des performances élevées.
 
-1. **Backend** : Une application Java déployée sur Tomcat qui expose une API REST pour la gestion des médias.
-2. **Frontend** : Une application React conteneurisée avec Docker qui fournit l'interface utilisateur.
+### 🎯 Objectifs
 
-Ces deux applications communiquent via des appels API REST et utilisent les services AWS (RDS, S3) pour le stockage des données et des médias. Les deux applications sont déployées sur des instances EC2 via des conteneurs Docker.
+- Streaming vidéo haute performance
+- Interface utilisateur réactive
+- Architecture scalable
+- Sécurité renforcée
+- Disponibilité 99.9%
+- Temps de réponse < 200ms
 
-## Application Backend (Java)
+### 🔄 Flux de données
 
-L'application backend est développée en Java avec le framework Spring Boot. Elle expose une API REST pour l'application frontend et utilise MySQL comme base de données.
+```mermaid
+graph LR
+    A[Client] --> B[Frontend React]
+    B --> C[Backend Java]
+    C --> D[RDS MySQL]
+    C --> E[S3 Storage]
+    C --> F[CloudWatch]
+    C --> G[Redis Cache]
+    H[CDN] --> B
+```
 
-### Structure du projet backend
+## 🏗 Architecture
+
+### Composants principaux
+
+| Composant | Technologie | Rôle | Scalabilité |
+|-----------|-------------|------|-------------|
+| Frontend | React | Interface utilisateur | Horizontale |
+| Backend | Java/Spring | API REST | Horizontale |
+| Base de données | MySQL | Stockage des données | Verticale |
+| Stockage | S3 | Stockage des médias | Horizontale |
+| Cache | Redis | Mise en cache | Horizontale |
+| CDN | CloudFront | Distribution | Globale |
+| Monitoring | CloudWatch | Métriques et logs | Horizontale |
+
+### Communication
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant CDN as CloudFront
+    participant F as Frontend
+    participant B as Backend
+    participant R as Redis
+    participant DB as Database
+    participant S3 as Storage
+
+    C->>CDN: Requête HTTP
+    CDN->>F: Assets statiques
+    F->>B: Appel API
+    B->>R: Check Cache
+    alt Cache Hit
+        R-->>B: Données en cache
+    else Cache Miss
+        B->>DB: Requête SQL
+        DB-->>B: Résultat
+        B->>R: Mise en cache
+    end
+    B->>S3: Upload/Download
+    S3-->>B: Fichier
+    B-->>F: Réponse API
+    F-->>C: Rendu HTML
+```
+
+## 💻 Application Backend (Java)
+
+### Structure du projet
 
 ```
 app-java/
@@ -44,83 +94,128 @@ app-java/
 │   │   ├── java/
 │   │   │   └── com/
 │   │   │       └── yourmedia/
-│   │   │           ├── controller/    # Contrôleurs REST
-│   │   │           ├── model/         # Entités JPA
-│   │   │           ├── repository/    # Repositories JPA
-│   │   │           ├── service/       # Services métier
-│   │   │           ├── config/        # Configuration
-│   │   │           └── Application.java
+│   │   │           └── backend/
+│   │   │               ├── controller/
+│   │   │               ├── service/
+│   │   │               ├── model/
+│   │   │               └── Application.java
 │   │   └── resources/
-│   │       ├── application.properties # Configuration de l'application
-│   │       ├── static/                # Ressources statiques
-│   │       └── templates/             # Templates Thymeleaf
-│   └── test/                          # Tests unitaires et d'intégration
-├── pom.xml                            # Configuration Maven
-└── README.md                          # Documentation spécifique
+│   │       └── application.yml
+│   └── test/
+└── pom.xml
 ```
 
-### Configuration backend
+### Configuration Maven
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-La configuration de l'application est définie dans le fichier `application.properties` :
+    <groupId>com.yourmedia</groupId>
+    <artifactId>backend</artifactId>
+    <version>1.0.0</version>
 
-```properties
-# Configuration de la base de données
-spring.datasource.url=jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
-spring.datasource.username=${DB_USERNAME}
-spring.datasource.password=${DB_PASSWORD}
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.1.0</version>
+    </parent>
 
-# Configuration S3
-aws.s3.bucket=${S3_BUCKET_NAME}
-aws.region=eu-west-3
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
-# Configuration de l'application
-server.port=8080
-spring.servlet.multipart.max-file-size=10MB
-spring.servlet.multipart.max-request-size=10MB
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
 ```
 
-Les variables d'environnement (`DB_HOST`, `DB_NAME`, etc.) sont injectées lors du déploiement via le script d'initialisation de l'instance EC2.
+### Configuration Spring Boot
+```yaml
+# application.yml
+server:
+  port: 8080
+
+spring:
+  application:
+    name: yourmedia-backend
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+```
 
 ### API REST
 
-L'application expose les endpoints REST suivants :
+| Méthode | Endpoint | Description | Auth | Cache |
+|---------|----------|-------------|------|-------|
+| GET | /api/media | Liste des médias | ✅ | 1h |
+| GET | /api/media/{id} | Détails média | ✅ | 1h |
+| POST | /api/media | Création média | ✅ | ❌ |
+| PUT | /api/media/{id} | Mise à jour | ✅ | ❌ |
+| DELETE | /api/media/{id} | Suppression | ✅ | ❌ |
+| POST | /api/media/upload | Upload fichier | ✅ | ❌ |
+| GET | /api/media/download/{id} | Téléchargement | ✅ | 1h |
+| GET | /api/media/search | Recherche | ✅ | 15m |
 
-| Méthode | URL                   | Description                           |
-|---------|------------------------|---------------------------------------|
-| GET     | /api/media             | Liste tous les médias                 |
-| GET     | /api/media/{id}        | Récupère un média par son ID          |
-| POST    | /api/media             | Crée un nouveau média                 |
-| PUT     | /api/media/{id}        | Met à jour un média existant          |
-| DELETE  | /api/media/{id}        | Supprime un média                     |
-| POST    | /api/media/upload      | Upload un fichier média vers S3       |
-| GET     | /api/media/download/{id}| Télécharge un fichier média depuis S3 |
+### Services
 
-### Accès à la base de données
-
-L'accès à la base de données est géré via Spring Data JPA. Les entités principales sont :
-
-- **Media** : Représente un média (image, vidéo, etc.)
-- **User** : Représente un utilisateur de l'application
-- **Category** : Représente une catégorie de médias
-
-### Accès au stockage S3
-
-L'accès au bucket S3 est géré via le SDK AWS pour Java. Les fichiers médias sont stockés dans le bucket S3 et les métadonnées sont stockées dans la base de données MySQL.
+#### S3Service
 
 ```java
 @Service
+@Slf4j
 public class S3Service {
-
     @Value("${aws.s3.bucket}")
     private String bucketName;
+
+    @Value("${aws.s3.presigned-url.expiration}")
+    private long presignedUrlExpiration;
 
     private final AmazonS3 s3Client;
 
     public S3Service() {
         this.s3Client = AmazonS3ClientBuilder.standard()
                 .withRegion(Regions.EU_WEST_3)
+                .withClientConfiguration(new ClientConfiguration()
+                    .withMaxConnections(100)
+                    .withConnectionTimeout(5000)
+                    .withSocketTimeout(10000))
                 .build();
     }
 
@@ -129,192 +224,277 @@ public class S3Service {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize());
             metadata.setContentType(file.getContentType());
+            metadata.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);
 
             s3Client.putObject(bucketName, key, file.getInputStream(), metadata);
-
+            log.info("File uploaded successfully: {}", key);
             return s3Client.getUrl(bucketName, key).toString();
         } catch (IOException e) {
+            log.error("Failed to upload file to S3: {}", key, e);
             throw new RuntimeException("Failed to upload file to S3", e);
         }
     }
 
-    public S3Object downloadFile(String key) {
-        return s3Client.getObject(bucketName, key);
-    }
+    public String generatePresignedUrl(String key) {
+        try {
+            java.util.Date expiration = new java.util.Date();
+            long expTimeMillis = expiration.getTime();
+            expTimeMillis += presignedUrlExpiration * 1000;
+            expiration.setTime(expTimeMillis);
 
-    public void deleteFile(String key) {
-        s3Client.deleteObject(bucketName, key);
+            GeneratePresignedUrlRequest generatePresignedUrlRequest = 
+                new GeneratePresignedUrlRequest(bucketName, key)
+                    .withMethod(HttpMethod.GET)
+                    .withExpiration(expiration);
+
+            return s3Client.generatePresignedUrl(generatePresignedUrlRequest).toString();
+        } catch (Exception e) {
+            log.error("Failed to generate presigned URL for: {}", key, e);
+            throw new RuntimeException("Failed to generate presigned URL", e);
+        }
     }
 }
 ```
 
-## Application Frontend (React)
+## 🎨 Application Frontend (React)
 
-L'application frontend est développée avec React Native Web, permettant une expérience utilisateur fluide et réactive. Elle communique avec le backend via des appels API REST.
-
-### Structure du projet frontend
+### Structure du projet
 
 ```
 app-react/
 ├── src/
-│   ├── components/           # Composants React réutilisables
-│   ├── screens/              # Écrans de l'application
-│   ├── services/             # Services (API, authentification, etc.)
-│   ├── utils/                # Utilitaires
-│   ├── App.js                # Composant principal
-│   └── index.js              # Point d'entrée
-├── public/                   # Ressources statiques
-├── package.json              # Configuration npm
-└── README.md                 # Documentation spécifique
+│   ├── components/
+│   ├── screens/
+│   ├── services/
+│   ├── utils/
+│   └── App.js
+├── app.json
+├── package.json
+└── Dockerfile
 ```
 
-### Configuration frontend
-
-La configuration de l'application est définie dans les fichiers `.env` :
-
+### Configuration Expo
+```json
+{
+  "expo": {
+    "name": "YourMedia",
+    "slug": "yourmedia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
 ```
-# .env.development
-REACT_APP_API_URL=http://localhost:8080/api
-REACT_APP_S3_BUCKET=yourmedia-dev-storage
 
-# .env.production
-REACT_APP_API_URL=http://${EC2_PUBLIC_IP}:8080/api
-REACT_APP_S3_BUCKET=${S3_BUCKET_NAME}
+### Configuration Docker
+```dockerfile
+# Dockerfile
+FROM node:16-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+# Install serve to run the application
+RUN npm install -g serve
+
+# Create a non-root user
+RUN adduser -D appuser
+USER appuser
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/ || exit 1
+
+# Start the application
+CMD ["serve", "-s", "build", "-l", "8080"]
 ```
 
-Les variables d'environnement (`EC2_PUBLIC_IP`, `S3_BUCKET_NAME`) sont injectées lors du déploiement via Docker.
+## 🚀 Déploiement
 
-### Composants principaux
+### Backend
+1. Build du WAR :
+```bash
+mvn clean package
+```
 
-L'application est composée des composants principaux suivants :
+2. Déploiement sur Tomcat :
+```bash
+./deploy-war.sh target/backend.war
+```
 
-- **MediaList** : Affiche la liste des médias
-- **MediaDetail** : Affiche les détails d'un média
-- **MediaUpload** : Permet d'uploader un nouveau média
-- **MediaEdit** : Permet de modifier un média existant
-- **Login** : Gère l'authentification des utilisateurs
-- **Register** : Permet de créer un nouveau compte utilisateur
+### Frontend
+1. Build de l'application :
+```bash
+npm run build
+```
 
-### Intégration avec l'API
+2. Déploiement sur l'instance de monitoring :
+```bash
+docker build -t yourmedia-frontend .
+docker run -d -p 8080:8080 yourmedia-frontend
+```
 
-L'intégration avec l'API backend est gérée via le service `ApiService` :
+## 🧪 Tests
+
+### Backend
+
+```java
+@SpringBootTest
+class MediaServiceTest {
+    @Autowired
+    private MediaService mediaService;
+    
+    @MockBean
+    private S3Service s3Service;
+    
+    @Test
+    void testUploadMedia() {
+        // Given
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn("test.mp4");
+        when(file.getSize()).thenReturn(1024L);
+        
+        // When
+        Media media = mediaService.uploadMedia(file);
+        
+        // Then
+        assertNotNull(media);
+        assertEquals("test.mp4", media.getFilename());
+        verify(s3Service).uploadFile(any(), any());
+    }
+}
+```
+
+### Frontend
 
 ```javascript
-import axios from 'axios';
+import { render, screen, fireEvent } from '@testing-library/react';
+import MediaList from './MediaList';
 
-const API_URL = process.env.REACT_APP_API_URL;
+describe('MediaList', () => {
+  const mockMedia = [
+    { id: 1, title: 'Test Video 1' },
+    { id: 2, title: 'Test Video 2' }
+  ];
 
-const ApiService = {
-  // Media
-  getAllMedia: () => axios.get(`${API_URL}/media`),
-  getMediaById: (id) => axios.get(`${API_URL}/media/${id}`),
-  createMedia: (media) => axios.post(`${API_URL}/media`, media),
-  updateMedia: (id, media) => axios.put(`${API_URL}/media/${id}`, media),
-  deleteMedia: (id) => axios.delete(`${API_URL}/media/${id}`),
-  uploadMedia: (file, metadata) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('metadata', JSON.stringify(metadata));
-    return axios.post(`${API_URL}/media/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-  },
+  it('renders media list correctly', () => {
+    render(<MediaList media={mockMedia} onSelect={jest.fn()} />);
+    
+    expect(screen.getByText('Test Video 1')).toBeInTheDocument();
+    expect(screen.getByText('Test Video 2')).toBeInTheDocument();
+  });
 
-  // Authentication
-  login: (credentials) => axios.post(`${API_URL}/auth/login`, credentials),
-  register: (user) => axios.post(`${API_URL}/auth/register`, user),
-  logout: () => axios.post(`${API_URL}/auth/logout`),
-};
-
-export default ApiService;
+  it('calls onSelect when media is clicked', () => {
+    const onSelect = jest.fn();
+    render(<MediaList media={mockMedia} onSelect={onSelect} />);
+    
+    fireEvent.click(screen.getByText('Test Video 1'));
+    expect(onSelect).toHaveBeenCalledWith(mockMedia[0]);
+  });
+});
 ```
 
-## Déploiement des applications
+## 🔧 Maintenance
 
-### Déploiement du backend
+### Tâches quotidiennes
 
-Le déploiement du backend est géré par le workflow GitHub Actions `2-java-app-deploy.yml` qui :
-1. Build l'application avec Maven
-2. Exécute les tests unitaires
-3. Crée l'image Docker
-4. Déploie sur l'instance EC2 Java/Tomcat
+- [ ] Vérification des logs
+- [ ] Monitoring des performances
+- [ ] Sauvegardes de la base de données
+- [ ] Nettoyage des fichiers temporaires
 
-### Déploiement du frontend
+### Tâches hebdomadaires
 
-Le déploiement du frontend est géré par le workflow GitHub Actions `3-docker-build-deploy.yml` qui :
-1. Build l'application React
-2. Crée l'image Docker
-3. Déploie sur l'instance EC2 Java/Tomcat
+- [ ] Analyse des métriques
+- [ ] Revue des erreurs
+- [ ] Mise à jour des dépendances
+- [ ] Tests de performance
 
-### Services Systemd
+### Tâches mensuelles
 
-Deux services systemd sont configurés pour la maintenance des applications :
+- [ ] Audit de sécurité
+- [ ] Optimisation des requêtes
+- [ ] Nettoyage du cache
+- [ ] Mise à jour de la documentation
 
-1. **docker-cleanup.service** :
-   - Nettoie les conteneurs Docker arrêtés
-   - Supprime les images non utilisées
-   - Nettoie les volumes orphelins
-   - S'exécute quotidiennement
+## ⚡ Performance
 
-2. **sync-tomcat-logs.service** :
-   - Synchronise les logs Tomcat
-   - Stocke les logs dans le volume Loki
-   - Maintient l'historique des logs
-   - S'exécute toutes les heures
+### Métriques clés
 
-Pour vérifier le statut des services :
-```bash
-sudo systemctl status docker-cleanup.service
-sudo systemctl status sync-tomcat-logs.service
-```
+| Métrique | Objectif | Monitoring |
+|----------|----------|------------|
+| Temps de réponse API | < 200ms | CloudWatch |
+| Taux d'erreur | < 0.1% | CloudWatch |
+| Utilisation CPU | < 70% | CloudWatch |
+| Utilisation mémoire | < 80% | CloudWatch |
+| Latence S3 | < 100ms | CloudWatch |
 
-Pour redémarrer les services si nécessaire :
-```bash
-sudo systemctl restart docker-cleanup.service
-sudo systemctl restart sync-tomcat-logs.service
-```
+### Optimisations
 
-## Corrections et améliorations
+1. **Backend**
+   - Mise en cache Redis
+   - Requêtes optimisées
+   - Compression GZIP
+   - Connection pooling
 
-### Corrections récentes
+2. **Frontend**
+   - Code splitting
+   - Lazy loading
+   - Image optimization
+   - Service workers
 
-#### Workflows GitHub Actions
+## 🔒 Sécurité
 
-1. **Correction de la numérotation des workflows** : Renommage des fichiers de workflow pour avoir une numérotation cohérente et logique.
-2. **Mise à jour des références aux workflows** : Mise à jour de toutes les références aux workflows dans la documentation.
-3. **Correction des paramètres d'entrée** : Simplification des paramètres d'entrée du workflow d'infrastructure.
-4. **Automatisation du stockage des outputs Terraform** : Stockage automatique des outputs Terraform dans les secrets GitHub.
-5. **Correction du problème de cache des dépendances** : Résolution du problème de cache des dépendances dans le workflow frontend.
+### Mesures
 
-#### Backend (Java)
+1. **Backend**
+   - Spring Security
+   - JWT Authentication
+   - Rate limiting
+   - Input validation
 
-1. **Vulnérabilité MySQL Connector/J** : Mise à jour de la version du connecteur MySQL pour corriger une vulnérabilité de sécurité.
-2. **Problème de déploiement du WAR** : Correction du chemin de déploiement du WAR sur l'instance EC2.
-3. **Problème de CORS** : Ajout de la configuration CORS pour permettre les requêtes depuis le frontend.
-4. **Problème d'authentification** : Correction du mécanisme d'authentification pour gérer correctement les tokens JWT.
-5. **Configuration de l'utilisateur SSH** : Utilisation de l'utilisateur `ec2-user` au lieu de `ubuntu` pour la connexion SSH.
+2. **Frontend**
+   - HTTPS
+   - CSP
+   - XSS protection
+   - CSRF protection
 
-#### Frontend (React Native Web)
+## 📚 Ressources
 
-1. **Migration d'Amplify vers Docker** : Remplacement d'AWS Amplify par des conteneurs Docker pour le déploiement du frontend.
-2. **Correction du problème de dépendances** : Génération du fichier package-lock.json et désactivation du cache dans le workflow GitHub Actions.
-3. **Ajout de la dépendance manquante** : Installation de la dépendance `@expo/metro-runtime` pour la compilation web de l'application Expo.
-
-#### Infrastructure
-
-1. **Correction des erreurs de déploiement Terraform** : Résolution des problèmes d'incompatibilité entre MySQL 8.0 et l'instance db.t2.micro.
-2. **Correction des erreurs de validation Terraform** : Correction des références de variables et de ressources dans les modules Terraform.
-3. **Correction du fichier main.tf du module RDS MySQL** : Résolution des problèmes d'encodage et utilisation du secret DB_NAME.
-4. **Configuration de Grafana/Prometheus dans des conteneurs Docker** : Déploiement de Grafana et Prometheus dans des conteneurs Docker sur une instance EC2 dédiée au monitoring.
-5. **Création d'un VPC et de sous-réseaux dédiés** : Mise en place d'un VPC dédié au projet avec des sous-réseaux dans une seule zone de disponibilité.
-
-### Améliorations planifiées
-
-1. **Tests automatisés** : Ajout de tests unitaires et d'intégration pour le backend et le frontend.
-2. **Documentation API** : Ajout de Swagger pour documenter l'API REST.
-3. **Monitoring** : Configuration de dashboards Grafana pour le monitoring des applications.
-4. **CI/CD** : Amélioration des workflows GitHub Actions pour automatiser davantage le déploiement.
-5. **Sécurité** : Mise en place de HTTPS pour sécuriser les communications.
-6. **Optimisation des coûts** : Réduction des coûts en optimisant l'utilisation des ressources AWS.
+- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+- [React Documentation](https://reactjs.org/docs)
+- [AWS SDK for Java](https://docs.aws.amazon.com/sdk-for-java)
+- [Redis Documentation](https://redis.io/documentation)
+- [Docker Documentation](https://docs.docker.com)

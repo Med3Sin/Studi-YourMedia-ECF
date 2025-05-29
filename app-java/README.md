@@ -1,10 +1,15 @@
 # YourMedia Backend
 
-Ce répertoire contient le code source de l'application backend pour le projet YourMedia.
+Application backend Java/Spring Boot pour la plateforme YourMedia.
+
+## Prérequis
+
+- Java 17
+- Maven 3.8+
+- Tomcat 9
+- MySQL 8.0
 
 ## Structure du projet
-
-L'application est une application Java Spring Boot qui expose des API REST pour être consommées par le frontend.
 
 ```
 app-java/
@@ -14,47 +19,118 @@ app-java/
 │   │   │   └── com/
 │   │   │       └── yourmedia/
 │   │   │           └── backend/
-│   │   │               ├── Application.java
-│   │   │               └── controller/
-│   │   │                   └── HealthController.java
+│   │   │               ├── controller/
+│   │   │               ├── service/
+│   │   │               ├── model/
+│   │   │               └── Application.java
 │   │   └── resources/
-│   │       └── application.properties
+│   │       └── application.yml
 │   └── test/
 └── pom.xml
 ```
 
-## Prérequis
+## Configuration
 
-- Java 17 ou supérieur
-- Maven 3.8 ou supérieur
-- MySQL 8.0 ou supérieur
+### application.yml
+```yaml
+server:
+  port: 8080
 
-## Compilation
+spring:
+  application:
+    name: yourmedia-backend
 
-Pour compiler l'application, exécutez la commande suivante :
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+```
 
+### Dépendances principales
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.micrometer</groupId>
+        <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+</dependencies>
+```
+
+## Développement
+
+1. Cloner le repository :
+```bash
+git clone https://github.com/Med3Sin/Studi-YourMedia-ECF.git
+cd Studi-YourMedia-ECF/app-java
+```
+
+2. Installer les dépendances :
+```bash
+mvn clean install
+```
+
+3. Lancer l'application :
+```bash
+mvn spring-boot:run
+```
+
+## Build et déploiement
+
+1. Générer le WAR :
 ```bash
 mvn clean package
 ```
 
-Cela générera un fichier WAR dans le répertoire `target/`.
+2. Déployer sur Tomcat :
+```bash
+./deploy-war.sh target/backend.war
+```
 
-## Déploiement
+## API Endpoints
 
-Le fichier WAR généré peut être déployé sur un serveur Tomcat 9 ou supérieur.
-
-## Configuration
-
-L'application peut être configurée via les variables d'environnement suivantes :
-
-- `SPRING_DATASOURCE_URL` : URL de connexion à la base de données MySQL
-- `SPRING_DATASOURCE_USERNAME` : Nom d'utilisateur pour la base de données
-- `SPRING_DATASOURCE_PASSWORD` : Mot de passe pour la base de données
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | /api/media | Liste des médias |
+| GET | /api/media/{id} | Détails média |
+| POST | /api/media | Création média |
+| PUT | /api/media/{id} | Mise à jour |
+| DELETE | /api/media/{id} | Suppression |
 
 ## Monitoring
 
-L'application expose des endpoints Actuator pour le monitoring :
+L'application expose les endpoints suivants pour le monitoring :
 
-- `/actuator/health` : État de santé de l'application
-- `/actuator/info` : Informations sur l'application
-- `/actuator/prometheus` : Métriques au format Prometheus
+- `/actuator/health` - État de l'application
+- `/actuator/info` - Informations générales
+- `/actuator/prometheus` - Métriques Prometheus
+
+## Tests
+
+```bash
+# Exécuter tous les tests
+mvn test
+
+# Exécuter un test spécifique
+mvn test -Dtest=MediaServiceTest
+```
+
+## Documentation
+
+Pour plus de détails, consultez :
+- [Documentation Spring Boot](https://spring.io/projects/spring-boot)
+- [Documentation Micrometer](https://micrometer.io/docs)
+- [Documentation Prometheus](https://prometheus.io/docs)

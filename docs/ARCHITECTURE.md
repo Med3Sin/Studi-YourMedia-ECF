@@ -1,247 +1,190 @@
-# Architecture
+# Architecture YourMedia
+
+## Table des matières
+- [Vue d'ensemble](#vue-densemble)
+- [Infrastructure AWS](#infrastructure-aws)
+- [Applications](#applications)
+- [Monitoring](#monitoring)
+- [Sécurité](#sécurité)
+- [Réseau](#réseau)
+- [Stockage](#stockage)
+- [Déploiement](#déploiement)
 
 ## Vue d'ensemble
 
-Ce document décrit l'architecture du projet YourMedia, détaillant les composants, leurs interactions et les choix techniques.
+YourMedia est une plateforme de streaming vidéo moderne construite avec une architecture microservices sur AWS. Le système est composé de deux applications principales et d'une infrastructure robuste pour le monitoring.
+
+```mermaid
+graph TB
+    subgraph "Frontend"
+        A[Application React Native/Expo]
+    end
+
+    subgraph "Backend"
+        B[Application Java/Spring Boot]
+        C[Tomcat 9]
+    end
+
+    subgraph "Infrastructure AWS"
+        D[EC2 Java/Tomcat]
+        E[EC2 Monitoring]
+        F[RDS MySQL]
+        G[S3]
+    end
+
+    subgraph "Monitoring"
+        H[Prometheus]
+        I[Grafana]
+        J[Loki]
+        K[Node Exporter]
+        L[Promtail]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    D --> F
+    D --> G
+    D --> K
+    D --> L
+    K --> H
+    L --> J
+    H --> I
+    J --> I
+```
 
 ## Infrastructure AWS
 
-### 1. Réseau
+### Composants principaux
 
-#### VPC
-- VPC principal: 10.0.0.0/16
-- Sous-réseaux publics: 10.0.1.0/24, 10.0.2.0/24
-- Sous-réseaux privés: 10.0.3.0/24, 10.0.4.0/24
-- NAT Gateway pour l'accès Internet
-- Internet Gateway pour les services publics
+| Composant | Type | Description |
+|-----------|------|-------------|
+| EC2 Java/Tomcat | Instance | t3.micro, Amazon Linux 2023 |
+| EC2 Monitoring | Instance | t3.micro, Amazon Linux 2023 |
+| RDS | Base de données | MySQL 8.0, db.t3.micro |
+| S3 | Stockage | Bucket pour les médias |
 
-#### Sécurité
-- Security Groups par service
-- NACLs par sous-réseau
-- WAF pour l'API Gateway
-- Shield pour la protection DDoS
+### Configuration des instances
 
-### 2. Compute
-
-#### EC2
-- Instance type: t3.micro (dev), t3.small (prod)
+#### Instance Java/Tomcat
 - AMI: Amazon Linux 2023
-- EBS: gp3, 20GB
-- User Data pour l'initialisation
+- Type: t3.micro
+- Stockage: 8GB gp3
+- Rôle IAM: Accès S3 en lecture seule
+- Services: Java 17, Tomcat 9, Node Exporter, Promtail
 
-#### Auto Scaling
-- Min: 1 instance
-- Max: 3 instances
-- Target: 70% CPU
-- Health checks: ELB
-
-### 3. Base de données
-
-#### RDS MySQL
-- Instance type: db.t3.micro
-- Storage: 20GB gp2
-- Multi-AZ: Non (dev), Oui (prod)
-- Backup: 7 jours
-
-#### Configuration
-- Charset: utf8mb4
-- Collation: utf8mb4_unicode_ci
-- Parameters group personnalisé
-- Option group: MySQL 8.0
+#### Instance Monitoring
+- AMI: Amazon Linux 2023
+- Type: t3.micro
+- Stockage: 8GB gp3
+- Services: Docker, Prometheus, Grafana, Loki
 
 ## Applications
 
-### 1. Backend (Java)
+### Backend (Java/Spring Boot)
+- Framework: Spring Boot 3.x
+- Serveur: Tomcat 9
+- Base de données: MySQL 8.0
+- Monitoring: Micrometer, Actuator
 
-#### Spring Boot
-- Version: 2.7.x
-- Java: 11
-- Maven pour le build
-- JPA/Hibernate
-
-#### Architecture
-- Controllers REST
-- Services métier
-- Repositories
-- DTOs
-
-#### Sécurité
-- Spring Security
-- JWT
-- CORS
-- Rate limiting
-
-### 2. Frontend (React)
-
-#### React
-- Version: 18.x
-- TypeScript
-- npm pour le build
-- Redux pour l'état
-
-#### Architecture
-- Components
-- Hooks
-- Context
-- Services
-
-#### UI/UX
-- Material-UI
-- Responsive design
-- PWA
-- i18n
+### Frontend (React Native/Expo)
+- Framework: React Native
+- Plateforme: Expo
+- API: REST
+- Stockage: AsyncStorage
 
 ## Monitoring
 
-### 1. Prometheus
+### Composants
+- Prometheus: Collecte des métriques
+- Grafana: Visualisation
+- Loki: Logs
+- Node Exporter: Métriques système
+- Promtail: Collecte des logs
 
-#### Configuration
-- Scrape interval: 15s
-- Retention: 15 jours
-- Alert rules
-- Recording rules
-
-#### Métriques
-- Node Exporter
-- cAdvisor
-- Spring Boot Actuator
-- Custom metrics
-
-### 2. Grafana
-
-#### Dashboards
-- System Overview
-- Java Application
-- React Application
-- Logs
-
-#### Alerting
-- Email notifications
-- Slack integration
-- PagerDuty
-- Escalation
-
-### 3. Loki
-
-#### Configuration
-- Retention: 30 jours
-- Chunks
-- Index
-- Storage
-
-#### Logs
-- Application logs
-- System logs
-- Access logs
-- Error logs
-
-## CI/CD
-
-### 1. GitHub Actions
-
-#### Workflows
-- Build & Test
-- Security Scan
-- Deploy Dev
-- Deploy Prod
-
-#### Environnements
-- Development
-- Staging
-- Production
-
-### 2. Docker
-
-#### Images
-- Java: openjdk:11-jre
-- React: node:18-alpine
-- Monitoring: prom/prometheus, grafana/grafana
-
-#### Compose
-- Services
-- Networks
-- Volumes
-- Environment
+### Métriques collectées
+- Métriques système (CPU, mémoire, disque)
+- Métriques Tomcat
+- Métriques Spring Boot
+- Logs d'application
 
 ## Sécurité
 
-### 1. IAM
+### Mesures en place
+- Groupes de sécurité AWS
+- IAM avec privilèges minimaux
+- HTTPS pour les API
+- Authentification JWT
+- Chiffrement des données sensibles
 
-#### Rôles
-- EC2: ssm, s3
-- RDS: rds
-- Lambda: cloudwatch
+### Accès
+- SSH pour les instances EC2
+- Ports ouverts minimaux
+- Authentification à deux facteurs pour Grafana
 
-#### Politiques
-- Least privilege
-- Resource-based
-- Tag-based
-- Time-based
+## Réseau
 
-### 2. Chiffrement
+### Architecture réseau
+- VPC dédié
+- Sous-réseaux publics et privés
+- NAT Gateway pour l'accès Internet
+- Internet Gateway pour les instances publiques
 
-#### Données
-- Au repos: KMS
-- En transit: TLS 1.2+
-- Backups: SSE
-- Keys: Rotation
+### Ports ouverts
+- 22: SSH
+- 80: HTTP
+- 443: HTTPS
+- 8080: Tomcat
+- 3000: Grafana
+- 9090: Prometheus
+- 3100: Loki
 
-## Maintenance
+## Stockage
 
-### 1. Backup
+### RDS MySQL
+- Instance: db.t3.micro
+- Stockage: 20GB gp2
+- Sauvegardes automatiques
+- Multi-AZ (optionnel)
 
-#### RDS
-- Daily snapshots
-- Point-in-time recovery
-- Cross-region
-- Retention
+### S3
+- Bucket pour les médias
+- Versioning activé
+- Lifecycle policies
+- Chiffrement SSE-S3
 
-#### EBS
-- Daily snapshots
-- Lifecycle policy
-- Cross-region
-- Retention
+## Déploiement
 
-### 2. Mises à jour
+### CI/CD
+- GitHub Actions
+- Déploiement automatique
+- Tests automatisés
+- Validation des pull requests
 
-#### Système
-- Security patches
-- Minor updates
-- Major updates
-- Testing
+### Scripts d'automatisation
+- Installation des dépendances
+- Configuration des services
+- Déploiement des applications
+- Monitoring et maintenance
 
-#### Applications
-- Dependencies
-- Frameworks
-- Libraries
-- Testing
+## Améliorations futures
 
-## Documentation
+1. **Haute disponibilité**
+   - Multi-AZ pour RDS
+   - Load balancing
+   - Auto-scaling
 
-### 1. Technique
+2. **Monitoring**
+   - Alerting avancé
+   - Dashboards personnalisés
+   - Métriques business
 
-#### Architecture
-- Diagrams
-- Components
-- Interactions
-- Decisions
+3. **Sécurité**
+   - WAF
+   - DDoS protection
+   - Audit logging
 
-#### API
-- Endpoints
-- Models
-- Authentication
-- Examples
-
-### 2. Opérationnelle
-
-#### Procédures
-- Deployment
-- Monitoring
-- Maintenance
-- Troubleshooting
-
-#### Runbooks
-- Incidents
-- Recovery
-- Scaling
-- Security
+4. **Performance**
+   - CDN
+   - Caching
+   - Optimisation des requêtes
