@@ -4,13 +4,13 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Environnement de déploiement (dev, pre-prod, prod)."
+  description = "Environment name (e.g., dev, prod)"
   type        = string
   default     = "dev"
 }
 
 variable "vpc_id" {
-  description = "ID du VPC où créer les groupes de sécurité."
+  description = "ID of the VPC where security groups will be created"
   type        = string
 }
 
@@ -25,8 +25,8 @@ variable "operator_ip" {
   }
 }
 
-variable "common_tags" {
-  description = "Tags communs à appliquer à toutes les ressources."
+variable "tags" {
+  description = "Tags to apply to all resources"
   type        = map(string)
   default     = {}
 }

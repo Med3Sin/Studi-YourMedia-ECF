@@ -1,14 +1,14 @@
-output "ec2_security_group_id" {
-  description = "ID du groupe de sécurité pour l'instance EC2 Java/Tomcat."
-  value       = aws_security_group.ec2_sg.id
+output "ec2_java_tomcat_sg_id" {
+  description = "ID of the security group for Java Tomcat EC2 instance"
+  value       = aws_security_group.ec2_java_tomcat.id
 }
 
-output "rds_security_group_id" {
-  description = "ID du groupe de sécurité pour l'instance RDS MySQL."
-  value       = aws_security_group.rds_sg.id
+output "ec2_monitoring_sg_id" {
+  description = "ID of the security group for Monitoring EC2 instance"
+  value       = aws_security_group.ec2_monitoring.id
 }
 
-output "monitoring_security_group_id" {
-  description = "ID du groupe de sécurité pour l'instance EC2 de monitoring."
-  value       = aws_security_group.monitoring_sg.id
+output "rds_mysql_sg_id" {
+  description = "ID of the security group for RDS MySQL instance"
+  value       = aws_security_group.rds_mysql.id
 }
