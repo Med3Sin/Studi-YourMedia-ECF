@@ -113,11 +113,17 @@ sudo wget -q -O /tmp/install-all.sh "https://raw.githubusercontent.com/Med3Sin/S
 sudo chmod +x /tmp/install-all.sh
 sudo /tmp/install-all.sh
 
-# Télécharger et exécuter le script d'installation des agents de monitoring
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement et exécution du script d'installation des agents de monitoring"
-sudo wget -q -O /tmp/setup-monitoring-agents.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/setup-monitoring-agents.sh"
-sudo chmod +x /tmp/setup-monitoring-agents.sh
-sudo /tmp/setup-monitoring-agents.sh
+# Télécharger le script de déploiement WAR
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Téléchargement du script de déploiement WAR"
+sudo wget -q -O /opt/yourmedia/deploy-war.sh "https://raw.githubusercontent.com/Med3Sin/Studi-YourMedia-ECF/main/scripts/ec2-java-tomcat/deploy-war.sh"
+sudo chmod +x /opt/yourmedia/deploy-war.sh
+sudo ln -sf /opt/yourmedia/deploy-war.sh /usr/local/bin/deploy-war.sh
+
+# Configurer sudoers pour permettre à ec2-user d'exécuter le script sans mot de passe
+sudo bash -c 'echo "ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-war.sh" > /etc/sudoers.d/deploy-war'
+sudo chmod 440 /etc/sudoers.d/deploy-war
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Script d'initialisation terminé"
 EOF
 }
 
