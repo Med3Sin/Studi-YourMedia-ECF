@@ -5,9 +5,8 @@
 #                 Ce script exécute le script SQL secure-database.sql pour révoquer
 #                 les privilèges de l'utilisateur root et créer un utilisateur dédié
 #                 pour l'application.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.1
-# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./secure-database.sh [options]
 #
