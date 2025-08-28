@@ -4,9 +4,8 @@
 # Description   : Script unifié d'installation et de configuration pour l'instance EC2 Monitoring.
 #                 Ce script combine les fonctionnalités d'installation, configuration,
 #                 vérification et correction des problèmes pour les services de monitoring.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 2.2
-# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./setup-monitoring.sh [options]
 #
