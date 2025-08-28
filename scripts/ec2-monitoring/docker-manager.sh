@@ -4,7 +4,6 @@
 # Description   : Script unifié pour la gestion des conteneurs Docker de monitoring
 # Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2024-01-15
 #==============================================================================
 
 # Couleurs pour les messages
