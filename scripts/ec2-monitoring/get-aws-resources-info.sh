@@ -4,9 +4,8 @@
 # Description   : Script pour récupérer automatiquement les informations de la base RDS et du bucket S3.
 #                 Ce script récupère les informations des ressources AWS (RDS, S3) et les stocke
 #                 dans des fichiers de configuration pour les services de monitoring.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2025-04-27
 #==============================================================================
 # Utilisation   : sudo ./get-aws-resources-info.sh
 #
