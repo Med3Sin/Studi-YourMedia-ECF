@@ -8,9 +8,8 @@
 #                 - Promtail pour la collecte des logs
 #                 - Configuration des services systemd
 #                 - Vérification de l'installation
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2025-05-30
 #==============================================================================
 # Utilisation   : sudo ./install-all.sh
 #
