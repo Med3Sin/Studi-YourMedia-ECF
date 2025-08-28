@@ -4,9 +4,8 @@
 # Description   : Script pour copier les tableaux de bord Grafana dans le répertoire de configuration.
 #                 Ce script copie les tableaux de bord depuis le répertoire de configuration
 #                 vers le répertoire des tableaux de bord de Grafana.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2025-05-15
 #==============================================================================
 # Utilisation   : sudo ./copy-dashboards.sh
 #==============================================================================
