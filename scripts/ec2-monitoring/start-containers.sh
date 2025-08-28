@@ -2,7 +2,7 @@
 #==============================================================================
 # Nom du script : start-containers.sh
 # Description   : Script pour démarrer les conteneurs Docker
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
 #==============================================================================
 # Utilisation   : sudo ./start-containers.sh
