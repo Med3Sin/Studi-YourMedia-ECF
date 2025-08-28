@@ -2,9 +2,8 @@
 #==============================================================================
 # Nom du script : setup-monitoring-complete.sh
 # Description   : Script complet pour installer et configurer Prometheus et Grafana
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2025-05-20
 #==============================================================================
 # Utilisation   : sudo ./setup-monitoring-complete.sh
 #==============================================================================
