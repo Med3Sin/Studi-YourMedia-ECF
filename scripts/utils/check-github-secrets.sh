@@ -2,9 +2,8 @@
 #==============================================================================
 # Nom du script : check-github-secrets.sh
 # Description   : Vérifie que les secrets GitHub nécessaires sont configurés
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.1
-# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : ./check-github-secrets.sh
 #
