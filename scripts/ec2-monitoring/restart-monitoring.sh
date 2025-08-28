@@ -2,9 +2,8 @@
 #==============================================================================
 # Nom du script : restart-monitoring.sh
 # Description   : Script pour redémarrer les services de monitoring après des modifications
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2025-05-17
 #==============================================================================
 # Utilisation   : sudo ./restart-monitoring.sh
 #==============================================================================
