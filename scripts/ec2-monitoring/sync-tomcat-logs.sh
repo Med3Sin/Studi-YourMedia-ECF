@@ -3,9 +3,8 @@
 # Nom du script : sync-tomcat-logs.sh
 # Description   : Script pour synchroniser les logs de l'instance EC2 Java Tomcat
 #                 vers l'instance EC2 Monitoring.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2023-07-10
 #==============================================================================
 # Utilisation   : sudo ./sync-tomcat-logs.sh
 #==============================================================================
