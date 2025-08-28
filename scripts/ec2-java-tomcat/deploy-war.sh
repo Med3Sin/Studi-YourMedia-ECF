@@ -5,9 +5,8 @@
 #                 Ce script copie le fichier WAR spécifié dans le répertoire webapps de Tomcat,
 #                 change le propriétaire, crée un fichier index.html si nécessaire,
 #                 et redémarre Tomcat.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.2
-# Date          : 2023-05-04
 #==============================================================================
 # Utilisation   : sudo ./deploy-war.sh <chemin_vers_war>
 #
