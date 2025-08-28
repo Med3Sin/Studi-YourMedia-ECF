@@ -2,9 +2,8 @@
 #==============================================================================
 # Nom du script : docker-cleanup.sh
 # Description   : Script pour nettoyer les ressources Docker non utilisées
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2023-11-15
 #==============================================================================
 
 # Fonction pour afficher les messages d'information
