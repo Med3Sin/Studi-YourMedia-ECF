@@ -5,9 +5,8 @@
 #                 Ce script configure l'environnement de l'instance, télécharge les scripts
 #                 nécessaires depuis S3, récupère les variables d'environnement et initialise
 #                 les conteneurs Docker.
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 2.1
-# Date          : 2023-11-15
 #==============================================================================
 # Utilisation   : sudo ./init-monitoring.sh
 #==============================================================================
