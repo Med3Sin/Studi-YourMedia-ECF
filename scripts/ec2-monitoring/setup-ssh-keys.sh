@@ -4,7 +4,6 @@
 # Description   : Script pour configurer les clés SSH entre les instances
 # Auteur        : Med3Sin
 # Version       : 1.0
-# Date          : 2024-01-15
 #==============================================================================
 
 # Fonction de logging
