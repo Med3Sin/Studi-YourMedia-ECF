@@ -2,9 +2,8 @@
 #==============================================================================
 # Nom du script : sync-github-secrets-to-terraform.sh
 # Description   : Synchronise les secrets GitHub vers Terraform Cloud
-# Auteur        : Med3Sin <0medsin0@gmail.com>
+# Auteur        : Med3Sin
 # Version       : 1.2
-# Date          : 2024-05-03
 #==============================================================================
 # Utilisation   : ./sync-github-secrets-to-terraform.sh
 #
