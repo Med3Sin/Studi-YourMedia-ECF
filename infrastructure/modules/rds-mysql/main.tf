@@ -30,7 +30,7 @@ resource "aws_db_instance" "mysql" {
   parameter_group_name   = "default.mysql8.0"
   db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   vpc_security_group_ids = [var.rds_security_group_id]
-  publicly_accessible    = true
+  publicly_accessible    = false
   skip_final_snapshot    = true
   # Spécifier explicitement la zone de disponibilité eu-west-3a pour placer RDS dans la même zone que les EC2
   availability_zone = "${var.aws_region}a"
