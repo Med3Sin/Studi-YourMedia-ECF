@@ -49,7 +49,6 @@ variable "rds_security_group_id" {
 variable "db_name" {
   description = "Nom de la base de données MySQL."
   type        = string
-  default     = "yourmedia"
 }
 
 variable "aws_region" {
