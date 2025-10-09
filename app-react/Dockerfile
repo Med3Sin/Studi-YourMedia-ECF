@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:20-alpine3.20
 
 # Installer les dépendances nécessaires
 RUN apk add --no-cache bash curl
