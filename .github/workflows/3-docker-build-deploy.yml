@@ -129,15 +129,15 @@ jobs:
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "mobile" ]]; then
             echo "Scanning mobile app image..."
-            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }} > mobile-scan.txt
+            trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:mobile-${{ env.VERSION }} > mobile-scan.txt
           fi
 
           if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "monitoring" ]]; then
             echo "Scanning Grafana image..."
-            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }} > grafana-scan.txt
+            trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:grafana-${{ env.VERSION }} > grafana-scan.txt
 
             echo "Scanning Prometheus image..."
-            trivy image --exit-code 0 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }} > prometheus-scan.txt
+            trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO || 'yourmedia-ecf' }}:prometheus-${{ env.VERSION }} > prometheus-scan.txt
 
 
           fi
